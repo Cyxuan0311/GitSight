@@ -1,0 +1,412 @@
+#include "gitsight/platform/http.h"
+#include <curl/curl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#define HTTP_MAX_RETRIES 3
+#define GS_CACHE_TTL_DEFAULT 300
+
+static int gs_cache_enabled = 1;
+
+void http_set_cache_enabled(int enabled) {
+    gs_cache_enabled = enabled;
+}
+
+static void http_default_cache_dir(char *out, size_t len) {
+    const char *base = getenv("XDG_CACHE_HOME");
+    if (base && base[0]) {
+        snprintf(out, len, "%s/gitsight", base);
+        return;
+    }
+    base = getenv("HOME");
+    if (base && base[0]) {
+        snprintf(out, len, "%s/.cache/gitsight", base);
+        return;
+    }
+    snprintf(out, len, "/tmp/gitsight-cache");
+}
+
+static unsigned long long fnv1a64(const char *s) {
+    unsigned long long h = 1469598103934665603ULL;
+    while (*s) {
+        h ^= (unsigned char)*s++;
+        h *= 1099511628211ULL;
+    }
+    return h;
+}
+
+static void cache_path_for(const HttpClient *hc, const char *url, char *out, size_t len) {
+    snprintf(out, len, "%s/%016llx.json", hc->cache_dir,
+             (unsigned long long)fnv1a64(url));
+}
+
+static void mkdir_p(const char *path) {
+    char tmp[512];
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    size_t n = strlen(tmp);
+    for (size_t i = 1; i < n; i++) {
+        if (tmp[i] == '/') {
+            tmp[i] = '\0';
+            mkdir(tmp, 0700);
+            tmp[i] = '/';
+        }
+    }
+    mkdir(tmp, 0700);
+}
+
+/* Returns 1 on cache hit (fills result + sets http_code=200). */
+static int cache_read(const HttpClient *hc, const char *url, HttpBuffer *result) {
+    if (!gs_cache_enabled || !hc->use_cache) return 0;
+
+    char path[768];
+    cache_path_for(hc, url, path, sizeof(path));
+
+    struct stat st;
+    if (stat(path, &st) != 0) return 0;
+    if (hc->cache_ttl > 0 && (time(NULL) - st.st_mtime) > hc->cache_ttl) return 0;
+
+    FILE *fp = fopen(path, "rb");
+    if (!fp) return 0;
+
+    char *data = malloc((size_t)st.st_size + 1);
+    if (!data) { fclose(fp); return 0; }
+    size_t rd = fread(data, 1, (size_t)st.st_size, fp);
+    fclose(fp);
+    if (rd != (size_t)st.st_size) { free(data); return 0; }
+
+    data[rd] = '\0';
+    result->data = data;
+    result->size = rd;
+    return 1;
+}
+
+static void cache_write(const HttpClient *hc, const char *url, const HttpBuffer *buf) {
+    if (!gs_cache_enabled || !hc->use_cache) return;
+
+    char path[768];
+    cache_path_for(hc, url, path, sizeof(path));
+    mkdir_p(hc->cache_dir);
+
+    char tmp[832];
+    snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+    FILE *fp = fopen(tmp, "wb");
+    if (!fp) return;
+    fwrite(buf->data, 1, buf->size, fp);
+    fclose(fp);
+    rename(tmp, path);
+}
+
+/* ---- Offline fixture mode (GS_FIXTURE_DIR) ----
+   When the GS_FIXTURE_DIR environment variable is set, http_get serves
+   canned responses from that directory instead of the network. This lets
+   tests exercise the full parsing/analysis/export pipeline offline.
+   Fixture files: prs.json, commits.json, issues.json, releases.json,
+   contributors.json (arrays) and meta.json (object). */
+static const char *fixture_name_for_url(const char *url) {
+    if (strstr(url, "/pulls") || strstr(url, "/merge_requests"))
+        return "prs.json";
+    if (strstr(url, "/commits"))       return "commits.json";
+    if (strstr(url, "/issues"))        return "issues.json";
+    if (strstr(url, "/releases"))      return "releases.json";
+    if (strstr(url, "/contributors"))  return "contributors.json";
+    return "meta.json";
+}
+
+/* Returns 1 if a fixture was served (result + out filled). */
+static int http_get_fixture(const char *url, HttpBuffer *result, HttpResult *out) {
+    const char *dir = getenv("GS_FIXTURE_DIR");
+    if (!dir || dir[0] == '\0') return 0;
+
+    const char *page = strstr(url, "?page=");
+    if (!page) page = strstr(url, "&page=");
+    int pagenum = page ? atoi(page + 6) : 1;
+    out->http_code = 200;
+
+    char path[1024];
+    if (pagenum > 1) {
+        /* Later pages: serve an empty array so pagination stops. */
+        result->data = malloc(3);
+        if (!result->data) return 1;
+        memcpy(result->data, "[]", 3);
+        result->size = 2;
+        return 1;
+    }
+    snprintf(path, sizeof(path), "%s/%s", dir, fixture_name_for_url(url));
+
+    FILE *fp = fopen(path, "rb");
+    if (!fp) {
+        result->data = malloc(3);
+        if (!result->data) return 1;
+        memcpy(result->data, "[]", 3);
+        result->size = 2;
+        return 1;
+    }
+    fseek(fp, 0, SEEK_END);
+    long len = ftell(fp);
+    rewind(fp);
+    if (len < 0) len = 0;
+
+    char *data = malloc((size_t)len + 1);
+    if (!data) { fclose(fp); return 1; }
+    size_t rd = fread(data, 1, (size_t)len, fp);
+    fclose(fp);
+    data[rd] = '\0';
+    result->data = data;
+    result->size = rd;
+    return 1;
+}
+
+void http_buffer_init(HttpBuffer *b) {
+    b->data = NULL;
+    b->size = 0;
+}
+
+void http_buffer_free(HttpBuffer *b) {
+    free(b->data);
+    b->data = NULL;
+    b->size = 0;
+}
+
+void http_client_init(HttpClient *hc, const char *auth_header, const char *proxy,
+                      const char *accept, long timeout_secs, int max_pages)
+{
+    memset(hc, 0, sizeof(*hc));
+    if (auth_header && auth_header[0]) snprintf(hc->auth_header, sizeof(hc->auth_header), "%s", auth_header);
+    if (proxy && proxy[0]) snprintf(hc->proxy, sizeof(hc->proxy), "%s", proxy);
+    snprintf(hc->accept, sizeof(hc->accept), "%s",
+             (accept && accept[0]) ? accept : "application/json");
+    hc->timeout_secs = timeout_secs > 0 ? timeout_secs : 30;
+    hc->max_pages = max_pages > 0 ? max_pages : 20;
+    hc->use_cache = 1;
+    hc->cache_ttl = GS_CACHE_TTL_DEFAULT;
+    http_default_cache_dir(hc->cache_dir, sizeof(hc->cache_dir));
+}
+
+static void sleep_secs(long secs) {
+    if (secs <= 0) return;
+    struct timespec ts;
+    ts.tv_sec = secs;
+    ts.tv_nsec = 0;
+    while (nanosleep(&ts, &ts) == -1) { /* retry on EINTR */ }
+}
+
+static size_t write_cb(void *ptr, size_t size, size_t nmemb, void *userdata) {
+    HttpBuffer *b = (HttpBuffer *)userdata;
+    size_t total = size * nmemb;
+    char *new_data = realloc(b->data, b->size + total + 1);
+    if (!new_data) return 0;
+    b->data = new_data;
+    memcpy(b->data + b->size, ptr, total);
+    b->size += total;
+    b->data[b->size] = '\0';
+    return total;
+}
+
+static size_t header_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
+    HttpResult *r = (HttpResult *)userdata;
+    size_t len = size * nmemb;
+    if (len == 0) return 0;
+
+    if (len >= 16 && strncasecmp(ptr, "Link:", 5) == 0) {
+        char *lt = strchr(ptr, '<');
+        char *gt = lt ? strchr(lt, ')') : NULL;
+        if (lt && strstr(ptr, "rel=\"next\"")) {
+            char *end = strstr(lt, ">");
+            if (end) {
+                size_t n = (size_t)(end - lt - 1);
+                if (n < sizeof(r->next_page)) {
+                    memcpy(r->next_page, lt + 1, n);
+                    r->next_page[n] = '\0';
+                }
+            }
+        }
+        (void)gt;
+    } else if (len >= 24 && strncasecmp(ptr, "X-RateLimit-Remaining:", 22) == 0) {
+        r->rate_limit_remaining = atol(ptr + 22);
+        r->has_rate_limit = 1;
+    } else if (len >= 20 && strncasecmp(ptr, "X-RateLimit-Reset:", 18) == 0) {
+        r->rate_limit_reset = atol(ptr + 18);
+    } else if (len >= 14 && strncasecmp(ptr, "Retry-After:", 12) == 0) {
+        r->retry_after = atol(ptr + 12);
+        r->has_retry_after = 1;
+    }
+    return len;
+}
+
+static void reset_result(HttpResult *r) {
+    r->http_code = 0;
+    r->next_page[0] = '\0';
+    r->rate_limit_remaining = -1;
+    r->rate_limit_reset = 0;
+    r->retry_after = 0;
+    r->has_rate_limit = 0;
+    r->has_retry_after = 0;
+}
+
+static CURL *setup_curl(const HttpClient *hc, const char *url,
+                        HttpBuffer *buf, HttpResult *res,
+                        struct curl_slist **headers)
+{
+    CURL *curl = curl_easy_init();
+    if (!curl) return NULL;
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, buf);
+    curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_cb);
+    curl_easy_setopt(curl, CURLOPT_HEADERDATA, res);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, hc->timeout_secs);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, (long)(hc->timeout_secs / 2 + 1));
+
+    if (hc->proxy[0]) {
+        if (strncmp(hc->proxy, "socks5", 6) == 0)
+            curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);
+        curl_easy_setopt(curl, CURLOPT_PROXY, hc->proxy);
+    }
+
+    *headers = NULL;
+    *headers = curl_slist_append(*headers, hc->accept);
+    *headers = curl_slist_append(*headers, "User-Agent: GitSight/1.0");
+    if (hc->auth_header[0])
+        *headers = curl_slist_append(*headers, hc->auth_header);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, *headers);
+    return curl;
+}
+
+static int is_transient_curl(CURLcode code) {
+    switch (code) {
+    case CURLE_COULDNT_RESOLVE_HOST:
+    case CURLE_COULDNT_CONNECT:
+    case CURLE_OPERATION_TIMEDOUT:
+    case CURLE_SEND_ERROR:
+    case CURLE_RECV_ERROR:
+    case CURLE_PARTIAL_FILE:
+    case CURLE_GOT_NOTHING:
+    case CURLE_HTTP2:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
+static int is_transient_http(long code) {
+    return code == 500 || code == 502 || code == 503 || code == 504;
+}
+
+ErrorCode http_get(const HttpClient *hc, const char *url,
+                   HttpBuffer *result, HttpResult *out)
+{
+    HttpBuffer buf;
+    http_buffer_init(&buf);
+    reset_result(out);
+
+    if (http_get_fixture(url, &buf, out)) {
+        *result = buf;
+        return GS_OK;
+    }
+
+    if (cache_read(hc, url, &buf)) {
+        out->http_code = 200;
+        *result = buf;
+        return GS_OK;
+    }
+
+    int attempt = 0;
+    for (;;) {
+        buf.size = 0;
+        if (buf.data) buf.data[0] = '\0';
+
+        struct curl_slist *headers = NULL;
+        CURL *curl = setup_curl(hc, url, &buf, out, &headers);
+        if (!curl) {
+            http_buffer_free(&buf);
+            return ERR_CURL_INIT;
+        }
+
+        CURLcode res = curl_easy_perform(curl);
+        long http_code = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        curl_easy_cleanup(curl);
+        curl_slist_free_all(headers);
+
+        if (res != CURLE_OK) {
+            if (is_transient_curl(res) && attempt < HTTP_MAX_RETRIES) {
+                attempt++;
+                sleep_secs(1L << (attempt - 1));
+                continue;
+            }
+            http_buffer_free(&buf);
+            return ERR_NETWORK;
+        }
+
+        out->http_code = http_code;
+
+        if (http_code == 200) {
+            *result = buf;
+            cache_write(hc, url, &buf);
+            return GS_OK;
+        }
+
+        /* Rate limit handling: 403/429 when quota exhausted */
+        if ((http_code == 403 || http_code == 429) &&
+            out->has_rate_limit && out->rate_limit_remaining == 0 &&
+            attempt < HTTP_MAX_RETRIES)
+        {
+            long wait = out->rate_limit_reset - (long)time(NULL) + 1;
+            if (out->has_retry_after && out->retry_after > 0)
+                wait = out->retry_after;
+            if (wait > 60) wait = 60;
+            if (wait > 0) {
+                fprintf(stderr, "  -> GitHub API rate limit reached, waiting %lds...\n", wait);
+                sleep_secs(wait);
+            }
+            attempt++;
+            continue;
+        }
+        if (http_code == 429 && out->has_retry_after &&
+            out->retry_after > 0 && attempt < HTTP_MAX_RETRIES)
+        {
+            sleep_secs(out->retry_after);
+            attempt++;
+            continue;
+        }
+
+        /* Transient 5xx: exponential backoff */
+        if (is_transient_http(http_code) && attempt < HTTP_MAX_RETRIES) {
+            attempt++;
+            sleep_secs(1L << (attempt - 1));
+            continue;
+        }
+
+        http_buffer_free(&buf);
+        return ERR_HTTP_STATUS;
+    }
+}
+
+ErrorCode http_get_paginated(const HttpClient *hc, const char *url,
+                             HttpPageFn cb, void *userdata, long *last_http)
+{
+    char current[2048];
+    snprintf(current, sizeof(current), "%s", url);
+    if (last_http) *last_http = 0;
+
+    for (int page = 0; page < hc->max_pages; page++) {
+        HttpBuffer buf;
+        HttpResult res;
+        ErrorCode err = http_get(hc, current, &buf, &res);
+        if (last_http) *last_http = res.http_code;
+        if (err != GS_OK) return err;
+
+        int stop = cb(userdata, buf.data, &res);
+        http_buffer_free(&buf);
+
+        if (stop || res.next_page[0] == '\0') return GS_OK;
+        snprintf(current, sizeof(current), "%s", res.next_page);
+    }
+    return GS_OK;
+}

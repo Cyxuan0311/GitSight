@@ -5,7 +5,7 @@
 #include "error.h"
 
 typedef struct {
-    int    command;          // 0=analyze, 1=config, 2=version, 3=watch, 4=completion
+    int    command;          // 0=analyze, 1=config, 2=version, 3=watch, 4=completion, 5=usage
     char   repos[16][256];
     int    repo_count;
     char   owner_repo[256];
@@ -49,6 +49,12 @@ typedef struct {
 
     /* completion */
     char   completion_shell[16];
+
+    /* usage */
+    int    usage_days;
+    int    usage_by_llm;
+    int    usage_json;
+    int    usage_clear;
 } Options;
 
 ErrorCode cli_parse(int argc, char **argv, Options *opts);

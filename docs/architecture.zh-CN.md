@@ -14,6 +14,10 @@ gs
  +-- anim (pthread)                 -- 解耦的加载动画模块：
  |                                   line、盲文点/填充、bounce、
  |                                   unicode、三角、象限、进度条
+ +-- chart                          -- 解耦的 unicode 柱状图渲染器
+ |                                   （横向条形 + 纵向柱状）
+ +-- usage                          -- 本地 LLM 用量日志：记录/加载、
+ |                                   按提供商或按天聚合
  +-- platform/                      -- 平台抽象层
  |    +-- client                    -- 抽象接口（函数指针表）
  |    +-- github                    -- GitHub REST API (libcurl + cJSON)

@@ -31,6 +31,8 @@ set(SOURCES
     src/error.c
     src/color.c
     src/anim.c
+    src/chart.c
+    src/usage.c
     src/tui.c
     src/models.c
     src/container.c

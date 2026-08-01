@@ -1,4 +1,5 @@
 #include "gitsight/llm/client.h"
+#include "gitsight/usage.h"
 #include <cJSON.h>
 #include <curl/curl.h>
 #include <string.h>
@@ -162,6 +163,27 @@ ErrorCode llm_generate(const LLMConfig *cfg, const char *prompt,
 
         if (content && cJSON_IsString(content)) {
             snprintf(output, output_len, "%s", content->valuestring);
+        }
+
+        /* Persist usage (tokens per call) to the local usage log. */
+        cJSON *usage_obj = cJSON_GetObjectItem(json, "usage");
+        if (usage_obj && cJSON_IsObject(usage_obj)) {
+            UsageRecord rec;
+            memset(&rec, 0, sizeof(rec));
+            rec.timestamp = (long long)time(NULL);
+            snprintf(rec.llm, sizeof(rec.llm), "%s", cfg->name);
+            snprintf(rec.model, sizeof(rec.model), "%.127s",
+                     cfg->model[0] ? cfg->model : "gpt-4o-mini");
+            cJSON *v;
+            if ((v = cJSON_GetObjectItem(usage_obj, "prompt_tokens")) && cJSON_IsNumber(v))
+                rec.prompt_tokens = (long long)v->valuedouble;
+            if ((v = cJSON_GetObjectItem(usage_obj, "completion_tokens")) && cJSON_IsNumber(v))
+                rec.completion_tokens = (long long)v->valuedouble;
+            if ((v = cJSON_GetObjectItem(usage_obj, "total_tokens")) && cJSON_IsNumber(v))
+                rec.total_tokens = (long long)v->valuedouble;
+            const char *no_usage = getenv("GS_NO_USAGE");
+            if (!(no_usage && no_usage[0]))
+                usage_record(NULL, &rec);
         }
 
         cJSON_Delete(json);

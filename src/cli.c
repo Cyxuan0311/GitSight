@@ -11,8 +11,9 @@ void cli_print_usage(void) {
     printf("  analyze <owner/repo>    Analyze a repository (multiple repos allowed)\n");
     printf("  watch                   Subscribe to repositories and view them\n");
     printf("                          (bare 'gs watch' analyzes all subscriptions)\n");
-    printf("  config                  Show/edit configuration\n");
-    printf("  version                 Show version\n");
+    printf("  config                   Show/edit configuration\n");
+    printf("  usage                    Show LLM usage as a unicode bar chart\n");
+    printf("  version                  Show version\n");
     printf("  completion <shell>      Print a shell completion script (bash, zsh, fish)\n\n");
     printf("Analyze options:\n");
     printf("  -d, --since <days>      Analysis period in days (default: 7)\n");
@@ -41,6 +42,12 @@ void cli_print_usage(void) {
     printf("  --edit                  Open the config file in $EDITOR\n");
     printf("  --set <key=value>       Set a config value (e.g. --set default_days=30\n");
     printf("                          --set export.item_limit=5 --set llms.local.model=qwen)\n\n");
+    printf("Usage options:\n");
+    printf("  --days <n>              Show the last n days (default: 14)\n");
+    printf("  --by-llm                Group usage by LLM provider instead of by day\n");
+    printf("  --json                  Print aggregated usage as JSON\n");
+    printf("  --clear                 Clear the usage log\n");
+    printf("  --color <mode>          Color mode: auto, always, never\n\n");
     printf("Examples:\n");
     printf("  gs analyze rust-lang/rust\n");
     printf("  gs analyze rust-lang/rust -d 30 -f json -o report.json --token ghp_xxx\n");
@@ -55,6 +62,9 @@ void cli_print_usage(void) {
     printf("  gs watch list\n");
     printf("  gs watch\n");
     printf("  gs completion bash > ~/.local/share/bash-completion/completions/gs\n");
+    printf("  gs usage\n");
+    printf("  gs usage --by-llm\n");
+    printf("  gs usage --days 30\n");
 }
 
 static void cli_print_watch_usage(void) {
@@ -201,6 +211,33 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
             } else if (strcmp(argv[i], "--config") == 0 || strcmp(argv[i], "-c") == 0) {
                 if (i + 1 < argc)
                     snprintf(opts->config_path, sizeof(opts->config_path), "%s", argv[++i]);
+            }
+        }
+        return GS_OK;
+    }
+
+    if (strcmp(argv[1], "usage") == 0 || strcmp(argv[1], "llm-usage") == 0) {
+        opts->command = 5;
+        for (int i = 2; i < argc; i++) {
+            if (strcmp(argv[i], "--days") == 0 && i + 1 < argc) {
+                opts->usage_days = atoi(argv[++i]);
+            } else if (strcmp(argv[i], "--by-llm") == 0) {
+                opts->usage_by_llm = 1;
+            } else if (strcmp(argv[i], "--json") == 0) {
+                opts->usage_json = 1;
+            } else if (strcmp(argv[i], "--clear") == 0) {
+                opts->usage_clear = 1;
+            } else if (strcmp(argv[i], "--config") == 0 || strcmp(argv[i], "-c") == 0) {
+                if (i + 1 < argc)
+                    snprintf(opts->config_path, sizeof(opts->config_path), "%s", argv[++i]);
+            } else if (strcmp(argv[i], "--color") == 0 && i + 1 < argc) {
+                opts->color_mode = parse_color(argv[++i]);
+            } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+                cli_print_usage();
+                return 1;
+            } else {
+                fprintf(stderr, "Usage: gs usage [--days <n>] [--by-llm] [--json] [--clear] [--config <path>] [--color <mode>]\n");
+                return ERR_INVALID_ARGS;
             }
         }
         return GS_OK;

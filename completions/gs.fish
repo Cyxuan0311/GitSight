@@ -73,10 +73,19 @@ complete -c gs -f -n '__fish_use_subcommand' -a watch -d 'Subscribe to repositor
 complete -c gs -f -n '__fish_use_subcommand' -a sub -d 'Alias of watch'
 complete -c gs -f -n '__fish_use_subcommand' -a subscribe -d 'Alias of watch'
 complete -c gs -f -n '__fish_use_subcommand' -a config -d 'Show/edit configuration'
+complete -c gs -f -n '__fish_use_subcommand' -a usage -d 'Show LLM usage as a chart'
 complete -c gs -f -n '__fish_use_subcommand' -a version -d 'Show version'
 complete -c gs -f -n '__fish_use_subcommand' -a completion -d 'Print a shell completion script'
 
 complete -c gs -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
+
+# usage
+complete -c gs -n '__fish_seen_subcommand_from usage' -l days -r -d 'days to show'
+complete -c gs -n '__fish_seen_subcommand_from usage' -l by-llm -d 'group by provider'
+complete -c gs -n '__fish_seen_subcommand_from usage' -l json -d 'raw json output'
+complete -c gs -n '__fish_seen_subcommand_from usage' -l clear -d 'clear usage log'
+complete -c gs -n '__fish_seen_subcommand_from usage' -l color -xa 'auto always never'
+complete -c gs -n '__fish_seen_subcommand_from usage' -l config -r -F -d 'config file'
 
 # analyze
 complete -c gs -f -n '__fish_seen_subcommand_from analyze' -a '(__gs_subscriptions)' -d repository

@@ -218,7 +218,7 @@ _gs_config() {
 _gs() {
     if (( CURRENT == 2 )); then
         local -a cmds
-        cmds=(analyze watch sub subscribe config version completion)
+        cmds=(analyze watch sub subscribe config usage version completion)
         _describe 'command' cmds
         return
     fi
@@ -227,6 +227,15 @@ _gs() {
         analyze) _gs_analyze ;;
         watch|sub|subscribe) _gs_watch ;;
         config) _gs_config ;;
+        usage)
+            _arguments -C \
+                '--days[number of days to show]:days:' \
+                '--by-llm[group usage by LLM provider]' \
+                '--json[print aggregated usage as JSON]' \
+                '--clear[clear the usage log]' \
+                '--color[color mode]:mode:(auto always never)' \
+                '--config[config file]:file:_files'
+            ;;
         completion)
             _arguments -C '1:shell:(bash zsh fish)'
             ;;

@@ -149,7 +149,7 @@ _gs() {
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
-    local commands="analyze watch sub subscribe config version completion"
+    local commands="analyze watch sub subscribe config usage version completion"
     local formats="json md txt xlsx pdf"
     local platforms="github gitlab"
     local colors="auto always never"
@@ -194,6 +194,12 @@ _gs() {
             ;;
         config)
             _gs_config "$cur" "$prev"
+            return 0
+            ;;
+        usage)
+            if [[ $cur == -* ]]; then
+                COMPREPLY=( $(compgen -W "--days --by-llm --json --clear --config --color" -- "$cur") )
+            fi
             return 0
             ;;
         completion)

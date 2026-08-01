@@ -15,6 +15,10 @@ gs
  |                                   line, braille dots/fill, bounce,
  |                                   unicode, triangles, quadrants,
  |                                   and a determinate progress bar
+ +-- chart                          -- decoupled unicode bar-chart renderer
+ |                                   (horizontal + vertical columns)
+ +-- usage                          -- local LLM usage log: record, load,
+ |                                   aggregate by provider or by day
  +-- platform/                      -- platform abstraction layer
  |    +-- client                    -- abstract interface (function pointer table)
  |    +-- github                    -- GitHub REST API via libcurl + cJSON

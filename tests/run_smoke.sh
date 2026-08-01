@@ -166,5 +166,36 @@ fi
 if "$GS" completion >/dev/null 2>&1; then fail "completion without shell should fail"; fi
 if "$GS" completion nope >/dev/null 2>&1; then fail "completion with bad shell should fail"; fi
 
+# usage command: LLM usage rendered as a unicode bar chart
+USG="$WORK/usage.json"
+export GS_USAGE_FILE="$USG"
+TS1=$(date -d '1 day ago' +%s 2>/dev/null)
+TS2=$(date -d '2 days ago' +%s 2>/dev/null)
+if [ -z "$TS1" ]; then TS1=$(date -v-1d +%s); fi
+if [ -z "$TS2" ]; then TS2=$(date -v-2d +%s); fi
+cat > "$USG" <<EOF
+{
+  "records": [
+    {"ts": $TS1, "llm": "default", "model": "gpt-4o-mini", "prompt": 100, "completion": 50, "total": 150},
+    {"ts": $TS1, "llm": "default", "model": "gpt-4o-mini", "prompt": 200, "completion": 50, "total": 250},
+    {"ts": $TS2, "llm": "local", "model": "llama3.2", "prompt": 50, "completion": 50, "total": 100}
+  ]
+}
+EOF
+
+USG_JSON="$("$GS" usage --json 2>/dev/null)" || fail "usage json failed"
+grep -q '"total_tokens":	500' <<<"$USG_JSON" || grep -q '"total_tokens": 500' <<<"$USG_JSON" || fail "usage json totals wrong"
+grep -q '"calls":	3' <<<"$USG_JSON" || grep -q '"calls": 3' <<<"$USG_JSON" || fail "usage json calls wrong"
+USG_JSON_LLM="$("$GS" usage --json --by-llm 2>/dev/null)" || fail "usage json by-llm failed"
+grep -q '"by_llm"' <<<"$USG_JSON_LLM" || fail "usage json missing by_llm"
+USG_LLM="$("$GS" usage --by-llm 2>/dev/null)" || fail "usage by-llm failed"
+grep -q "default" <<<"$USG_LLM" || fail "usage by-llm missing default"
+grep -q "local" <<<"$USG_LLM" || fail "usage by-llm missing local"
+"$GS" usage 2>/dev/null | grep -q "█" || fail "usage chart missing unicode bar"
+"$GS" usage --days 3 2>/dev/null | grep -q "last 3 days" || fail "usage days window"
+"$GS" usage --clear >/dev/null 2>&1 || fail "usage clear failed"
+"$GS" usage 2>&1 | grep -q "No LLM usage recorded" || fail "usage not cleared"
+unset GS_USAGE_FILE
+
 echo "SMOKE TEST OK"
 exit 0

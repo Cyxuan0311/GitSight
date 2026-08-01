@@ -267,3 +267,42 @@ The repository has been active over the last 7 days...
 ...
 +------------------------------------------------------+
 ```
+
+## LLM Usage
+
+Every successful LLM call records its token usage (prompt/completion/total) to a
+local log next to the config file (`usage.json`, or `$GS_USAGE_FILE`). View it
+as a unicode bar chart:
+
+```bash
+# Daily token usage for the last 14 days (vertical bar chart)
+gs usage
+
+# Adjust the window
+gs usage --days 30
+
+# Group by LLM provider (horizontal bars)
+gs usage --by-llm
+
+# Raw aggregated data
+gs usage --json
+
+# Reset the log
+gs usage --clear
+```
+
+Example output:
+
+```
+LLM usage - last 14 days
+
+      █ █ █
+    █ █ █ █ █
+  █ █ █ █ █ █ █
+  08-20 08-21 08-22 08-23
+  150 300 450 900
+
+Total: 12 calls, 1800 tokens (1200 prompt + 600 completion)
+```
+
+Set `GS_NO_USAGE=1` to stop recording usage entirely.

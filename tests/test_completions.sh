@@ -71,7 +71,7 @@ check_contains() {
     fi
 }
 
-check "top-level commands" $'analyze\nwatch\nsub\nsubscribe\nconfig\nversion\ncompletion' gs ""
+check "top-level commands" $'analyze\nwatch\nsub\nsubscribe\nconfig\nusage\nversion\ncompletion' gs ""
 check "analyze format" $'json\nmd\ntxt\nxlsx\npdf' gs analyze -f ""
 check "analyze platform" $'github\ngitlab' gs analyze --platform ""
 check "analyze color" $'auto\nalways\nnever' gs analyze --color ""
@@ -87,6 +87,7 @@ check_contains "config --set keys" "platform=" gs config --set ""
 check "config --set platform value" $'platform=github\nplatform=gitlab' gs config --set platform=
 check "config --set-llm names" "local" gs config --set-llm ""
 check "completion shells" $'bash\nzsh\nfish' gs completion ""
+check_contains "usage options" "--days" gs usage --
 
 # Inline --config must take precedence over the default config path
 cat > "$TMP/config2.json" <<EOF

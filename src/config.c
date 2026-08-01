@@ -70,6 +70,10 @@ void config_init(Config *cfg) {
 static void parse_llm_object(cJSON *obj, LLMConfig *llm) {
     cJSON *item;
 
+    item = cJSON_GetObjectItem(obj, "protocol");
+    if (item && cJSON_IsString(item))
+        snprintf(llm->protocol, sizeof(llm->protocol), "%s", item->valuestring);
+
     item = cJSON_GetObjectItem(obj, "api_key");
     if (item && cJSON_IsString(item))
         snprintf(llm->api_key, sizeof(llm->api_key), "%s", item->valuestring);
@@ -396,8 +400,9 @@ void config_merge(Config *cfg,
     const char *env_llm_key   = getenv("LLM_API_KEY");
     const char *env_llm_base  = getenv("LLM_API_BASE");
     const char *env_llm_model = getenv("LLM_MODEL");
+    const char *env_llm_proto = getenv("LLM_PROTOCOL");
 
-    if (env_llm_key || env_llm_base || env_llm_model) {
+    if (env_llm_key || env_llm_base || env_llm_model || env_llm_proto) {
         int idx = -1;
         for (int i = 0; i < cfg->llm_count; i++) {
             if (strcmp(cfg->llms[i].name, cfg->active_llm) == 0) {
@@ -418,6 +423,8 @@ void config_merge(Config *cfg,
                 snprintf(cfg->llms[idx].api_base, sizeof(cfg->llms[idx].api_base), "%s", env_llm_base);
             if (!cfg->llms[idx].model[0] && env_llm_model)
                 snprintf(cfg->llms[idx].model, sizeof(cfg->llms[idx].model), "%s", env_llm_model);
+            if (env_llm_proto && env_llm_proto[0])
+                snprintf(cfg->llms[idx].protocol, sizeof(cfg->llms[idx].protocol), "%s", env_llm_proto);
             const char *env_timeout = getenv("LLM_TIMEOUT");
             const char *env_maxtok  = getenv("LLM_MAX_TOKENS");
             const char *env_temp    = getenv("LLM_TEMPERATURE");
@@ -485,12 +492,13 @@ void config_resolve_prompts(Config *cfg, const char *config_path) {
 void config_list_llms(const Config *cfg) {
     TuiTable t;
     char active[MAX_LLMS][16];
-    const char *cells[4];
-    tui_table_init(&t, 4);
+    const char *cells[5];
+    tui_table_init(&t, 5);
     tui_table_header(&t, 0, "Active");
     tui_table_header(&t, 1, "Name");
-    tui_table_header(&t, 2, "Model");
-    tui_table_header(&t, 3, "API Base");
+    tui_table_header(&t, 2, "Protocol");
+    tui_table_header(&t, 3, "Model");
+    tui_table_header(&t, 4, "API Base");
     tui_table_align(&t, 0, TUI_ALIGN_CENTER);
     tui_table_cell_color(&t, 1, CLR_GREEN);
     for (int i = 0; i < cfg->llm_count; i++) {
@@ -499,8 +507,9 @@ void config_list_llms(const Config *cfg) {
         snprintf(active[i], sizeof(active[i]), "%s", is_active ? "*" : "");
         cells[0] = active[i];
         cells[1] = l->name;
-        cells[2] = l->model[0] ? l->model : "-";
-        cells[3] = l->api_base[0] ? l->api_base : "-";
+        cells[2] = llm_protocol(l);
+        cells[3] = l->model[0] ? l->model : "-";
+        cells[4] = l->api_base[0] ? l->api_base : "-";
         tui_table_row(&t, cells);
     }
     t.use_color = color_active();
@@ -529,6 +538,8 @@ ErrorCode config_save(const char *path, const Config *cfg) {
     cJSON *llms = cJSON_AddObjectToObject(json, "llms");
     for (int i = 0; i < cfg->llm_count; i++) {
         cJSON *llm = cJSON_CreateObject();
+        if (cfg->llms[i].protocol[0])
+            cJSON_AddStringToObject(llm, "protocol", cfg->llms[i].protocol);
         cJSON_AddStringToObject(llm, "api_key", cfg->llms[i].api_key);
         cJSON_AddStringToObject(llm, "api_base", cfg->llms[i].api_base);
         cJSON_AddStringToObject(llm, "model", cfg->llms[i].model);
@@ -712,6 +723,12 @@ static int set_top_level(Config *cfg, const char *key, const char *val) {
                 snprintf(cfg->llms[i].api_base, sizeof(cfg->llms[i].api_base), "%s", val);
             else if (strcmp(field, "model") == 0)
                 snprintf(cfg->llms[i].model, sizeof(cfg->llms[i].model), "%s", val);
+            else if (strcmp(field, "protocol") == 0) {
+                if (strcmp(val, "openai") != 0 && strcmp(val, "anthropic") != 0 &&
+                    strcmp(val, "gemini") != 0)
+                    return 0;
+                snprintf(cfg->llms[i].protocol, sizeof(cfg->llms[i].protocol), "%s", val);
+            }
             else
                 return 0;
             return 1;

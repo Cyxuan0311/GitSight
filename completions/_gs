@@ -61,6 +61,11 @@ _gs_config_keys() {
         export.xlsx.border export.xlsx.sheet_name \
         export.pdf.margin export.pdf.line_height export.pdf.col2_padding \
         export.pdf.title_color export.pdf.header_color export.pdf.label_color
+
+    local name
+    for name in $(_gs_llm_names); do
+        compadd -S '=' "llms.$name.api_key" "llms.$name.api_base" "llms.$name.model" "llms.$name.protocol"
+    done
 }
 
 _gs_analyze() {
@@ -205,6 +210,7 @@ _gs_config() {
                     platform) compadd -P "$key=" -- github gitlab ;;
                     color)    compadd -P "$key=" -- auto always never ;;
                     format)   compadd -P "$key=" -- json md txt xlsx pdf ;;
+                    *.protocol) compadd -P "$key=" -- openai anthropic gemini ;;
                     export.show_prs|export.show_commits|export.show_issues|export.show_summary|export.show_top_labels|export.show_releases|export.show_contributors|export.xlsx.border)
                               compadd -P "$key=" -- true false ;;
                 esac

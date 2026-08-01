@@ -41,7 +41,11 @@ set(SOURCES
     src/platform/github.c
     src/platform/gitlab.c
     src/analyzer/engine.c
+    src/llm/http.c
+    src/llm/dispatch.c
     src/llm/openai.c
+    src/llm/anthropic.c
+    src/llm/gemini.c
     src/export/export.c
     src/export/json.c
     src/export/md.c

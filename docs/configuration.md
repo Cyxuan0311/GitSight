@@ -79,6 +79,7 @@ Created automatically with defaults on first `gs config` run.
 | `active_llm` | string | `""` | Active LLM provider name (must match a key in `llms`) |
 | `llms.<name>.api_key` | string | `""` | LLM API key |
 | `llms.<name>.api_base` | string | `"https://api.openai.com/v1"` | LLM API base URL |
+| `llms.<name>.protocol` | string | `"openai"` | LLM wire protocol: `"openai"`, `"anthropic"`, `"gemini"` (auto-detected from `api_base` when omitted) |
 | `llms.<name>.model` | string | `"gpt-4o-mini"` | LLM model name |
 | `llms.<name>.system_prompt` | string | `""` | Custom system prompt (inline, overrides built-in) |
 | `llms.<name>.system_prompt_file` | string | `""` | System prompt file in `prompts/` subdirectory (overrides `system_prompt`) |
@@ -140,13 +141,27 @@ Note: PDF colors only take effect when outputting to a file with `--color always
 | `LLM_API_KEY` | `active_llm.api_key` |
 | `LLM_API_BASE` | `active_llm.api_base` |
 | `LLM_MODEL` | `active_llm.model` |
+| `LLM_PROTOCOL` | `active_llm.protocol` |
 
 ## Multiple LLM Providers
 
 The config file supports any number of named LLM providers. Switch between them with
 `gs config --set-llm <name>` or `gs analyze <repo> --llm <name>`.
 
-Example with two providers:
+Each provider declares a `protocol` that selects the wire format:
+
+| Protocol | Providers | Default `api_base` | Request format |
+|----------|-----------|--------------------|----------------|
+| `openai` | OpenAI, Ollama, LM Studio, vLLM, most local servers | `https://api.openai.com/v1` | `/chat/completions`, `Authorization: Bearer` |
+| `anthropic` | Anthropic Claude | `https://api.anthropic.com` | `/v1/messages`, `x-api-key` |
+| `gemini` | Google Gemini | `https://generativelanguage.googleapis.com/v1beta` | `/models/{model}:generateContent`, `x-goog-api-key` |
+
+`protocol` is optional: when omitted it is auto-detected from `api_base` (an
+`anthropic.com`/`claude.ai` host selects `anthropic`, a
+`generativelanguage.googleapis.com` host selects `gemini`, everything else
+defaults to `openai`).
+
+Example with three providers:
 
 ```json
 {
@@ -157,10 +172,17 @@ Example with two providers:
             "api_base": "https://api.openai.com/v1",
             "model": "gpt-4o-mini"
         },
-        "local-llama": {
-            "api_key": "not-needed",
-            "api_base": "http://localhost:8080/v1",
-            "model": "local-model"
+        "claude": {
+            "protocol": "anthropic",
+            "api_key": "sk-ant-xxxxxxxxxxxx",
+            "api_base": "https://api.anthropic.com",
+            "model": "claude-sonnet-4-20250514"
+        },
+        "gemini": {
+            "protocol": "gemini",
+            "api_key": "AIzaSyxxxxxxxxxxxx",
+            "api_base": "https://generativelanguage.googleapis.com/v1beta",
+            "model": "gemini-2.0-flash"
         },
         "local-ollama": {
             "api_key": "ollama",
@@ -170,6 +192,9 @@ Example with two providers:
     }
 }
 ```
+
+> Note: with Ollama the `api_key` is ignored by the server but still required by
+> GitSight; use any non-empty value such as `"ollama"`.
 
 ## Custom System Prompts
 
@@ -230,6 +255,12 @@ gs config --set-llm local-ollama
 
 # Use a different LLM for a single run
 gs analyze owner/repo --llm openai
+
+# Switch a provider to the Anthropic protocol
+gs config --set llms.claude.protocol=anthropic
+
+# Set a provider's model via the CLI
+gs config --set llms.claude.model=claude-sonnet-4-20250514
 
 # View current config
 cat ~/.config/gitsight/config.json

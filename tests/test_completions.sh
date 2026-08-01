@@ -86,6 +86,8 @@ check_contains "config --set keys" "export.item_limit=" gs config --set ""
 check_contains "config --set keys" "platform=" gs config --set ""
 check "config --set platform value" $'platform=github\nplatform=gitlab' gs config --set platform=
 check "config --set-llm names" "local" gs config --set-llm ""
+check_contains "config --set llms keys" "llms.local.protocol=" gs config --set ""
+check "config --set llms.protocol values" $'llms.local.protocol=openai\nllms.local.protocol=anthropic\nllms.local.protocol=gemini' gs config --set llms.local.protocol=
 check "completion shells" $'bash\nzsh\nfish' gs completion ""
 check_contains "usage options" "--days" gs usage --
 

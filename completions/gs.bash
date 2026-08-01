@@ -65,6 +65,7 @@ _gs_config() {
             platform) COMPREPLY=( $(compgen -W "github gitlab" -P "$key=" -- "$val") ) ;;
             color)    COMPREPLY=( $(compgen -W "auto always never" -P "$key=" -- "$val") ) ;;
             format)   COMPREPLY=( $(compgen -W "json md txt xlsx pdf" -P "$key=" -- "$val") ) ;;
+            *.protocol) COMPREPLY=( $(compgen -W "openai anthropic gemini" -P "$key=" -- "$val") ) ;;
             export.show_prs|export.show_commits|export.show_issues|export.show_summary|export.show_top_labels|export.show_releases|export.show_contributors|export.xlsx.border)
                       COMPREPLY=( $(compgen -W "true false" -P "$key=" -- "$val") ) ;;
         esac
@@ -73,7 +74,11 @@ _gs_config() {
 
     case "$prev" in
         --set)
-            COMPREPLY=( $(compgen -W "$config_keys" -S '=' -- "$cur") )
+            local keys="$config_keys" name
+            for name in $(_gs_llm_names); do
+                keys="$keys llms.$name.api_key llms.$name.api_base llms.$name.model llms.$name.protocol"
+            done
+            COMPREPLY=( $(compgen -W "$keys" -S '=' -- "$cur") )
             return 0
             ;;
         --set-llm)

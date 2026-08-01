@@ -126,6 +126,36 @@ grep -q '"default_days":	21' "$CFG" || grep -q '"default_days":21' "$CFG" || fai
 "$GS" config --config "$CFG" --set export.item_limit=3 || fail "config set export failed"
 "$GS" config --config "$CFG" --show | grep -q "default_days" || fail "config show failed"
 
+# LLM protocol config: auto-detect, list, and set round-trip
+cat > "$WORK/proto.json" <<EOF
+{
+	"llms":	{
+		"claude":	{
+			"api_key":	"sk-ant-test",
+			"api_base":	"https://api.anthropic.com",
+			"model":	"claude-sonnet-4-20250514"
+		},
+		"gemini":	{
+			"protocol":	"gemini",
+			"api_key":	"AIza-test",
+			"api_base":	"https://generativelanguage.googleapis.com/v1beta",
+			"model":	"gemini-2.0-flash"
+		},
+		"local":	{
+			"api_key":	"ollama",
+			"api_base":	"http://localhost:11434/v1",
+			"model":	"llama3.2"
+		}
+	}
+}
+EOF
+"$GS" config --config "$WORK/proto.json" --list-llms 2>&1 | grep -q "Protocol" || fail "list-llms missing protocol column"
+"$GS" config --config "$WORK/proto.json" --list-llms 2>&1 | grep -q "claude" || fail "list-llms missing claude"
+"$GS" config --config "$WORK/proto.json" --list-llms 2>&1 | grep -q "gemini" || fail "list-llms missing gemini"
+"$GS" config --config "$WORK/proto.json" --set llms.claude.protocol=gemini || fail "config set protocol failed"
+grep -q '"protocol":	"gemini"' "$WORK/proto.json" || fail "config set protocol not persisted"
+if "$GS" config --config "$WORK/proto.json" --set llms.claude.protocol=bogus >/dev/null 2>&1; then fail "invalid protocol should fail"; fi
+
 # Batch mode: two repos produce two files
 "$GS" analyze acme/gadget foo/bar $ARGS --no-cache -d 7 -f md 2>/dev/null | grep -q "Batch summary" || fail "batch summary table missing"
 [ -f "acme_gadget_report.md" ] || fail "batch missing first report"

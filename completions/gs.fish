@@ -41,6 +41,13 @@ function __gs_config_keys
     echo export.md.table_width export.txt.table_width
     echo export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width export.xlsx.border export.xlsx.sheet_name
     echo export.pdf.margin export.pdf.line_height export.pdf.col2_padding export.pdf.title_color export.pdf.header_color export.pdf.label_color
+    for name in (__gs_llm_names)
+        echo llms.$name.api_key llms.$name.api_base llms.$name.model llms.$name.protocol
+    end
+end
+
+function __gs_set_protocol
+    string match -q -- "*.protocol=" (commandline -opc)[-1]
 end
 
 function __gs_watch_ctx
@@ -153,6 +160,7 @@ complete -c gs -n '__fish_seen_subcommand_from config' -l set-llm -xa '(__gs_llm
 complete -c gs -n '__fish_seen_subcommand_from config' -l list-llms -d 'list llm providers'
 complete -c gs -n '__fish_seen_subcommand_from config' -l show -d 'show config'
 complete -c gs -n '__fish_seen_subcommand_from config' -l edit -d 'edit config'
-complete -c gs -n '__fish_seen_subcommand_from config' -l set -r -xa '(__gs_config_keys)' -d 'set key=value'
+complete -c gs -n '__fish_seen_subcommand_from config; and not __gs_set_protocol' -l set -r -xa '(__gs_config_keys)' -d 'set key=value'
+complete -c gs -n '__fish_seen_subcommand_from config; and __gs_set_protocol' -l set -r -xa 'openai anthropic gemini' -d 'llm protocol'
 complete -c gs -n '__fish_seen_subcommand_from config' -s c -l config -r -F -d 'config file'
 complete -c gs -n '__fish_seen_subcommand_from config' -s h -l help -d 'show help'

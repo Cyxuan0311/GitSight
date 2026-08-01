@@ -1,0 +1,7 @@
+build/
+*.o
+*.obj
+*.swp
+.DS_Store
+.vscode/
+.idea/

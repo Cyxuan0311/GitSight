@@ -1,0 +1,60 @@
+name: Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc, clang]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install deps (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake gcc clang libcurl4-openssl-dev pkg-config
+
+    - name: Install deps (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew update
+        brew install cmake gcc curl pkg-config
+
+    - name: Set compiler (Linux Clang)
+      if: runner.os == 'Linux' && matrix.compiler == 'clang'
+      run: echo "CC=clang CXX=clang++" >> $GITHUB_ENV
+
+    - name: Set compiler (Linux GCC)
+      if: runner.os == 'Linux' && matrix.compiler == 'gcc'
+      run: echo "CC=gcc CXX=g++" >> $GITHUB_ENV
+
+    - name: Set compiler (macOS GCC)
+      if: runner.os == 'macOS' && matrix.compiler == 'gcc'
+      run: echo "CC=gcc-13 CXX=g++-13" >> $GITHUB_ENV
+
+    - name: Set compiler (macOS Clang)
+      if: runner.os == 'macOS' && matrix.compiler == 'clang'
+      run: echo "CC=clang CXX=clang++" >> $GITHUB_ENV
+
+    - name: Configure
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      run: cmake --build build --verbose -j$(nproc)
+
+    - name: Test (version)
+      run: ./build/gs version
+
+    - name: Test (smoke)
+      run: ctest --test-dir build --output-on-failure

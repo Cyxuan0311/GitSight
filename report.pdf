@@ -1,0 +1,369 @@
+%PDF-1.4
+0 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type0 /BaseFont /STSong-Light /Encoding /Identity-H /DescendantFonts [8 0 R] /ToUnicode 9 0 R >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /CIDFontType2 /BaseFont /STSong-Light /CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 5 >> /FontDescriptor 10 0 R /W [0 [1000]] >>
+endobj
+4 0 obj
+<< /Length 297 >>
+stream
+/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (GB1) /Supplement 5 >> def
+/CMapName /Adobe-Identity-UCS def
+/CMapType 2 def
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+1 beginbfrange
+<0000> <FFFF> <0000>
+endbfrange
+endcmap
+end
+
+endstream
+endobj
+5 0 obj
+<< /Type /FontDescriptor /FontName /STSong-Light /Flags 4 /FontBBox [0 0 1000 1000] /ItalicAngle 0 /Ascent 1000 /Descent 0 /CapHeight 1000 /StemV 0 >>
+endobj
+6 0 obj
+<< /Length 5679 >>
+stream
+BT
+0.000 0.000 0.000 rg
+/F2 17.600000 Tf
+1 0 0 1 159.87 792.00 Tm
+(GitSight Report - mpv-player/mpv) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 248.05 764.28 Tm
+(Period: last 7 days) Tj
+ET
+50.00 745.80 m 545.00 745.80 l S
+BT
+0.000 0.000 0.000 rg
+/F2 12.650000 Tf
+1 0 0 1 50.00 730.40 Tm
+([PR] Pull Requests) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 708.84 Tm
+(Total) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 708.84 Tm
+(20) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 693.44 Tm
+(Merged) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 693.44 Tm
+(2) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 678.04 Tm
+(Open) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 678.04 Tm
+(14) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 662.64 Tm
+(Closed) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 662.64 Tm
+(6) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F2 12.650000 Tf
+1 0 0 1 50.00 631.84 Tm
+([CM] Commits) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 610.28 Tm
+(Total) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 610.28 Tm
+(1) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 594.88 Tm
+(Authors) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 594.88 Tm
+(1) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 579.48 Tm
+(Top Author) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 579.48 Tm
+(Dudemanguy \(1 commits\)) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F2 12.650000 Tf
+1 0 0 1 50.00 533.28 Tm
+([IS] Issues) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 511.72 Tm
+(Total) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 511.72 Tm
+(19) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 496.32 Tm
+(Open) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 496.32 Tm
+(11) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 480.92 Tm
+(Closed) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 480.92 Tm
+(8) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F2 12.650000 Tf
+1 0 0 1 50.00 450.12 Tm
+([CT] Contributors) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 428.56 Tm
+(Total) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 428.56 Tm
+(1) Tj
+ET
+BT
+0.353 0.353 0.353 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 413.16 Tm
+(Top contributor) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 143.18 413.16 Tm
+(Dudemanguy \(1 commits\)) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 382.36 Tm
+(Labels: os:linux, os:win, priority:ai-slop, os:mac, meta:feature-request) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F2 12.650000 Tf
+1 0 0 1 50.00 363.88 Tm
+([*] Summary) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 342.32 Tm
+(**Overall activity level and project health**\012The repository shows healthy, moderate activity) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 326.92 Tm
+(with 20 PRs \(many open, a few closed/merged\), 19 issues, and only 1 commit in the last 7 days.) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 311.52 Tm
+(The low commit count suggests a quiet merge week, but active discussion and contribution via PRs) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 296.12 Tm
+(and issue triage indicate ongoing maintenance rather than stagnation.\012\012**Main themes and areas) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 280.72 Tm
+(of focus**\012Primary focus areas are video output \(vo_gpu_next, vo/opengl, Vulkan/GL formats,) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 265.32 Tm
+(HDR/contrast\), Lua scripting improvements \(console, autoload, ytdl_hook, profiling\), and) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 249.92 Tm
+(platform-specific fixes \(Wayland, macOS, Windows IPC\). Several PRs target GPU-next) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 234.52 Tm
+(rendering, memory leaks, and async completion, while issues highlight crashes/hangs with) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 219.12 Tm
+(Vulkan+hwdec, macOS audio null deref, and streaming playback problems.\012\012**Notable changes or) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 203.72 Tm
+(patterns**\012A clear pattern is hardening of the gpu-next/Vulkan path \(crash reports like #18270) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 188.32 Tm
+(closed after the libshaderc CI flag removal commit 94335ab, plus decode perf issues\). Lua) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 172.92 Tm
+(script UX is being refined via async filtering and completion limits. Cross-platform input/IPC) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 157.52 Tm
+(and Wayland protocol fixes show steady low-level polish. Closed issues are mostly duplicates or) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 142.12 Tm
+(user-error/already-fixed cases.\012\012**Summary**\012mpv saw steady but merge-light activity: 20 PRs) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 126.72 Tm
+(and 19 issues with one CI-related commit, reflecting active maintenance and scripting/Vulkan) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 111.32 Tm
+(focus. Contributors are improving gpu-next, Lua scripts, and platform support, while recent) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 95.92 Tm
+(crashes tie to Vulkan/hwdec and macOS audio. Project health remains stable with responsive) Tj
+ET
+BT
+0.000 0.000 0.000 rg
+/F1 11.000000 Tf
+1 0 0 1 50.00 80.52 Tm
+(triage.) Tj
+ET
+
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 6 0 R /Resources << /Font << /F1 5 0 R /F2 6 0 R /F3 7 0 R >> >> >>
+endobj
+8 0 obj
+<< /Type /Pages /Kids [7 0 R ] /Count 1 >>
+endobj
+9 0 obj
+<< /Type /Catalog /Pages 8 0 R >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000079 00000 n 
+0000000154 00000 n 
+0000000291 00000 n 
+0000000477 00000 n 
+0000000825 00000 n 
+0000000991 00000 n 
+0000006722 00000 n 
+0000006868 00000 n 
+0000006926 00000 n 
+trailer
+<< /Size 10 /Root 9 0 R >>
+startxref
+6975
+%%EOF

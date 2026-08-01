@@ -25,10 +25,6 @@ int color_active(void) {
     return should_color();
 }
 
-int spinner_active(void) {
-    return should_color() && g_stdout_is_tty;
-}
-
 int color_printf(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);

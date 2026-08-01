@@ -30,7 +30,7 @@ set(SOURCES
     src/config.c
     src/error.c
     src/color.c
-    src/spinner.c
+    src/anim.c
     src/tui.c
     src/models.c
     src/container.c

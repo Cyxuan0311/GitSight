@@ -11,7 +11,10 @@ gs
  +-- cli (getopt_long)              -- command-line argument parsing
  +-- config (cJSON)                 -- config file read/write/merge
  +-- color (ANSI + isatty)          -- color output and terminal detection
- +-- spinner (pthread)              -- ASCII loading animation
+ +-- anim (pthread)                 -- decoupled loading animations:
+ |                                   line, braille dots/fill, bounce,
+ |                                   unicode, triangles, quadrants,
+ |                                   and a determinate progress bar
  +-- platform/                      -- platform abstraction layer
  |    +-- client                    -- abstract interface (function pointer table)
  |    +-- github                    -- GitHub REST API via libcurl + cJSON

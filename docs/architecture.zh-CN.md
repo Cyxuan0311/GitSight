@@ -11,7 +11,9 @@ gs
  +-- cli (getopt_long)              -- 命令行参数解析
  +-- config (cJSON)                 -- 配置文件读写/合并
  +-- color (ANSI + isatty)          -- 彩色输出和终端检测
- +-- spinner (pthread)              -- ASCII 加载动画
+ +-- anim (pthread)                 -- 解耦的加载动画模块：
+ |                                   line、盲文点/填充、bounce、
+ |                                   unicode、三角、象限、进度条
  +-- platform/                      -- 平台抽象层
  |    +-- client                    -- 抽象接口（函数指针表）
  |    +-- github                    -- GitHub REST API (libcurl + cJSON)

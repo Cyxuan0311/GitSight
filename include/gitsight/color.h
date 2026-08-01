@@ -21,7 +21,6 @@ typedef enum {
 
 void color_init(ColorMode mode);
 int  color_active(void);
-int  spinner_active(void);
 
 int color_printf(const char *fmt, ...);
 int color_printf_color(const char *color, const char *fmt, ...);

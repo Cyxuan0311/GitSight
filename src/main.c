@@ -2,7 +2,7 @@
 #include "gitsight/config.h"
 #include "gitsight/error.h"
 #include "gitsight/color.h"
-#include "gitsight/spinner.h"
+#include "gitsight/anim.h"
 #include "gitsight/tui.h"
 #include "gitsight/completions.h"
 #include "gitsight/models.h"
@@ -412,7 +412,7 @@ int main(int argc, char **argv) {
         }
 
         color_init(opts.color_mode >= 0 ? opts.color_mode : cfg.color_mode);
-        spinner_set_quiet(opts.quiet);
+        anim_set_quiet(opts.quiet);
         http_set_cache_enabled(!opts.no_cache);
         curl_global_init(CURL_GLOBAL_DEFAULT);
 
@@ -458,7 +458,7 @@ int main(int argc, char **argv) {
     config_resolve_prompts(&cfg, config_path);
 
     color_init(opts.color_mode >= 0 ? opts.color_mode : cfg.color_mode);
-    spinner_set_quiet(opts.quiet);
+    anim_set_quiet(opts.quiet);
     http_set_cache_enabled(!opts.no_cache);
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
@@ -617,8 +617,8 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
         jobs[i].since_days = cfg.default_days;
     }
 
-    Spinner sp;
-    spinner_start(&sp, 1, 6, "Fetching repository data");
+    Anim sp;
+    anim_start(&sp, ANIM_BAR, 0, 6, "Fetching repository data");
     {
         int created[6];
         int ncreated = 0;
@@ -628,10 +628,13 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
             else
                 jobs[i].err = ERR_THREAD;
         }
-        for (int t = 0; t < ncreated; t++)
+        int done = 0;
+        for (int t = 0; t < ncreated; t++) {
             pthread_join(threads[created[t]], NULL);
+            anim_update(&sp, ++done, 6);
+        }
     }
-    spinner_stop(&sp, 1);
+    anim_stop(&sp, 1);
 
     for (int i = 0; i < 6; i++) {
         if (jobs[i].err != GS_OK) {
@@ -646,7 +649,7 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
     Report report;
 
     if (use_llm) {
-        spinner_start(&sp, 5, 5, "Analyzing with LLM");
+        anim_start(&sp, ANIM_DOTS, 0, 0, "Analyzing with LLM");
         analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors);
         report.meta = meta;
         err = analyzer_llm_summary(report.summary, sizeof(report.summary),
@@ -657,12 +660,12 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
             color_printf_color(CLR_YELLOW, "\nLLM analysis failed (%s), using local summary.\n",
                                gs_error_string(err));
         }
-        spinner_stop(&sp, 1);
+        anim_stop(&sp, 1);
     } else {
-        spinner_start(&sp, 0, 0, "Analyzing repository");
+        anim_start(&sp, ANIM_BRAILLE, 0, 0, "Analyzing repository");
         analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors);
         report.meta = meta;
-        spinner_stop(&sp, 1);
+        anim_stop(&sp, 1);
     }
 
     if (report_out) {
@@ -675,7 +678,7 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
         return 0;
     }
 
-    spinner_start(&sp, 0, 0, "Writing report");
+    anim_start(&sp, ANIM_UNICODE, 0, 0, "Writing report");
     {
         if (strchr(cfg.format, ',')) {
             char fmt_copy[256];
@@ -722,7 +725,7 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
             Exporter exporter;
             err = exporter_init(&exporter, cfg.format);
             if (err != GS_OK) {
-                spinner_stop(&sp, 0);
+                anim_stop(&sp, 0);
                 color_printf_color(CLR_RED, "  -> %s\n", gs_error_string(err));
                 vector_free(&prs, pr_free);
                 vector_free(&commits, commit_free);
@@ -743,7 +746,7 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
                 }
                 fp = fopen(fname, "w");
                 if (!fp) {
-                    spinner_stop(&sp, 0);
+                    anim_stop(&sp, 0);
                     color_printf_color(CLR_RED, "  -> Cannot open %s\n", fname);
                     vector_free(&prs, pr_free);
                     vector_free(&commits, commit_free);
@@ -755,7 +758,7 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
                 close_fp = 1;
             } else {
                 if (strcmp(cfg.format, "xlsx") == 0 || strcmp(cfg.format, "pdf") == 0) {
-                    spinner_stop(&sp, 0);
+                    anim_stop(&sp, 0);
                     color_printf_color(CLR_RED, "  -> %s format requires -o output file (cannot write to stdout)\n", cfg.format);
                     vector_free(&prs, pr_free);
                     vector_free(&commits, commit_free);
@@ -779,7 +782,7 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
             }
         }
     }
-    spinner_stop(&sp, 1);
+    anim_stop(&sp, 1);
 
     vector_free(&prs, pr_free);
     vector_free(&commits, commit_free);

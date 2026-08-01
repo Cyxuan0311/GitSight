@@ -1,0 +1,238 @@
+#compdef gs
+
+# zsh completion for GitSight (gs)
+# Install via:
+#   mkdir -p ~/.zfunc && gs completion zsh > ~/.zfunc/_gs
+#   echo 'fpath=(~/.zfunc $fpath)' >> ~/.zshrc && exec zsh
+
+_gs_config_file() {
+    local i cfg=""
+    for ((i = 2; i < CURRENT; i++)); do
+        case "${words[i]}" in
+            --config|-c)
+                cfg="${words[i + 1]}"
+                break
+                ;;
+        esac
+    done
+    if [[ -z $cfg ]]; then
+        cfg="${GS_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/gitsight/config.json}"
+    fi
+    print -r -- "$cfg"
+}
+
+_gs_subscriptions() {
+    local cfg
+    cfg=$(_gs_config_file)
+    [[ -f $cfg ]] || return 0
+    awk '
+        /"repo":/  { if (match($0, /"repo":[ \t]*"[^"]*"/)) { s = substr($0, RSTART, RLENGTH); gsub(/^"repo":[ \t]*"|"$/, "", s); print s } }
+        /"alias":/ { if (match($0, /"alias":[ \t]*"[^"]*"/)) { s = substr($0, RSTART, RLENGTH); gsub(/^"alias":[ \t]*"|"$/, "", s); print s } }
+    ' "$cfg"
+}
+
+_gs_llm_names() {
+    local cfg
+    cfg=$(_gs_config_file)
+    [[ -f $cfg ]] || return 0
+    awk '
+        /^[ \t]*"llms"[ \t]*:/ { inllms = 1; next }
+        inllms && match($0, /[^ \t]/) {
+            indent = RSTART - 1;
+            if (indent < 2) { inllms = 0; next; }
+            if (indent == 2 && match($0, /"([^"]+)"/)) {
+                print substr($0, RSTART + 1, RLENGTH - 2);
+            }
+        }
+    ' "$cfg"
+}
+
+_gs_formats()   { compadd json md txt xlsx pdf }
+_gs_platforms() { compadd github gitlab }
+_gs_colors()    { compadd auto always never }
+_gs_llm_modes() { compadd health trends release }
+
+_gs_config_keys() {
+    compadd -S '=' platform github_token gitlab_token api_base proxy default_days max_pages color format active_llm \
+        export.show_prs export.show_commits export.show_issues export.show_summary \
+        export.show_top_labels export.show_releases export.show_contributors export.item_limit \
+        export.md.table_width export.txt.table_width \
+        export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width \
+        export.xlsx.border export.xlsx.sheet_name \
+        export.pdf.margin export.pdf.line_height export.pdf.col2_padding \
+        export.pdf.title_color export.pdf.header_color export.pdf.label_color
+}
+
+_gs_analyze() {
+    _arguments -C \
+        '-d[analysis period in days]:days:' \
+        '--since[analysis period in days]:days:' \
+        '--max-pages[api pages to fetch]:pages:' \
+        '--platform[platform]:platform:->platform' \
+        '-t[token]:token:' \
+        '--token[token]:token:' \
+        '-f[output format]:format:->format' \
+        '--format[output format]:format:->format' \
+        '-o[output file]:file:_files' \
+        '--output[output file]:file:_files' \
+        '--proxy[proxy url]:url:' \
+        '--api-base[api base url]:url:' \
+        '--color[color mode]:color:->color' \
+        '--llm[llm provider]:llm:->llm' \
+        '--llm-mode[llm focus]:mode:->llm-mode' \
+        '--export[export override]:key=value:' \
+        '--no-cache[bypass disk cache]' \
+        '-q[quiet]' \
+        '--quiet[quiet]' \
+        '--compare[periods a:b]:period:' \
+        '--config[config file]:file:_files' \
+        '1:repository:->repo' \
+        '*:repository:->repo'
+
+    case $state in
+        repo)    _gs_subscriptions ;;
+        format)  _gs_formats ;;
+        platform) _gs_platforms ;;
+        color)   _gs_colors ;;
+        llm-mode) _gs_llm_modes ;;
+        llm)     _gs_llm_names ;;
+    esac
+}
+
+_gs_watch_add() {
+    _arguments -C \
+        '--alias[alias]:alias:' \
+        '-d[days]:days:' \
+        '--days[days]:days:' \
+        '-f[format]:format:->format' \
+        '--format[format]:format:->format' \
+        '--platform[platform]:platform:->platform' \
+        '--config[config file]:file:_files' \
+        '1:repository:->repo'
+
+    case $state in
+        repo)    _gs_subscriptions ;;
+        format)  _gs_formats ;;
+        platform) _gs_platforms ;;
+    esac
+}
+
+_gs_watch_rm() {
+    _arguments -C \
+        '--config[config file]:file:_files' \
+        '1:subscription:->repo'
+    case $state in
+        repo) _gs_subscriptions ;;
+    esac
+}
+
+_gs_watch_update() {
+    _arguments -C \
+        '--repo[new repository]:repository:' \
+        '--alias[alias]:alias:' \
+        '-d[days]:days:' \
+        '--days[days]:days:' \
+        '-f[format]:format:->format' \
+        '--format[format]:format:->format' \
+        '--platform[platform]:platform:->platform' \
+        '--config[config file]:file:_files' \
+        '1:subscription:->repo'
+
+    case $state in
+        repo)    _gs_subscriptions ;;
+        format)  _gs_formats ;;
+        platform) _gs_platforms ;;
+    esac
+}
+
+_gs_watch_list() {
+    _arguments -C \
+        '--json[json output]' \
+        '--config[config file]:file:_files'
+}
+
+_gs_watch() {
+    local i wcmd=""
+    for ((i = 2; i < CURRENT; i++)); do
+        case "${words[i]}" in
+            --config|-c) ((i++)) ;;
+            -*) ;;
+            *) wcmd="${words[i]}"; break ;;
+        esac
+    done
+
+    if [[ -n $wcmd ]]; then
+        case "$wcmd" in
+            add)            _gs_watch_add ;;
+            remove|rm|del)  _gs_watch_rm ;;
+            update)         _gs_watch_update ;;
+            list)           _gs_watch_list ;;
+            analyze|run)    _gs_analyze ;;
+            *)              _gs_analyze ;;
+        esac
+        return
+    fi
+
+    if [[ ${words[CURRENT]} == -* ]]; then
+        _gs_analyze
+    else
+        local -a cmds
+        cmds=(add remove rm del update list analyze run)
+        _describe 'watch subcommand' cmds
+    fi
+}
+
+_gs_config() {
+    _arguments -C \
+        '-t[set token]:token:' \
+        '--set-token[set token]:token:' \
+        '--set-llm[set active llm]:llm:->llm' \
+        '--list-llms[list llm providers]' \
+        '--show[show config]' \
+        '--edit[edit config in editor]' \
+        '--set[set key=value]:key=value:->setkv' \
+        '-c[config file]:file:_files' \
+        '--config[config file]:file:_files' \
+        '(-h --help)'{-h,--help}'[help]'
+
+    case $state in
+        llm) _gs_llm_names ;;
+        setkv)
+            if [[ ${words[CURRENT]} == *=* ]]; then
+                local key="${words[CURRENT]%%=*}"
+                local val="${words[CURRENT]#*=}"
+                case "$key" in
+                    platform) compadd -P "$key=" -- github gitlab ;;
+                    color)    compadd -P "$key=" -- auto always never ;;
+                    format)   compadd -P "$key=" -- json md txt xlsx pdf ;;
+                    export.show_prs|export.show_commits|export.show_issues|export.show_summary|export.show_top_labels|export.show_releases|export.show_contributors|export.xlsx.border)
+                              compadd -P "$key=" -- true false ;;
+                esac
+            else
+                _gs_config_keys
+            fi
+            ;;
+    esac
+}
+
+_gs() {
+    if (( CURRENT == 2 )); then
+        local -a cmds
+        cmds=(analyze watch sub subscribe config version completion)
+        _describe 'command' cmds
+        return
+    fi
+
+    case "${words[2]}" in
+        analyze) _gs_analyze ;;
+        watch|sub|subscribe) _gs_watch ;;
+        config) _gs_config ;;
+        completion)
+            _arguments -C '1:shell:(bash zsh fish)'
+            ;;
+        version) ;;
+        *) _gs_subscriptions ;;
+    esac
+}
+
+compdef _gs gs sub subscribe

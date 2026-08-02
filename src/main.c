@@ -11,6 +11,7 @@
 #include "gitsight/container.h"
 #include "gitsight/platform/client.h"
 #include "gitsight/platform/http.h"
+#include "gitsight/platform/profile.h"
 #include "gitsight/analyzer/engine.h"
 #include "gitsight/export/exporter.h"
 #include "gitsight/export/pdf.h"
@@ -676,6 +677,12 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
                     host[host_len] = '\0';
                     if (strstr(host, "gitlab"))
                         snprintf(detected_platform, sizeof(detected_platform), "gitlab");
+                    else if (strstr(host, "codeberg"))
+                        snprintf(detected_platform, sizeof(detected_platform), "codeberg");
+                    else if (strstr(host, "gitea"))
+                        snprintf(detected_platform, sizeof(detected_platform), "gitea");
+                    else if (strstr(host, "forgejo"))
+                        snprintf(detected_platform, sizeof(detected_platform), "forgejo");
                 }
                 path = host_slash + 1;
             } else {
@@ -713,9 +720,10 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
     }
 
     if (detected_platform[0] && !opts->platform[0]) {
+        const PlatformProfile *pf = platform_profile(detected_platform);
         snprintf(cfg.platform, sizeof(cfg.platform), "%s", detected_platform);
-        if (strcmp(detected_platform, "gitlab") == 0 && !opts->api_base[0])
-            snprintf(cfg.api_base, sizeof(cfg.api_base), "https://gitlab.com/api/v4");
+        if (pf && !opts->api_base[0])
+            snprintf(cfg.api_base, sizeof(cfg.api_base), "%s", pf->default_api_base);
     }
 
     if (opts->export_extra[0])

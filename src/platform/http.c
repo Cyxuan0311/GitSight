@@ -118,6 +118,32 @@ static const char *fixture_name_for_url(const char *url) {
 }
 
 /* Returns 1 if a fixture was served (result + out filled). */
+static int fixture_read_file(const char *path, HttpBuffer *result) {
+    FILE *fp = fopen(path, "rb");
+    if (!fp) return 0;
+    fseek(fp, 0, SEEK_END);
+    long len = ftell(fp);
+    rewind(fp);
+    if (len < 0) len = 0;
+
+    char *data = malloc((size_t)len + 1);
+    if (!data) { fclose(fp); return 0; }
+    size_t rd = fread(data, 1, (size_t)len, fp);
+    fclose(fp);
+    data[rd] = '\0';
+    result->data = data;
+    result->size = rd;
+    return 1;
+}
+
+static int fixture_empty(HttpBuffer *result) {
+    result->data = malloc(3);
+    if (!result->data) return 1;
+    memcpy(result->data, "[]", 3);
+    result->size = 2;
+    return 1;
+}
+
 static int http_get_fixture(const char *url, HttpBuffer *result, HttpResult *out) {
     const char *dir = getenv("GS_FIXTURE_DIR");
     if (!dir || dir[0] == '\0') return 0;
@@ -127,38 +153,50 @@ static int http_get_fixture(const char *url, HttpBuffer *result, HttpResult *out
     int pagenum = page ? atoi(page + 6) : 1;
     out->http_code = 200;
 
+    if (pagenum == 1) {
+        /* Optional "next_page" marker: a plain integer simulates an
+           X-Next-Page header, a URL simulates a Link rel="next" header. */
+        char nxtpath[1024];
+        snprintf(nxtpath, sizeof(nxtpath), "%s/next_page", dir);
+        char nb[512] = {0};
+        FILE *npf = fopen(nxtpath, "rb");
+        if (npf) {
+            size_t nrd = fread(nb, 1, sizeof(nb) - 1, npf);
+            fclose(npf);
+            nb[nrd] = '\0';
+        }
+        size_t n = strlen(nb);
+        while (n > 0 && (nb[n-1] == '\n' || nb[n-1] == '\r' || nb[n-1] == ' ')) nb[--n] = '\0';
+        if (nb[0] >= '0' && nb[0] <= '9') {
+            long np = atol(nb);
+            if (np > 0) out->next_page_num = np;
+        } else if (nb[0]) {
+            snprintf(out->next_page, sizeof(out->next_page), "%s", nb);
+        }
+    }
+
     char path[1024];
     if (pagenum > 1) {
-        /* Later pages: serve an empty array so pagination stops. */
-        result->data = malloc(3);
-        if (!result->data) return 1;
-        memcpy(result->data, "[]", 3);
-        result->size = 2;
-        return 1;
+        /* Dedicated per-page fixture file (e.g. prs.2.json); fall back to an
+           empty array so pagination stops. */
+        const char *fname = fixture_name_for_url(url);
+        char base[64];
+        size_t flen = strlen(fname);
+        if (flen > 5 && strcmp(fname + flen - 5, ".json") == 0) {
+            size_t n = flen - 5;
+            if (n >= sizeof(base)) n = sizeof(base) - 1;
+            memcpy(base, fname, n);
+            base[n] = '\0';
+        } else {
+            snprintf(base, sizeof(base), "%s", fname);
+        }
+        snprintf(path, sizeof(path), "%s/%s.%d.json", dir, base, pagenum);
+        if (fixture_read_file(path, result)) return 1;
+        return fixture_empty(result);
     }
     snprintf(path, sizeof(path), "%s/%s", dir, fixture_name_for_url(url));
-
-    FILE *fp = fopen(path, "rb");
-    if (!fp) {
-        result->data = malloc(3);
-        if (!result->data) return 1;
-        memcpy(result->data, "[]", 3);
-        result->size = 2;
-        return 1;
-    }
-    fseek(fp, 0, SEEK_END);
-    long len = ftell(fp);
-    rewind(fp);
-    if (len < 0) len = 0;
-
-    char *data = malloc((size_t)len + 1);
-    if (!data) { fclose(fp); return 1; }
-    size_t rd = fread(data, 1, (size_t)len, fp);
-    fclose(fp);
-    data[rd] = '\0';
-    result->data = data;
-    result->size = rd;
-    return 1;
+    if (fixture_read_file(path, result)) return 1;
+    return fixture_empty(result);
 }
 
 void http_buffer_init(HttpBuffer *b) {
@@ -226,6 +264,9 @@ static size_t header_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
             }
         }
         (void)gt;
+    } else if (len >= 13 && strncasecmp(ptr, "X-Next-Page:", 12) == 0) {
+        long p = atol(ptr + 12);
+        if (p > 0) r->next_page_num = p;
     } else if (len >= 24 && strncasecmp(ptr, "X-RateLimit-Remaining:", 22) == 0) {
         r->rate_limit_remaining = atol(ptr + 22);
         r->has_rate_limit = 1;
@@ -241,6 +282,7 @@ static size_t header_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
 static void reset_result(HttpResult *r) {
     r->http_code = 0;
     r->next_page[0] = '\0';
+    r->next_page_num = 0;
     r->rate_limit_remaining = -1;
     r->rate_limit_reset = 0;
     r->retry_after = 0;
@@ -388,6 +430,30 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
     }
 }
 
+/* Set the "page" query parameter on url (replace existing, or append). */
+static void set_page_param(char *url, size_t len, long page) {
+    char num[32];
+    snprintf(num, sizeof(num), "%ld", page);
+
+    char *buf = malloc(4096);
+    if (!buf) return;
+
+    const char *page_eq = strstr(url, "page=");
+    if (page_eq) {
+        size_t prefix = (size_t)(page_eq - url);
+        const char *amp = strchr(page_eq, '&');
+        if (amp)
+            snprintf(buf, 4096, "%.*s%s%s", (int)prefix, url, num, amp);
+        else
+            snprintf(buf, 4096, "%.*s%s", (int)prefix, url, num);
+    } else {
+        const char *sep = strchr(url, '?') ? "&" : "?";
+        snprintf(buf, 4096, "%s%spage=%s", url, sep, num);
+    }
+    snprintf(url, len, "%s", buf);
+    free(buf);
+}
+
 ErrorCode http_get_paginated(const HttpClient *hc, const char *url,
                              HttpPageFn cb, void *userdata, long *last_http)
 {
@@ -405,8 +471,11 @@ ErrorCode http_get_paginated(const HttpClient *hc, const char *url,
         int stop = cb(userdata, buf.data, &res);
         http_buffer_free(&buf);
 
-        if (stop || res.next_page[0] == '\0') return GS_OK;
-        snprintf(current, sizeof(current), "%s", res.next_page);
+        if (stop || (res.next_page[0] == '\0' && res.next_page_num == 0)) return GS_OK;
+        if (res.next_page[0])
+            snprintf(current, sizeof(current), "%s", res.next_page);
+        else
+            set_page_param(current, sizeof(current), res.next_page_num);
     }
     return GS_OK;
 }

@@ -17,7 +17,10 @@
 
 ```json
 {
+    "platform": "github",
     "github_token": "ghp_xxxxxxxxxxxx",
+    "gitlab_token": "glpat_xxxxxxxxxxxx",
+    "codeberg_token": "xxxxxxxxxxxxxxxxxxxx",
     "api_base": "https://api.github.com",
     "proxy": "http://127.0.0.1:7890",
     "default_days": 7,
@@ -70,8 +73,11 @@
 
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
+| `platform` | string | `"github"` | 平台：`"github"`, `"gitlab"`, `"codeberg"`, `"gitea"`, `"forgejo"` |
 | `github_token` | string | `""` | GitHub 个人访问令牌 |
-| `api_base` | string | `"https://api.github.com"` | GitHub API 地址（镜像/企业版） |
+| `gitlab_token` | string | `""` | GitLab 个人访问令牌 |
+| `codeberg_token` | string | `""` | Gitea 系平台（Codeberg/Gitea/Forgejo）的令牌 |
+| `api_base` | string | 平台默认值 | API 地址（各平台有默认值；镜像/自建时覆盖） |
 | `proxy` | string | `""` | HTTP/HTTPS/SOCKS5 代理地址 |
 | `default_days` | number | `7` | 默认分析天数 |
 | `color` | string | `"auto"` | 颜色模式：`"auto"`, `"always"`, `"never"` |
@@ -101,6 +107,33 @@
 | `export.pdf.title_color` | string | `"25,55,160"` | PDF 标题颜色（R,G,B） |
 | `export.pdf.header_color` | string | `"25,55,160"` | PDF 板块标题颜色（R,G,B） |
 | `export.pdf.label_color` | string | `"90,90,90"` | PDF 指标标签颜色（R,G,B） |
+
+## 平台
+
+`platform` 用于选择 API 提供商。GitHub 与 GitLab 使用各自的驱动；Codeberg、
+Gitea、Forgejo 共用一套"兼容 GitHub 的驱动"（REST 路径相同，仅认证头与默认
+API 地址不同）。
+
+| 平台 | 默认 `api_base` | 认证头 |
+|------|-----------------|--------|
+| `github`   | `https://api.github.com`       | `Authorization: Bearer <token>` |
+| `gitlab`   | `https://gitlab.com/api/v4`    | `PRIVATE-TOKEN: <token>` |
+| `codeberg` | `https://codeberg.org/api/v1`  | `Authorization: token <token>` |
+| `gitea`    | `https://gitea.com/api/v1`     | `Authorization: token <token>` |
+| `forgejo`  | `https://codeberg.org/api/v1`  | `Authorization: token <token>` |
+
+分析 URL 时会根据主机名自动识别平台（`gitlab.com` → GitLab，`codeberg.org` →
+Codeberg，包含 `gitea` 或 `forgejo` 的主机 → Gitea）并应用对应的默认
+`api_base`。可用 `--platform` 或配置中的 `platform` 字段覆盖，自建实例用
+`--api-base` / `api_base` 指定：
+
+```bash
+# Codeberg（从 URL 自动识别）
+gs analyze https://codeberg.org/acme/gadget
+
+# 自建 Gitea
+gs analyze acme/gadget --platform gitea --api-base https://gitea.example.com/api/v1
+```
 
 ## CLI 覆盖
 
@@ -133,6 +166,8 @@ gs analyze owner/repo \
 | 变量 | 覆盖的配置字段 |
 |------|---------------|
 | `GITHUB_TOKEN` | `github_token` |
+| `GITLAB_TOKEN` | `gitlab_token` |
+| `CODEBERG_TOKEN` / `GS_CODEBERG_TOKEN` | `codeberg_token` |
 | `GS_API_BASE` | `api_base` |
 | `HTTP_PROXY` | `proxy` |
 | `HTTPS_PROXY` | `proxy` |

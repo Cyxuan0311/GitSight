@@ -38,6 +38,7 @@ set(SOURCES
     src/container.c
     src/platform/client.c
     src/platform/http.c
+    src/platform/profile.c
     src/platform/github.c
     src/platform/gitlab.c
     src/analyzer/engine.c

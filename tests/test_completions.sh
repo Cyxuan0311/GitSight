@@ -73,7 +73,7 @@ check_contains() {
 
 check "top-level commands" $'analyze\nwatch\nsub\nsubscribe\nconfig\nusage\nversion\ncompletion' gs ""
 check "analyze format" $'json\nmd\ntxt\nxlsx\npdf' gs analyze -f ""
-check "analyze platform" $'github\ngitlab' gs analyze --platform ""
+check "analyze platform" $'github\ngitlab\ncodeberg\ngitea\nforgejo' gs analyze --platform ""
 check "analyze color" $'auto\nalways\nnever' gs analyze --color ""
 check "analyze llm" $'local' gs analyze --llm ""
 check "analyze repos" $'acme/gadget\ncore' gs analyze ""
@@ -84,7 +84,7 @@ check "watch add repo" $'acme/gadget\ncore' gs watch add ""
 check "watch list json flag" $'--json\n--config\n--help' gs watch list --
 check_contains "config --set keys" "export.item_limit=" gs config --set ""
 check_contains "config --set keys" "platform=" gs config --set ""
-check "config --set platform value" $'platform=github\nplatform=gitlab' gs config --set platform=
+check "config --set platform value" $'platform=github\nplatform=gitlab\nplatform=codeberg\nplatform=gitea\nplatform=forgejo' gs config --set platform=
 check "config --set-llm names" "local" gs config --set-llm ""
 check_contains "config --set llms keys" "llms.local.protocol=" gs config --set ""
 check "config --set llms.protocol values" $'llms.local.protocol=openai\nllms.local.protocol=anthropic\nllms.local.protocol=gemini' gs config --set llms.local.protocol=

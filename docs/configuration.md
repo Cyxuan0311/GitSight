@@ -17,7 +17,10 @@ Created automatically with defaults on first `gs config` run.
 
 ```json
 {
+    "platform": "github",
     "github_token": "ghp_xxxxxxxxxxxx",
+    "gitlab_token": "glpat_xxxxxxxxxxxx",
+    "codeberg_token": "xxxxxxxxxxxxxxxxxxxx",
     "api_base": "https://api.github.com",
     "proxy": "http://127.0.0.1:7890",
     "default_days": 7,
@@ -70,8 +73,11 @@ Created automatically with defaults on first `gs config` run.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
+| `platform` | string | `"github"` | Platform: `"github"`, `"gitlab"`, `"codeberg"`, `"gitea"`, `"forgejo"` |
 | `github_token` | string | `""` | GitHub personal access token |
-| `api_base` | string | `"https://api.github.com"` | GitHub API base URL (for mirrors/enterprise) |
+| `gitlab_token` | string | `""` | GitLab personal access token |
+| `codeberg_token` | string | `""` | Token for Gitea-family platforms (Codeberg / Gitea / Forgejo) |
+| `api_base` | string | platform default | API base URL (per-platform default; override for mirrors/self-hosted) |
 | `proxy` | string | `""` | HTTP/HTTPS/SOCKS5 proxy URL |
 | `default_days` | number | `7` | Default analysis period in days |
 | `color` | string | `"auto"` | Color mode: `"auto"`, `"always"`, `"never"` |
@@ -102,6 +108,35 @@ Created automatically with defaults on first `gs config` run.
 | `export.pdf.title_color` | string | `"25,55,160"` | PDF title text color (R,G,B) |
 | `export.pdf.header_color` | string | `"25,55,160"` | PDF section header text color (R,G,B) |
 | `export.pdf.label_color` | string | `"90,90,90"` | PDF metric label text color (R,G,B) |
+
+## Platforms
+
+`platform` selects the API provider. GitHub and GitLab use dedicated drivers;
+Codeberg, Gitea, and Forgejo share a single "GitHub-compatible" driver (they
+expose the same REST surface and differ only in the authorization header
+scheme and default API base).
+
+| Platform | Default `api_base` | Auth header |
+|----------|--------------------|-------------|
+| `github`   | `https://api.github.com`       | `Authorization: Bearer <token>` |
+| `gitlab`   | `https://gitlab.com/api/v4`    | `PRIVATE-TOKEN: <token>` |
+| `codeberg` | `https://codeberg.org/api/v1`  | `Authorization: token <token>` |
+| `gitea`    | `https://gitea.com/api/v1`     | `Authorization: token <token>` |
+| `forgejo`  | `https://codeberg.org/api/v1`  | `Authorization: token <token>` |
+
+When you analyze a URL, the platform is auto-detected from the host
+(`gitlab.com` → GitLab, `codeberg.org` → Codeberg, hosts containing `gitea`
+or `forgejo` → Gitea) and the matching `api_base` default is applied. Use
+`--platform` or the config `platform` field to override, and `--api-base` /
+`api_base` for self-hosted instances:
+
+```bash
+# Codeberg (auto-detected from the URL)
+gs analyze https://codeberg.org/acme/gadget
+
+# Self-hosted Gitea
+gs analyze acme/gadget --platform gitea --api-base https://gitea.example.com/api/v1
+```
 
 ## CLI Override
 
@@ -134,6 +169,8 @@ Note: PDF colors only take effect when outputting to a file with `--color always
 | Variable | Overrides Config Field |
 |----------|----------------------|
 | `GITHUB_TOKEN` | `github_token` |
+| `GITLAB_TOKEN` | `gitlab_token` |
+| `CODEBERG_TOKEN` / `GS_CODEBERG_TOKEN` | `codeberg_token` |
 | `GS_API_BASE` | `api_base` |
 | `HTTP_PROXY` | `proxy` |
 | `HTTPS_PROXY` | `proxy` |

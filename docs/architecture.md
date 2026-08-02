@@ -21,8 +21,10 @@ gs
  |                                   aggregate by provider or by day
  +-- platform/                      -- platform abstraction layer
  |    +-- client                    -- abstract interface (function pointer table)
- |    +-- github                    -- GitHub REST API via libcurl + cJSON
- |    +-- gitlab                    -- (planned)
+ |    +-- profile                   -- per-platform settings table (auth scheme + default API base)
+ |    +-- github                    -- shared "GitHub-compatible" driver used by
+ |    |                               github / codeberg / gitea / forgejo
+ |    +-- gitlab                    -- GitLab REST API via libcurl + cJSON
  +-- llm/                           -- LLM integration
  |    +-- client                    -- abstract LLM client interface
  |    +-- openai                    -- OpenAI-compatible API via libcurl + cJSON
@@ -72,22 +74,39 @@ cli_parse() --> Config --> PlatformClient
 
 The platform abstraction is based on a function pointer table (`PlatformClient`).
 
-### Adding GitLab support
+### GitHub-compatible hosts (Codeberg, Gitea, Forgejo, ...)
 
-1. Create `include/gitsight/platform/gitlab.h` and `src/platform/gitlab.c`
-2. Implement the same 4 functions: `fetch_prs`, `fetch_commits`, `fetch_issues`, `destroy`
+These hosts expose the same REST surface as GitHub
+(`/repos/{owner}/{repo}/pulls|issues|commits|releases|contributors`). Adding
+one only requires a new row in `src/platform/profile.c`:
+
+```c
+{ "mynamespace", "https://host.example.com/api/v1", "token" },
+```
+
+plus the platform name in `config.c` (`set_top_level` validation), the host
+auto-detection in `src/main.c`, the CLI help text, and the shell completions.
+
+### Structurally different platforms (e.g. GitLab)
+
+1. Create `include/gitsight/platform/<name>.h` and `src/platform/<name>.c`
+2. Implement the same 6 functions: `fetch_prs`, `fetch_commits`, `fetch_issues`,
+   `fetch_releases`, `fetch_meta`, `fetch_contributors`, `destroy`
 3. Register in `src/platform/client.c`:
    ```c
    ErrorCode platform_client_init(PlatformClient *client, const Config *cfg, ...) {
-       if (/* is GitHub */)
-           return github_client_init(client, cfg, owner, repo);
-       else if (/* is GitLab */)
+       if (strcmp(cfg->platform, "gitlab") == 0)
            return gitlab_client_init(client, cfg, owner, repo);
-       ...
+       return github_client_init(client, cfg, owner, repo);
    }
    ```
+4. Update `config.c` (token routing + platform validation), host auto-detection
+   in `src/main.c`, CLI help text, and the shell completions.
 
-The detection logic could be based on URL pattern (e.g., `gitlab.com` in the URL) or a `--platform` CLI flag.
+The detection logic is based on URL host patterns (e.g. `gitlab.com` → GitLab,
+`codeberg.org` → Codeberg) or an explicit `--platform` CLI flag. Note that
+pagination is generic: the `Link` header (GitHub/Gitea/Forgejo) and the
+`X-Next-Page` header (GitLab) are both handled by `http_get_paginated()`.
 
 ### Adding a new LLM provider
 

@@ -18,7 +18,7 @@ void cli_print_usage(void) {
     printf("Analyze options:\n");
     printf("  -d, --since <days>      Analysis period in days (default: 7)\n");
     printf("  --max-pages <n>         Max API result pages to fetch (default: 20)\n");
-    printf("  --platform <name>       Platform: github or gitlab (default: github)\n");
+    printf("  --platform <name>       Platform: github, gitlab, codeberg, gitea, forgejo (default: github)\n");
     printf("  -t, --token <token>     Platform access token (GitHub or GitLab)\n");
     printf("  -f, --format <fmt>      Output format: json, md, txt, xlsx, pdf (default: md)\n");
     printf("  -o, --output <path>     Output file path (default: stdout)\n");
@@ -70,7 +70,7 @@ void cli_print_usage(void) {
 static void cli_print_watch_usage(void) {
     printf("Usage: gs watch <add|remove|update|list|analyze> [options]\n\n");
     printf("  add <owner/repo> [--alias <name>] [--days <n>] [--format <fmt>]\n");
-    printf("      [--platform <github|gitlab>]   Subscribe to a repository\n");
+    printf("      [--platform <github|gitlab|codeberg|gitea|forgejo>]   Subscribe to a repository\n");
     printf("  remove <ref>                       Unsubscribe (by repo or alias)\n");
     printf("  update <ref> [--repo <owner/repo>] [--alias <name>|-] [--days <n>]\n");
     printf("      [--format <fmt>] [--platform <p>]\n");

@@ -46,6 +46,7 @@ typedef struct {
     char  platform[16];
     char  github_token[256];
     char  gitlab_token[256];
+    char  codeberg_token[256];
     char  api_base[256];
     char  proxy[512];
     int   default_days;

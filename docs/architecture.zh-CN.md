@@ -20,8 +20,10 @@ gs
  |                                   按提供商或按天聚合
  +-- platform/                      -- 平台抽象层
  |    +-- client                    -- 抽象接口（函数指针表）
- |    +-- github                    -- GitHub REST API (libcurl + cJSON)
- |    +-- gitlab                    -- （计划中）
+ |    +-- profile                   -- 平台配置表（认证头 + 默认 API 地址）
+ |    +-- github                    -- 共享的"兼容 GitHub"驱动，供
+ |    |                               github / codeberg / gitea / forgejo 使用
+ |    +-- gitlab                    -- GitLab REST API (libcurl + cJSON)
  +-- llm/                           -- LLM 集成
  |    +-- client                    -- LLM 客户端抽象接口
  |    +-- openai                    -- OpenAI 兼容 API (libcurl + cJSON)
@@ -63,22 +65,38 @@ gs
 
 平台抽象基于函数指针表（`PlatformClient`）。
 
-### 添加 GitLab 支持
+### 兼容 GitHub 的平台（Codeberg、Gitea、Forgejo 等）
 
-1. 创建 `include/gitsight/platform/gitlab.h` 和 `src/platform/gitlab.c`
-2. 实现 4 个函数：`fetch_prs`, `fetch_commits`, `fetch_issues`, `destroy`
+这些平台暴露与 GitHub 相同的 REST 接口
+（`/repos/{owner}/{repo}/pulls|issues|commits|releases|contributors`）。
+新增一个平台只需在 `src/platform/profile.c` 中加一行：
+
+```c
+{ "mynamespace", "https://host.example.com/api/v1", "token" },
+```
+
+并同步更新 `config.c`（`set_top_level` 平台校验）、`src/main.c` 的主机自动
+识别、CLI 帮助文本和 shell 补全。
+
+### 结构不同的平台（如 GitLab）
+
+1. 创建 `include/gitsight/platform/<name>.h` 和 `src/platform/<name>.c`
+2. 实现 6 个函数：`fetch_prs`, `fetch_commits`, `fetch_issues`,
+   `fetch_releases`, `fetch_meta`, `fetch_contributors`, `destroy`
 3. 在 `src/platform/client.c` 中注册：
    ```c
    ErrorCode platform_client_init(PlatformClient *client, const Config *cfg, ...) {
-       if (/* 是 GitHub */)
-           return github_client_init(client, cfg, owner, repo);
-       else if (/* 是 GitLab */)
+       if (strcmp(cfg->platform, "gitlab") == 0)
            return gitlab_client_init(client, cfg, owner, repo);
-       ...
+       return github_client_init(client, cfg, owner, repo);
    }
    ```
+4. 同步更新 `config.c`（令牌路由 + 平台校验）、`src/main.c` 的主机自动识别、
+   CLI 帮助文本和 shell 补全。
 
-检测逻辑可基于 URL 模式（如 URL 中包含 `gitlab.com`）或 `--platform` CLI 参数。
+检测逻辑基于 URL 主机名模式（如 `gitlab.com` → GitLab、`codeberg.org` →
+Codeberg）或显式 `--platform` CLI 参数。分页是通用的：`http_get_paginated()`
+同时处理 `Link` 头（GitHub/Gitea/Forgejo）与 `X-Next-Page` 头（GitLab）。
 
 ### 添加新的 LLM 提供商
 

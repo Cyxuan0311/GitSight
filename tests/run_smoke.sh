@@ -126,6 +126,66 @@ grep -q '"default_days":	21' "$CFG" || grep -q '"default_days":21' "$CFG" || fai
 "$GS" config --config "$CFG" --set export.item_limit=3 || fail "config set export failed"
 "$GS" config --config "$CFG" --show | grep -q "default_days" || fail "config show failed"
 
+# Codeberg / Gitea-family: shared driver parsing gitea-style JSON, URL host
+# detection, Link-style pagination, and gitea meta field fallbacks.
+FIXCB="$WORK/fixcb"
+mkdir -p "$FIXCB"
+cat > "$FIXCB/prs.json" <<EOF
+[
+  {"number": 7, "title": "Fix the flaky test", "state": "closed", "created_at": "$D4", "updated_at": "$D1", "merged": true, "merged_at": "$D2", "html_url": "https://codeberg.org/acme/gadget/pulls/7", "user": {"login": "alice"}, "labels": [{"name": "bug"}]},
+  {"number": 6, "title": "Open PR", "state": "open", "created_at": "$D3", "updated_at": "$D2", "merged": false, "merged_at": null, "html_url": "https://codeberg.org/acme/gadget/pulls/6", "user": {"login": "bob"}, "labels": []}
+]
+EOF
+cat > "$FIXCB/prs.2.json" <<EOF
+[{"number": 5, "title": "Page two PR", "state": "open", "created_at": "$D3", "updated_at": "$D1", "merged": false, "merged_at": null, "html_url": "https://codeberg.org/acme/gadget/pulls/5", "user": {"login": "alice"}, "labels": []}]
+EOF
+printf 'https://codeberg.org/api/v1/repos/acme/gadget/pulls?page=2&state=all\n' > "$FIXCB/next_page"
+cp "$FIX/commits.json" "$FIXCB/commits.json"
+cp "$FIX/issues.json" "$FIXCB/issues.json"
+cp "$FIX/releases.json" "$FIXCB/releases.json"
+cp "$FIX/contributors.json" "$FIXCB/contributors.json"
+cat > "$FIXCB/meta.json" <<EOF
+{
+  "description": "A codeberg gadget",
+  "language": "Go",
+  "default_branch": "main",
+  "stars_count": 4321,
+  "forks_count": 77,
+  "watchers_count": 123,
+  "open_issues_count": 3,
+  "created_at": "2021-05-05T00:00:00Z",
+  "updated_at": "$D1",
+  "licenses": ["MIT"]
+}
+EOF
+GS_FIXTURE_DIR="$FIXCB" "$GS" analyze https://codeberg.org/acme/gadget $ARGS --no-cache -q -d 7 -f md -o "$OUT/codeberg.md" || fail "codeberg analyze failed"
+grep -q "4321" "$OUT/codeberg.md" || fail "codeberg missing gitea star count (stars_count)"
+grep -q "MIT" "$OUT/codeberg.md" || fail "codeberg missing license (licenses array)"
+grep -q "Page two PR" "$OUT/codeberg.md" || fail "codeberg missing page-2 PR (Link pagination)"
+grep -q "| merged | alice |" "$OUT/codeberg.md" || fail "codeberg closed+merged PR not normalized"
+
+# Explicit --platform gitea against the same gitea-style fixtures
+GS_FIXTURE_DIR="$FIXCB" "$GS" analyze acme/gadget $ARGS --platform gitea --no-cache -q -d 7 -f txt -o "$OUT/gitea.txt" || fail "gitea analyze failed"
+grep -q "4321" "$OUT/gitea.txt" || fail "gitea txt missing star count"
+
+# GitLab X-Next-Page pagination: numeric next_page marker drives the
+# page-parameter reconstruction path (fixes GitLab fetches beyond page 1).
+FIXGL="$WORK/fixgl"
+mkdir -p "$FIXGL"
+cat > "$FIXGL/prs.json" <<EOF
+[
+  {"iid": 11, "title": "MR one", "state": "opened", "created_at": "$D3", "updated_at": "$D1", "merged_at": null, "html_url": "https://gitlab.com/acme/gadget/-/merge_requests/11", "author": {"username": "alice"}}
+]
+EOF
+cat > "$FIXGL/prs.2.json" <<EOF
+[{"iid": 10, "title": "MR from page two", "state": "merged", "created_at": "$D3", "updated_at": "$D1", "merged_at": "$D2", "html_url": "https://gitlab.com/acme/gadget/-/merge_requests/10", "author": {"username": "bob"}}]
+EOF
+printf '2\n' > "$FIXGL/next_page"
+GS_FIXTURE_DIR="$FIXGL" "$GS" analyze acme/gadget $ARGS --platform gitlab --no-cache -q -d 7 -f md -o "$OUT/gitlab.md" || fail "gitlab pagination analyze failed"
+grep -q "MR from page two" "$OUT/gitlab.md" || fail "gitlab missing page-2 MR (X-Next-Page pagination)"
+
+export GS_FIXTURE_DIR="$FIX"
+
 # LLM protocol config: auto-detect, list, and set round-trip
 cat > "$WORK/proto.json" <<EOF
 {

@@ -56,13 +56,13 @@ _gs_filedir() {
 _gs_config() {
     local cur="$1" prev="$2"
     local config_opts="--set-token -t --set-llm --list-llms --show --edit --set --config -c --help -h"
-    local config_keys="platform github_token gitlab_token api_base proxy default_days max_pages color format active_llm export.show_prs export.show_commits export.show_issues export.show_summary export.show_top_labels export.show_releases export.show_contributors export.item_limit export.md.table_width export.txt.table_width export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width export.xlsx.border export.xlsx.sheet_name export.pdf.margin export.pdf.line_height export.pdf.col2_padding export.pdf.title_color export.pdf.header_color export.pdf.label_color"
+    local config_keys="platform github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm export.show_prs export.show_commits export.show_issues export.show_summary export.show_top_labels export.show_releases export.show_contributors export.item_limit export.md.table_width export.txt.table_width export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width export.xlsx.border export.xlsx.sheet_name export.pdf.margin export.pdf.line_height export.pdf.col2_padding export.pdf.title_color export.pdf.header_color export.pdf.label_color"
 
     if [[ $cur == *=* ]]; then
         local key="${cur%%=*}"
         local val="${cur#*=}"
         case "$key" in
-            platform) COMPREPLY=( $(compgen -W "github gitlab" -P "$key=" -- "$val") ) ;;
+            platform) COMPREPLY=( $(compgen -W "github gitlab codeberg gitea forgejo" -P "$key=" -- "$val") ) ;;
             color)    COMPREPLY=( $(compgen -W "auto always never" -P "$key=" -- "$val") ) ;;
             format)   COMPREPLY=( $(compgen -W "json md txt xlsx pdf" -P "$key=" -- "$val") ) ;;
             *.protocol) COMPREPLY=( $(compgen -W "openai anthropic gemini" -P "$key=" -- "$val") ) ;;
@@ -156,7 +156,7 @@ _gs() {
 
     local commands="analyze watch sub subscribe config usage version completion"
     local formats="json md txt xlsx pdf"
-    local platforms="github gitlab"
+    local platforms="github gitlab codeberg gitea forgejo"
     local colors="auto always never"
     local llm_modes="health trends release"
     local analyze_opts="--since -d --max-pages --platform --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h"

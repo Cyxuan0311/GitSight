@@ -2,6 +2,7 @@
 #include "gitsight/error.h"
 #include "gitsight/color.h"
 #include "gitsight/tui.h"
+#include "gitsight/platform/profile.h"
 #include <cJSON.h>
 #include <stdio.h>
 #include <string.h>
@@ -9,6 +10,30 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <pwd.h>
+
+static int platform_is_gitea_family(const char *p) {
+    return strcmp(p, "codeberg") == 0 || strcmp(p, "gitea") == 0 ||
+           strcmp(p, "forgejo") == 0;
+}
+
+/* True when the configured api_base was never customized (still a built-in
+   platform default), so a platform switch may replace it. */
+static int api_base_is_default(const char *base) {
+    if (base[0] == '\0') return 1;
+    if (strcmp(base, "https://api.github.com") == 0) return 1;
+    if (strcmp(base, "https://gitlab.com/api/v4") == 0) return 1;
+    if (strcmp(base, "https://codeberg.org/api/v1") == 0) return 1;
+    if (strcmp(base, "https://gitea.com/api/v1") == 0) return 1;
+    return 0;
+}
+
+/* If the active platform has its own default API base and the configured one
+   was never customized (empty or still a built-in default), switch to it. */
+static void apply_platform_defaults(Config *cfg) {
+    const PlatformProfile *pf = platform_profile(cfg->platform);
+    if (pf && api_base_is_default(cfg->api_base))
+        snprintf(cfg->api_base, sizeof(cfg->api_base), "%s", pf->default_api_base);
+}
 
 static void ensure_dir(const char *path) {
     char tmp[1024];
@@ -143,6 +168,10 @@ ErrorCode config_load(Config *cfg, const char *path) {
     item = cJSON_GetObjectItem(json, "gitlab_token");
     if (item && cJSON_IsString(item))
         snprintf(cfg->gitlab_token, sizeof(cfg->gitlab_token), "%s", item->valuestring);
+
+    item = cJSON_GetObjectItem(json, "codeberg_token");
+    if (item && cJSON_IsString(item))
+        snprintf(cfg->codeberg_token, sizeof(cfg->codeberg_token), "%s", item->valuestring);
 
     item = cJSON_GetObjectItem(json, "api_base");
     if (item && cJSON_IsString(item))
@@ -295,6 +324,7 @@ ErrorCode config_load(Config *cfg, const char *path) {
     }
 
     cJSON_Delete(json);
+    apply_platform_defaults(cfg);
     return GS_OK;
 }
 
@@ -357,6 +387,9 @@ void config_merge(Config *cfg,
     if (strcmp(cfg->platform, "gitlab") == 0) {
         if (token && token[0])
             snprintf(cfg->gitlab_token, sizeof(cfg->gitlab_token), "%s", token);
+    } else if (platform_is_gitea_family(cfg->platform)) {
+        if (token && token[0])
+            snprintf(cfg->codeberg_token, sizeof(cfg->codeberg_token), "%s", token);
     } else {
         if (token && token[0])
             snprintf(cfg->github_token, sizeof(cfg->github_token), "%s", token);
@@ -364,12 +397,17 @@ void config_merge(Config *cfg,
 
     const char *env_token = getenv("GITHUB_TOKEN");
     const char *env_gl_token = getenv("GITLAB_TOKEN");
+    const char *env_cb_token = getenv("CODEBERG_TOKEN");
+    if (!env_cb_token || !env_cb_token[0]) env_cb_token = getenv("GS_CODEBERG_TOKEN");
     const char *env_proxy = getenv("HTTPS_PROXY");
     const char *env_api   = getenv("GS_API_BASE");
 
     if (strcmp(cfg->platform, "gitlab") == 0) {
         if (!cfg->gitlab_token[0] && env_gl_token)
             snprintf(cfg->gitlab_token, sizeof(cfg->gitlab_token), "%s", env_gl_token);
+    } else if (platform_is_gitea_family(cfg->platform)) {
+        if (!cfg->codeberg_token[0] && env_cb_token)
+            snprintf(cfg->codeberg_token, sizeof(cfg->codeberg_token), "%s", env_cb_token);
     } else {
         if (!cfg->github_token[0] && env_token)
             snprintf(cfg->github_token, sizeof(cfg->github_token), "%s", env_token);
@@ -382,6 +420,8 @@ void config_merge(Config *cfg,
     }
     if (!cfg->api_base[0] && env_api)
         snprintf(cfg->api_base, sizeof(cfg->api_base), "%s", env_api);
+
+    apply_platform_defaults(cfg);
 
     if (llm_name && llm_name[0]) {
         int found = 0;
@@ -526,6 +566,7 @@ ErrorCode config_save(const char *path, const Config *cfg) {
     cJSON_AddStringToObject(json, "platform", cfg->platform);
     cJSON_AddStringToObject(json, "github_token", cfg->github_token);
     cJSON_AddStringToObject(json, "gitlab_token", cfg->gitlab_token);
+    cJSON_AddStringToObject(json, "codeberg_token", cfg->codeberg_token);
     cJSON_AddStringToObject(json, "api_base", cfg->api_base);
     cJSON_AddStringToObject(json, "proxy", cfg->proxy);
     cJSON_AddNumberToObject(json, "default_days", cfg->default_days);
@@ -671,8 +712,12 @@ ErrorCode config_set_active_llm(const char *path, const char *name) {
 
 static int set_top_level(Config *cfg, const char *key, const char *val) {
     if (strcmp(key, "platform") == 0) {
-        if (strcmp(val, "github") != 0 && strcmp(val, "gitlab") != 0) return 0;
+        if (strcmp(val, "github") != 0 && strcmp(val, "gitlab") != 0 &&
+            strcmp(val, "codeberg") != 0 && strcmp(val, "gitea") != 0 &&
+            strcmp(val, "forgejo") != 0)
+            return 0;
         snprintf(cfg->platform, sizeof(cfg->platform), "%s", val);
+        apply_platform_defaults(cfg);
     } else if (strcmp(key, "default_days") == 0) {
         int v = atoi(val);
         if (v <= 0) return 0;
@@ -699,6 +744,8 @@ static int set_top_level(Config *cfg, const char *key, const char *val) {
         snprintf(cfg->github_token, sizeof(cfg->github_token), "%s", val);
     } else if (strcmp(key, "gitlab_token") == 0) {
         snprintf(cfg->gitlab_token, sizeof(cfg->gitlab_token), "%s", val);
+    } else if (strcmp(key, "codeberg_token") == 0) {
+        snprintf(cfg->codeberg_token, sizeof(cfg->codeberg_token), "%s", val);
     } else if (strcmp(key, "active_llm") == 0) {
         int found = 0;
         for (int i = 0; i < cfg->llm_count; i++)

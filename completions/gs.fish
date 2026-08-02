@@ -36,7 +36,7 @@ function __gs_llm_names
 end
 
 function __gs_config_keys
-    echo platform github_token gitlab_token api_base proxy default_days max_pages color format active_llm
+    echo platform github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm
     echo export.show_prs export.show_commits export.show_issues export.show_summary export.show_top_labels export.show_releases export.show_contributors export.item_limit
     echo export.md.table_width export.txt.table_width
     echo export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width export.xlsx.border export.xlsx.sheet_name
@@ -98,7 +98,7 @@ complete -c gs -n '__fish_seen_subcommand_from usage' -l config -r -F -d 'config
 complete -c gs -f -n '__fish_seen_subcommand_from analyze' -a '(__gs_subscriptions)' -d repository
 complete -c gs -n '__fish_seen_subcommand_from analyze' -s d -l since -r -d 'analysis period in days'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -l max-pages -r -d 'api pages to fetch'
-complete -c gs -n '__fish_seen_subcommand_from analyze' -l platform -xa 'github gitlab'
+complete -c gs -n '__fish_seen_subcommand_from analyze' -l platform -xa 'github gitlab codeberg gitea forgejo'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -s t -l token -r -d 'access token'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -s f -l format -xa 'json md txt xlsx pdf'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -s o -l output -r -F -d 'output file'
@@ -119,7 +119,7 @@ complete -c gs -f -n '__gs_watch_ctx; and __fish_use_subcommand' -a 'add remove 
 
 # watch analyze (bare watch, analyze, run)
 complete -c gs -n '__gs_watch_analyze_ctx' -s d -l since -r -d 'analysis period in days'
-complete -c gs -n '__gs_watch_analyze_ctx' -l platform -xa 'github gitlab'
+complete -c gs -n '__gs_watch_analyze_ctx' -l platform -xa 'github gitlab codeberg gitea forgejo'
 complete -c gs -n '__gs_watch_analyze_ctx' -s f -l format -xa 'json md txt xlsx pdf'
 complete -c gs -n '__gs_watch_analyze_ctx' -s o -l output -r -F -d 'output file'
 complete -c gs -n '__gs_watch_analyze_ctx' -l color -xa 'auto always never'
@@ -134,7 +134,7 @@ complete -c gs -f -n '__gs_watch_add_ctx' -a '(__gs_subscriptions)' -d repositor
 complete -c gs -n '__gs_watch_add_ctx' -l alias -r -d 'alias'
 complete -c gs -n '__gs_watch_add_ctx' -s d -l days -r -d 'days'
 complete -c gs -n '__gs_watch_add_ctx' -s f -l format -xa 'json md txt xlsx pdf'
-complete -c gs -n '__gs_watch_add_ctx' -l platform -xa 'github gitlab'
+complete -c gs -n '__gs_watch_add_ctx' -l platform -xa 'github gitlab codeberg gitea forgejo'
 complete -c gs -n '__gs_watch_add_ctx' -l config -r -F -d 'config file'
 
 # watch remove/rm/del
@@ -147,7 +147,7 @@ complete -c gs -n '__gs_watch_update_ctx' -l repo -r -d 'new repository'
 complete -c gs -n '__gs_watch_update_ctx' -l alias -r -d 'alias'
 complete -c gs -n '__gs_watch_update_ctx' -s d -l days -r -d 'days'
 complete -c gs -n '__gs_watch_update_ctx' -s f -l format -xa 'json md txt xlsx pdf'
-complete -c gs -n '__gs_watch_update_ctx' -l platform -xa 'github gitlab'
+complete -c gs -n '__gs_watch_update_ctx' -l platform -xa 'github gitlab codeberg gitea forgejo'
 complete -c gs -n '__gs_watch_update_ctx' -l config -r -F -d 'config file'
 
 # watch list

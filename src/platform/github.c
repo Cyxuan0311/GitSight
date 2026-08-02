@@ -10,6 +10,13 @@
 
 #define GITHUB_ACCEPT "Accept: application/vnd.github.v3+json"
 
+static void build_auth(const GitHubContext *gh, char *auth, size_t len) {
+    auth[0] = '\0';
+    if (!gh->token[0] || !gh->profile) return;
+    snprintf(auth, len, "Authorization: %s %s",
+             gh->profile->auth_scheme, gh->token);
+}
+
 static void build_since_date(int since_days, char *buf, size_t len) {
     time_t now = time(NULL);
     time_t since_ts = now - (time_t)since_days * 86400;
@@ -42,10 +49,10 @@ static void set_http_error(GitHubContext *gh, long http_code) {
     if (!gh->error_buf) return;
     if (http_code == 401)
         snprintf(gh->error_buf, gh->error_len,
-            "HTTP 401 (bad credentials). Check your GITHUB_TOKEN.");
+            "HTTP 401 (bad credentials). Check your platform access token.");
     else if (http_code == 403)
         snprintf(gh->error_buf, gh->error_len,
-            "HTTP 403 (rate limited). Set GITHUB_TOKEN in config or env.");
+            "HTTP 403 (rate limited). Set an access token in config or env.");
     else if (http_code == 404)
         snprintf(gh->error_buf, gh->error_len,
             "HTTP 404. Repository '%s/%s' not found.", gh->owner, gh->repo);
@@ -88,6 +95,8 @@ static int parse_prs_page(void *userdata, const char *body, const HttpResult *re
         if (n && cJSON_IsString(n)) snprintf(pr->created_at, sizeof(pr->created_at), "%s", n->valuestring);
         n = cJSON_GetObjectItem(item, "merged_at");
         if (n && cJSON_IsString(n)) snprintf(pr->merged_at, sizeof(pr->merged_at), "%s", n->valuestring);
+        if (pr->merged_at[0] && strcmp(pr->state, "closed") == 0)
+            snprintf(pr->state, sizeof(pr->state), "merged");
         n = cJSON_GetObjectItem(item, "html_url");
         if (n && cJSON_IsString(n)) snprintf(pr->html_url, sizeof(pr->html_url), "%s", n->valuestring);
         n = cJSON_GetObjectItem(item, "user");
@@ -118,8 +127,7 @@ static ErrorCode fetch_prs_impl(void *ctx, Vector *prs, int since_days) {
 
     HttpClient hc;
     char auth[600] = "";
-    if (gh->token[0])
-        snprintf(auth, sizeof(auth), "Authorization: Bearer %s", gh->token);
+    build_auth(gh, auth, sizeof(auth));
     http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
 
     PageCtx pctx = { prs, "" };
@@ -217,8 +225,7 @@ static ErrorCode fetch_commits_impl(void *ctx, Vector *commits, int since_days) 
 
     HttpClient hc;
     char auth[600] = "";
-    if (gh->token[0])
-        snprintf(auth, sizeof(auth), "Authorization: Bearer %s", gh->token);
+    build_auth(gh, auth, sizeof(auth));
     http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
 
     PageCtx pctx = { commits, "" };
@@ -296,8 +303,7 @@ static ErrorCode fetch_issues_impl(void *ctx, Vector *issues, int since_days) {
 
     HttpClient hc;
     char auth[600] = "";
-    if (gh->token[0])
-        snprintf(auth, sizeof(auth), "Authorization: Bearer %s", gh->token);
+    build_auth(gh, auth, sizeof(auth));
     http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
 
     PageCtx pctx = { issues, "" };
@@ -370,8 +376,7 @@ static ErrorCode fetch_releases_impl(void *ctx, Vector *releases, int since_days
 
     HttpClient hc;
     char auth[600] = "";
-    if (gh->token[0])
-        snprintf(auth, sizeof(auth), "Authorization: Bearer %s", gh->token);
+    build_auth(gh, auth, sizeof(auth));
     http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
 
     PageCtx pctx = { releases, "" };
@@ -395,8 +400,7 @@ static ErrorCode fetch_meta_impl(void *ctx, RepoMeta *meta) {
 
     HttpClient hc;
     char auth[600] = "";
-    if (gh->token[0])
-        snprintf(auth, sizeof(auth), "Authorization: Bearer %s", gh->token);
+    build_auth(gh, auth, sizeof(auth));
     http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
 
     HttpBuffer buf;
@@ -422,6 +426,7 @@ static ErrorCode fetch_meta_impl(void *ctx, RepoMeta *meta) {
     n = cJSON_GetObjectItem(json, "default_branch");
     if (n && cJSON_IsString(n)) snprintf(meta->default_branch, sizeof(meta->default_branch), "%s", n->valuestring);
     n = cJSON_GetObjectItem(json, "stargazers_count");
+    if (!n || !cJSON_IsNumber(n)) n = cJSON_GetObjectItem(json, "stars_count");
     if (n && cJSON_IsNumber(n)) meta->stars = n->valuedouble;
     n = cJSON_GetObjectItem(json, "forks_count");
     if (n && cJSON_IsNumber(n)) meta->forks = n->valuedouble;
@@ -432,12 +437,22 @@ static ErrorCode fetch_meta_impl(void *ctx, RepoMeta *meta) {
     n = cJSON_GetObjectItem(json, "created_at");
     if (n && cJSON_IsString(n)) snprintf(meta->created_at, sizeof(meta->created_at), "%s", n->valuestring);
     n = cJSON_GetObjectItem(json, "pushed_at");
+    if (!n || !cJSON_IsString(n)) n = cJSON_GetObjectItem(json, "updated_at");
     if (n && cJSON_IsString(n)) snprintf(meta->pushed_at, sizeof(meta->pushed_at), "%s", n->valuestring);
     n = cJSON_GetObjectItem(json, "license");
     if (n && cJSON_IsObject(n)) {
         cJSON *spdx = cJSON_GetObjectItem(n, "spdx_id");
         if (spdx && cJSON_IsString(spdx))
             snprintf(meta->license, sizeof(meta->license), "%s", spdx->valuestring);
+    } else if (n && cJSON_IsString(n)) {
+        snprintf(meta->license, sizeof(meta->license), "%s", n->valuestring);
+    } else {
+        cJSON *licenses = cJSON_GetObjectItem(json, "licenses");
+        if (licenses && cJSON_IsArray(licenses)) {
+            cJSON *first = cJSON_GetArrayItem(licenses, 0);
+            if (first && cJSON_IsString(first))
+                snprintf(meta->license, sizeof(meta->license), "%s", first->valuestring);
+        }
     }
 
     meta->has_meta = 1;
@@ -479,8 +494,7 @@ static ErrorCode fetch_contributors_impl(void *ctx, Vector *contributors) {
 
     HttpClient hc;
     char auth[600] = "";
-    if (gh->token[0])
-        snprintf(auth, sizeof(auth), "Authorization: Bearer %s", gh->token);
+    build_auth(gh, auth, sizeof(auth));
     http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
 
     long last_http = 0;
@@ -502,8 +516,17 @@ ErrorCode github_client_init(PlatformClient *client, const Config *cfg,
     GitHubContext *ctx = calloc(1, sizeof(GitHubContext));
     if (!ctx) return ERR_MEMORY;
 
-    snprintf(ctx->token, sizeof(ctx->token), "%s", cfg->github_token);
-    snprintf(ctx->api_base, sizeof(ctx->api_base), "%s", cfg->api_base);
+    ctx->profile = platform_profile(cfg->platform);
+    if (!ctx->profile) ctx->profile = platform_profile("github");
+
+    const char *token = cfg->github_token;
+    if (ctx->profile && strcmp(ctx->profile->name, "github") != 0)
+        token = cfg->codeberg_token;
+    snprintf(ctx->token, sizeof(ctx->token), "%s", token);
+    if (!cfg->api_base[0] && ctx->profile)
+        snprintf(ctx->api_base, sizeof(ctx->api_base), "%s", ctx->profile->default_api_base);
+    else
+        snprintf(ctx->api_base, sizeof(ctx->api_base), "%s", cfg->api_base);
     snprintf(ctx->proxy, sizeof(ctx->proxy), "%s", cfg->proxy);
     snprintf(ctx->owner, sizeof(ctx->owner), "%s", owner);
     snprintf(ctx->repo, sizeof(ctx->repo), "%s", repo);
@@ -515,7 +538,7 @@ ErrorCode github_client_init(PlatformClient *client, const Config *cfg,
 
     snprintf(client->owner, sizeof(client->owner), "%s", owner);
     snprintf(client->repo, sizeof(client->repo), "%s", repo);
-    snprintf(client->api_base, sizeof(client->api_base), "%s", cfg->api_base);
+    snprintf(client->api_base, sizeof(client->api_base), "%s", ctx->api_base);
     snprintf(client->proxy, sizeof(client->proxy), "%s", cfg->proxy);
     client->timeout_secs = 30;
     client->ctx = ctx;

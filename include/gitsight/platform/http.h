@@ -15,6 +15,7 @@ void  http_buffer_free(HttpBuffer *b);
 typedef struct {
     long http_code;
     char next_page[1024];
+    long next_page_num;
     long rate_limit_remaining;
     long rate_limit_reset;
     long retry_after;
@@ -51,7 +52,10 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
    1 to stop early (e.g. remaining items are outside the requested window). */
 typedef int (*HttpPageFn)(void *userdata, const char *body, const HttpResult *res);
 
-/* GET all pages following the Link rel="next" header, up to max_pages.
+/* GET all pages following pagination metadata, up to max_pages. Two styles
+   are supported: the Link rel="next" header (GitHub/Gitea/Forgejo) and the
+   X-Next-Page header (GitLab), which store a full URL or a page number in
+   HttpResult.next_page / HttpResult.next_page_num respectively.
    If last_http is non-NULL, it receives the HTTP code of the last response
    (useful for building error messages when an error is returned). */
 ErrorCode http_get_paginated(const HttpClient *hc, const char *url,

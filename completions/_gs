@@ -48,12 +48,12 @@ _gs_llm_names() {
 }
 
 _gs_formats()   { compadd json md txt xlsx pdf }
-_gs_platforms() { compadd github gitlab }
+_gs_platforms() { compadd github gitlab codeberg gitea forgejo }
 _gs_colors()    { compadd auto always never }
 _gs_llm_modes() { compadd health trends release }
 
 _gs_config_keys() {
-    compadd -S '=' platform github_token gitlab_token api_base proxy default_days max_pages color format active_llm \
+    compadd -S '=' platform github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm \
         export.show_prs export.show_commits export.show_issues export.show_summary \
         export.show_top_labels export.show_releases export.show_contributors export.item_limit \
         export.md.table_width export.txt.table_width \
@@ -207,7 +207,7 @@ _gs_config() {
                 local key="${words[CURRENT]%%=*}"
                 local val="${words[CURRENT]#*=}"
                 case "$key" in
-                    platform) compadd -P "$key=" -- github gitlab ;;
+                    platform) compadd -P "$key=" -- github gitlab codeberg gitea forgejo ;;
                     color)    compadd -P "$key=" -- auto always never ;;
                     format)   compadd -P "$key=" -- json md txt xlsx pdf ;;
                     *.protocol) compadd -P "$key=" -- openai anthropic gemini ;;

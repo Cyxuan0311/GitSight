@@ -430,7 +430,9 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
     }
 }
 
-/* Set the "page" query parameter on url (replace existing, or append). */
+/* Set the "page" query parameter on url (replace existing, or append).
+   The parameter is only matched when preceded by '?' or '&' so a substring
+   of another parameter (e.g. per_page=) is never mistaken for it. */
 static void set_page_param(char *url, size_t len, long page) {
     char num[32];
     snprintf(num, sizeof(num), "%ld", page);
@@ -438,14 +440,15 @@ static void set_page_param(char *url, size_t len, long page) {
     char *buf = malloc(4096);
     if (!buf) return;
 
-    const char *page_eq = strstr(url, "page=");
+    const char *q = strstr(url, "?page=");
+    const char *a = strstr(url, "&page=");
+    const char *page_eq = q ? q : a;
     if (page_eq) {
-        size_t prefix = (size_t)(page_eq - url);
-        const char *amp = strchr(page_eq, '&');
-        if (amp)
-            snprintf(buf, 4096, "%.*s%s%s", (int)prefix, url, num, amp);
-        else
-            snprintf(buf, 4096, "%.*s%s", (int)prefix, url, num);
+        const char *digits = page_eq + 6;
+        const char *end = digits;
+        while (*end >= '0' && *end <= '9') end++;
+        snprintf(buf, 4096, "%.*s%s%s",
+                 (int)(digits - url), url, num, end);
     } else {
         const char *sep = strchr(url, '?') ? "&" : "?";
         snprintf(buf, 4096, "%s%spage=%s", url, sep, num);

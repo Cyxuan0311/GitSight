@@ -174,15 +174,17 @@ FIXGL="$WORK/fixgl"
 mkdir -p "$FIXGL"
 cat > "$FIXGL/prs.json" <<EOF
 [
-  {"iid": 11, "title": "MR one", "state": "opened", "created_at": "$D3", "updated_at": "$D1", "merged_at": null, "html_url": "https://gitlab.com/acme/gadget/-/merge_requests/11", "author": {"username": "alice"}}
+  {"iid": 11, "title": "MR one", "state": "opened", "created_at": "$D3", "updated_at": "$D1", "merged_at": null, "web_url": "https://gitlab.com/acme/gadget/-/merge_requests/11", "author": {"name": "alice"}}
 ]
 EOF
 cat > "$FIXGL/prs.2.json" <<EOF
-[{"iid": 10, "title": "MR from page two", "state": "merged", "created_at": "$D3", "updated_at": "$D1", "merged_at": "$D2", "html_url": "https://gitlab.com/acme/gadget/-/merge_requests/10", "author": {"username": "bob"}}]
+[{"iid": 10, "title": "MR from page two", "state": "merged", "created_at": "$D3", "updated_at": "$D1", "merged_at": "$D2", "web_url": "https://gitlab.com/acme/gadget/-/merge_requests/10", "author": {"name": "bob"}}]
 EOF
 printf '2\n' > "$FIXGL/next_page"
 GS_FIXTURE_DIR="$FIXGL" "$GS" analyze acme/gadget $ARGS --platform gitlab --no-cache -q -d 7 -f md -o "$OUT/gitlab.md" || fail "gitlab pagination analyze failed"
 grep -q "MR from page two" "$OUT/gitlab.md" || fail "gitlab missing page-2 MR (X-Next-Page pagination)"
+grep -q "Total  | 2 |" "$OUT/gitlab.md" || fail "gitlab PR count wrong (page-1 duplicate?)"
+test "$(grep -c 'MR one' "$OUT/gitlab.md")" -eq 1 || fail "gitlab page-1 MR duplicated"
 
 export GS_FIXTURE_DIR="$FIX"
 

@@ -451,9 +451,12 @@ int main(int argc, char **argv) {
                 printf("{\n  \"subscriptions\": [\n");
                 for (int i = 0; i < cfg.subscription_count; i++) {
                     const Subscription *s = &cfg.subscriptions[i];
+                    const char *plat = s->platform[0] ? s->platform : cfg.platform;
+                    const char *fmt = s->format[0] ? s->format : cfg.format;
+                    int days = s->days > 0 ? s->days : cfg.default_days;
                     printf("    {\"index\": %d, \"repo\": \"%s\", \"alias\": \"%s\", "
                            "\"platform\": \"%s\", \"days\": %d, \"format\": \"%s\"}%s\n",
-                           i, s->repo, s->alias, s->platform, s->days, s->format,
+                           i, s->repo, s->alias, plat, days, fmt,
                            i + 1 < cfg.subscription_count ? "," : "");
                 }
                 printf("  ]\n}\n");
@@ -461,7 +464,7 @@ int main(int argc, char **argv) {
                 color_init(opts.color_mode >= 0 ? opts.color_mode : cfg.color_mode);
                 TuiTable t;
                 char idx[MAX_SUBSCRIPTIONS][8];
-                char days[MAX_SUBSCRIPTIONS][12];
+                char days_str[MAX_SUBSCRIPTIONS][12];
                 const char *cells[6];
                 tui_table_init(&t, 6);
                 tui_table_header(&t, 0, "Idx");
@@ -479,14 +482,17 @@ int main(int argc, char **argv) {
                 tui_table_cell_color(&t, 5, CLR_GREEN);
                 for (int i = 0; i < cfg.subscription_count; i++) {
                     const Subscription *s = &cfg.subscriptions[i];
+                    const char *plat = s->platform[0] ? s->platform : cfg.platform;
+                    const char *fmt = s->format[0] ? s->format : cfg.format;
+                    int days = s->days > 0 ? s->days : cfg.default_days;
                     snprintf(idx[i], sizeof(idx[i]), "%d", i);
-                    snprintf(days[i], sizeof(days[i]), "%d", s->days);
+                    snprintf(days_str[i], sizeof(days_str[i]), "%d", days);
                     cells[0] = idx[i];
                     cells[1] = s->repo;
                     cells[2] = s->alias[0] ? s->alias : "-";
-                    cells[3] = s->platform[0] ? s->platform : "-";
-                    cells[4] = s->days ? days[i] : "-";
-                    cells[5] = s->format[0] ? s->format : "-";
+                    cells[3] = plat;
+                    cells[4] = days_str[i];
+                    cells[5] = fmt;
                     tui_table_row(&t, cells);
                 }
                 t.use_color = color_active();

@@ -11,6 +11,7 @@ typedef struct {
     char proxy[512];
     char owner[128];
     char repo[128];
+    char branch[128];
     int  timeout_secs;
     int  max_pages;
     char *error_buf;

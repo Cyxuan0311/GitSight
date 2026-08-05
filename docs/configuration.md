@@ -164,6 +164,31 @@ gs analyze owner/repo \
 
 Note: PDF colors only take effect when outputting to a file with `--color always`.
 
+## Branch Analysis
+
+By default, commits are fetched from the repository's default branch.
+Use `--branch` to analyze a specific branch:
+
+```bash
+# Analyze the develop branch
+gs analyze owner/repo --branch develop
+
+# Combine with other options
+gs analyze owner/repo --branch feature/auth -d 30 -f json -o report.json
+```
+
+The `--branch` parameter only affects commit fetching. Pull requests, issues,
+releases, and contributors are always repository-wide and unaffected by branch
+selection.
+
+When used with `gs watch`, the branch is saved in the subscription and applied
+during each batch update:
+
+```bash
+gs watch add owner/repo --branch develop
+gs watch update owner/repo --branch main
+```
+
 ## Environment Variables
 
 | Variable | Overrides Config Field |

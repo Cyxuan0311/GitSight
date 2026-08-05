@@ -17,6 +17,7 @@ typedef struct {
     char  platform[16];
     int   days;
     char  format[32];
+    char  branch[128];
 } Subscription;
 
 typedef struct {
@@ -53,6 +54,7 @@ typedef struct {
     int   max_pages;
     int   color_mode;
     char  format[64];
+    char  branch[128];
     char  output[512];
     LLMConfig llms[MAX_LLMS];
     int   llm_count;
@@ -87,7 +89,7 @@ void        config_merge(Config *cfg,
                          const char *output, const char *proxy,
                          const char *api_base, int color_mode,
                          const char *token, const char *llm_name,
-                         const char *platform);
+                         const char *platform, const char *branch);
 ErrorCode   config_save(const char *path, const Config *cfg);
 ErrorCode   config_save_default(const char *path);
 void        config_get_default_path(char *buf, size_t len);

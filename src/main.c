@@ -447,59 +447,65 @@ int main(int argc, char **argv) {
             Config cfg;
             config_init(&cfg);
             config_load(&cfg, path);
-            if (opts.watch_json) {
-                printf("{\n  \"subscriptions\": [\n");
-                for (int i = 0; i < cfg.subscription_count; i++) {
-                    const Subscription *s = &cfg.subscriptions[i];
-                    const char *plat = s->platform[0] ? s->platform : cfg.platform;
-                    const char *fmt = s->format[0] ? s->format : cfg.format;
-                    int days = s->days > 0 ? s->days : cfg.default_days;
-                    printf("    {\"index\": %d, \"repo\": \"%s\", \"alias\": \"%s\", "
-                           "\"platform\": \"%s\", \"days\": %d, \"format\": \"%s\"}%s\n",
-                           i, s->repo, s->alias, plat, days, fmt,
-                           i + 1 < cfg.subscription_count ? "," : "");
-                }
-                printf("  ]\n}\n");
-            } else {
-                color_init(opts.color_mode >= 0 ? opts.color_mode : cfg.color_mode);
-                TuiTable t;
-                char idx[MAX_SUBSCRIPTIONS][8];
-                char days_str[MAX_SUBSCRIPTIONS][12];
-                const char *cells[6];
-                tui_table_init(&t, 6);
-                tui_table_header(&t, 0, "Idx");
-                tui_table_header(&t, 1, "Repository");
-                tui_table_header(&t, 2, "Alias");
-                tui_table_header(&t, 3, "Platform");
-                tui_table_header(&t, 4, "Days");
-                tui_table_header(&t, 5, "Format");
-                tui_table_align(&t, 0, TUI_ALIGN_RIGHT);
-                tui_table_align(&t, 4, TUI_ALIGN_RIGHT);
-                tui_table_cell_color(&t, 1, CLR_BLUE);
-                tui_table_cell_color(&t, 2, CLR_CYAN);
-                tui_table_cell_color(&t, 3, CLR_GRAY);
-                tui_table_cell_color(&t, 4, CLR_YELLOW);
-                tui_table_cell_color(&t, 5, CLR_GREEN);
-                for (int i = 0; i < cfg.subscription_count; i++) {
-                    const Subscription *s = &cfg.subscriptions[i];
-                    const char *plat = s->platform[0] ? s->platform : cfg.platform;
-                    const char *fmt = s->format[0] ? s->format : cfg.format;
-                    int days = s->days > 0 ? s->days : cfg.default_days;
-                    snprintf(idx[i], sizeof(idx[i]), "%d", i);
-                    snprintf(days_str[i], sizeof(days_str[i]), "%d", days);
-                    cells[0] = idx[i];
-                    cells[1] = s->repo;
-                    cells[2] = s->alias[0] ? s->alias : "-";
-                    cells[3] = plat;
-                    cells[4] = days_str[i];
-                    cells[5] = fmt;
-                    tui_table_row(&t, cells);
-                }
-                t.use_color = color_active();
-                t.border = TUI_BORDER_ROUNDED;
-                t.zebra = 1;
-                tui_table_render(&t, stdout);
-            }
+if (opts.watch_json) {
+                 printf("{\n  \"subscriptions\": [\n");
+                 for (int i = 0; i < cfg.subscription_count; i++) {
+                     const Subscription *s = &cfg.subscriptions[i];
+                     const char *plat = s->platform[0] ? s->platform : cfg.platform;
+                     const char *fmt = s->format[0] ? s->format : cfg.format;
+                     int days = s->days > 0 ? s->days : cfg.default_days;
+                     const char *br = s->branch[0] ? s->branch : "-";
+                     printf("    {\"index\": %d, \"repo\": \"%s\", \"alias\": \"%s\", "
+                            "\"platform\": \"%s\", \"days\": %d, \"format\": \"%s\", "
+                            "\"branch\": \"%s\"}%s\n",
+                            i, s->repo, s->alias, plat, days, fmt, br,
+                            i + 1 < cfg.subscription_count ? "," : "");
+                 }
+                 printf("  ]\n}\n");
+             } else {
+                 color_init(opts.color_mode >= 0 ? opts.color_mode : cfg.color_mode);
+                 TuiTable t;
+                 char idx[MAX_SUBSCRIPTIONS][8];
+                 char days_str[MAX_SUBSCRIPTIONS][12];
+                 const char *cells[7];
+                 tui_table_init(&t, 7);
+                 tui_table_header(&t, 0, "Idx");
+                 tui_table_header(&t, 1, "Repository");
+                 tui_table_header(&t, 2, "Alias");
+                 tui_table_header(&t, 3, "Platform");
+                 tui_table_header(&t, 4, "Days");
+                 tui_table_header(&t, 5, "Format");
+                 tui_table_header(&t, 6, "Branch");
+                 tui_table_align(&t, 0, TUI_ALIGN_RIGHT);
+                 tui_table_align(&t, 4, TUI_ALIGN_RIGHT);
+                 tui_table_cell_color(&t, 1, CLR_BLUE);
+                 tui_table_cell_color(&t, 2, CLR_CYAN);
+                 tui_table_cell_color(&t, 3, CLR_GRAY);
+                 tui_table_cell_color(&t, 4, CLR_YELLOW);
+                 tui_table_cell_color(&t, 5, CLR_GREEN);
+                 tui_table_cell_color(&t, 6, CLR_CYAN);
+                 for (int i = 0; i < cfg.subscription_count; i++) {
+                     const Subscription *s = &cfg.subscriptions[i];
+                     const char *plat = s->platform[0] ? s->platform : cfg.platform;
+                     const char *fmt = s->format[0] ? s->format : cfg.format;
+                     int days = s->days > 0 ? s->days : cfg.default_days;
+                     const char *br = s->branch[0] ? s->branch : "-";
+                     snprintf(idx[i], sizeof(idx[i]), "%d", i);
+                     snprintf(days_str[i], sizeof(days_str[i]), "%d", days);
+                     cells[0] = idx[i];
+                     cells[1] = s->repo;
+                     cells[2] = s->alias[0] ? s->alias : "-";
+                     cells[3] = plat;
+                     cells[4] = days_str[i];
+                     cells[5] = fmt;
+                     cells[6] = br;
+                     tui_table_row(&t, cells);
+                 }
+                 t.use_color = color_active();
+                 t.border = TUI_BORDER_ROUNDED;
+                 t.zebra = 1;
+                 tui_table_render(&t, stdout);
+             }
             if (cfg.subscription_count == 0)
                 fprintf(stderr, "No subscriptions. Use: gs watch add owner/repo\n");
             return 0;
@@ -511,6 +517,7 @@ int main(int argc, char **argv) {
             snprintf(sub.repo, sizeof(sub.repo), "%s", opts.watch_ref);
             snprintf(sub.alias, sizeof(sub.alias), "%s", opts.watch_alias);
             snprintf(sub.platform, sizeof(sub.platform), "%s", opts.watch_platform);
+            snprintf(sub.branch, sizeof(sub.branch), "%s", opts.branch);
             sub.days = opts.watch_days;
             snprintf(sub.format, sizeof(sub.format), "%s", opts.watch_format);
 
@@ -540,6 +547,8 @@ int main(int argc, char **argv) {
             snprintf(changes.repo, sizeof(changes.repo), "%s", opts.watch_new_repo);
             snprintf(changes.alias, sizeof(changes.alias), "%s", opts.watch_alias);
             snprintf(changes.platform, sizeof(changes.platform), "%s", opts.watch_platform);
+            if (opts.branch[0])
+                snprintf(changes.branch, sizeof(changes.branch), "%s", opts.branch);
             if (opts.watch_days_set) changes.days = opts.watch_days;
             snprintf(changes.format, sizeof(changes.format), "%s", opts.watch_format);
 
@@ -585,6 +594,7 @@ int main(int argc, char **argv) {
             if (s->days > 0) o2.since_days = s->days;
             if (s->format[0]) snprintf(o2.format, sizeof(o2.format), "%s", s->format);
             if (s->platform[0]) snprintf(o2.platform, sizeof(o2.platform), "%s", s->platform);
+            if (s->branch[0]) snprintf(o2.branch, sizeof(o2.branch), "%s", s->branch);
 
             if (batch && !opts.quiet)
                 fprintf(stderr, "\n== Analyzing subscription %s ==\n", s->repo);
@@ -735,10 +745,10 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
     if (opts->export_extra[0])
         snprintf(cfg.export_extra, sizeof(cfg.export_extra), "%s", opts->export_extra);
 
-    config_merge(&cfg, opts->since_days, opts->max_pages,
-                 opts->format, opts->output, opts->proxy,
-                 opts->api_base, opts->color_mode, opts->token,
-                 opts->llm_name, opts->platform);
+config_merge(&cfg, opts->since_days, opts->max_pages,
+                  opts->format, opts->output, opts->proxy,
+                  opts->api_base, opts->color_mode, opts->token,
+                  opts->llm_name, opts->platform, opts->branch);
 
     Vector prs, commits, issues, releases, contributors;
     vector_init(&prs);
@@ -816,6 +826,10 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
         anim_start(&sp, ANIM_DOTS, 0, 0, "Analyzing with LLM");
         analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors);
         report.meta = meta;
+        if (cfg.branch[0])
+            snprintf(report.branch, sizeof(report.branch), "%s", cfg.branch);
+        else
+            snprintf(report.branch, sizeof(report.branch), "%s", meta.default_branch);
         err = analyzer_llm_summary(report.summary, sizeof(report.summary),
                                    active_llm, owner, repo, cfg.default_days,
                                    &prs, &commits, &issues, &releases,
@@ -829,6 +843,10 @@ static int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, i
         anim_start(&sp, ANIM_BRAILLE, 0, 0, "Analyzing repository");
         analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors);
         report.meta = meta;
+        if (cfg.branch[0])
+            snprintf(report.branch, sizeof(report.branch), "%s", cfg.branch);
+        else
+            snprintf(report.branch, sizeof(report.branch), "%s", meta.default_branch);
         anim_stop(&sp, 1);
     }
 

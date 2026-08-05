@@ -74,6 +74,7 @@ _gs_analyze() {
         '--since[analysis period in days]:days:' \
         '--max-pages[api pages to fetch]:pages:' \
         '--platform[platform]:platform:->platform' \
+        '--branch[branch name]:branch:' \
         '-t[token]:token:' \
         '--token[token]:token:' \
         '-f[output format]:format:->format' \
@@ -112,6 +113,7 @@ _gs_watch_add() {
         '-f[format]:format:->format' \
         '--format[format]:format:->format' \
         '--platform[platform]:platform:->platform' \
+        '--branch[branch name]:branch:' \
         '--config[config file]:file:_files' \
         '1:repository:->repo'
 
@@ -140,6 +142,7 @@ _gs_watch_update() {
         '-f[format]:format:->format' \
         '--format[format]:format:->format' \
         '--platform[platform]:platform:->platform' \
+        '--branch[branch name]:branch:' \
         '--config[config file]:file:_files' \
         '1:subscription:->repo'
 

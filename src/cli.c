@@ -24,6 +24,7 @@ void cli_print_usage(void) {
     printf("  -o, --output <path>     Output file path (default: stdout)\n");
     printf("  --proxy <url>           HTTP proxy URL\n");
     printf("  --api-base <url>        API base URL (mirror support)\n");
+    printf("  --branch <name>         Analyze commits on a specific branch\n");
     printf("  --color <mode>          Color mode: auto, always, never\n");
     printf("  --llm <name>            LLM provider name to use\n");
     printf("  --llm-mode <mode>       LLM focus: health, trends, release (default: health)\n");
@@ -70,10 +71,10 @@ void cli_print_usage(void) {
 static void cli_print_watch_usage(void) {
     printf("Usage: gs watch <add|remove|update|list|analyze> [options]\n\n");
     printf("  add <owner/repo> [--alias <name>] [--days <n>] [--format <fmt>]\n");
-    printf("      [--platform <github|gitlab|codeberg|gitea|forgejo>]   Subscribe to a repository\n");
+    printf("      [--platform <github|gitlab|codeberg|gitea|forgejo>] [--branch <name>]   Subscribe to a repository\n");
     printf("  remove <ref>                       Unsubscribe (by repo or alias)\n");
     printf("  update <ref> [--repo <owner/repo>] [--alias <name>|-] [--days <n>]\n");
-    printf("      [--format <fmt>] [--platform <p>]\n");
+    printf("      [--format <fmt>] [--platform <p>] [--branch <name>|-]   Update a subscription\n");
     printf("  list [--json]                      List subscriptions\n");
     printf("  analyze                            Analyze all subscriptions (default)\n");
     printf("  -d, --since <days>  -f, --format <fmt>  -q, --quiet  --no-cache  --llm <name>\n");
@@ -151,6 +152,8 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
                 snprintf(opts->watch_format, sizeof(opts->watch_format), "%s", argv[++i]);
             } else if (strcmp(argv[i], "--platform") == 0 && i + 1 < argc) {
                 snprintf(opts->watch_platform, sizeof(opts->watch_platform), "%s", argv[++i]);
+            } else if (strcmp(argv[i], "--branch") == 0 && i + 1 < argc) {
+                snprintf(opts->branch, sizeof(opts->branch), "%s", argv[++i]);
             } else if (strcmp(argv[i], "--json") == 0) {
                 opts->watch_json = 1;
             } else if (strcmp(argv[i], "--no-cache") == 0) {
@@ -277,6 +280,7 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
         {"export",   required_argument, 0, 261},
         {"platform", required_argument, 0, 262},
         {"max-pages", required_argument, 0, 263},
+        {"branch",    required_argument, 0, 267},
         {"no-cache",  no_argument,       0, 264},
         {"quiet",     no_argument,       0, 'q'},
         {"compare",   required_argument, 0, 265},
@@ -310,6 +314,7 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
             case 264: opts->no_cache = 1; break;
             case 265: snprintf(opts->compare, sizeof(opts->compare), "%s", optarg); break;
             case 266: snprintf(opts->llm_mode, sizeof(opts->llm_mode), "%s", optarg); break;
+            case 267: snprintf(opts->branch, sizeof(opts->branch), "%s", optarg); break;
             default: return ERR_INVALID_ARGS;
         }
     }

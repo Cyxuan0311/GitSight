@@ -71,6 +71,7 @@ static ErrorCode json_write_report(FILE *fp, const Report *report,
         cJSON_AddStringToObject(meta, "language", report->meta.language);
         cJSON_AddStringToObject(meta, "license", report->meta.license);
         cJSON_AddStringToObject(meta, "default_branch", report->meta.default_branch);
+        cJSON_AddStringToObject(meta, "branch", report->branch);
         cJSON_AddStringToObject(meta, "description", report->meta.description);
         cJSON_AddStringToObject(meta, "created_at", report->meta.created_at);
         cJSON_AddStringToObject(meta, "pushed_at", report->meta.pushed_at);

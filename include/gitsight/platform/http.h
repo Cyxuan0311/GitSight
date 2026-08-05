@@ -61,4 +61,9 @@ typedef int (*HttpPageFn)(void *userdata, const char *body, const HttpResult *re
 ErrorCode http_get_paginated(const HttpClient *hc, const char *url,
                              HttpPageFn cb, void *userdata, long *last_http);
 
+/* URL-encode a string for use in query parameters.
+    Returns the number of bytes written (excluding the null terminator),
+    or -1 if the output buffer was too small. */
+int url_encode(const char *src, char *dst, size_t dst_len);
+
 #endif

@@ -318,6 +318,9 @@ ErrorCode config_load(Config *cfg, const char *path) {
             f = cJSON_GetObjectItem(s, "format");
             if (f && cJSON_IsString(f))
                 snprintf(sub->format, sizeof(sub->format), "%s", f->valuestring);
+            f = cJSON_GetObjectItem(s, "branch");
+            if (f && cJSON_IsString(f))
+                snprintf(sub->branch, sizeof(sub->branch), "%s", f->valuestring);
             if (sub->repo[0] == '\0') continue;
             cfg->subscription_count++;
         }
@@ -369,11 +372,11 @@ static void apply_export_override(Config *cfg, const char *kv) {
 }
 
 void config_merge(Config *cfg,
-                  int since_days, int max_pages, const char *format,
-                  const char *output, const char *proxy,
-                  const char *api_base, int color_mode,
-                  const char *token, const char *llm_name,
-                  const char *platform)
+                   int since_days, int max_pages, const char *format,
+                   const char *output, const char *proxy,
+                   const char *api_base, int color_mode,
+                   const char *token, const char *llm_name,
+                   const char *platform, const char *branch)
 {
     if (since_days > 0) cfg->default_days = since_days;
     if (max_pages > 0) cfg->max_pages = max_pages;
@@ -383,6 +386,7 @@ void config_merge(Config *cfg,
     if (api_base && api_base[0]) snprintf(cfg->api_base, sizeof(cfg->api_base), "%s", api_base);
     if (color_mode >= 0) cfg->color_mode = color_mode;
     if (platform && platform[0]) snprintf(cfg->platform, sizeof(cfg->platform), "%s", platform);
+    if (branch && branch[0]) snprintf(cfg->branch, sizeof(cfg->branch), "%s", branch);
 
     if (strcmp(cfg->platform, "gitlab") == 0) {
         if (token && token[0])
@@ -644,6 +648,7 @@ ErrorCode config_save(const char *path, const Config *cfg) {
             if (s->platform[0]) cJSON_AddStringToObject(o, "platform", s->platform);
             if (s->days > 0) cJSON_AddNumberToObject(o, "days", s->days);
             if (s->format[0]) cJSON_AddStringToObject(o, "format", s->format);
+            if (s->branch[0]) cJSON_AddStringToObject(o, "branch", s->branch);
             cJSON_AddItemToArray(subs, o);
         }
     }

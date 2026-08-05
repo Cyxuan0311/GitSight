@@ -319,9 +319,9 @@ ErrorCode export_pdf(FILE *fp, const Report *report,
     float col1 = mg;
     float col2;
     {
-        const char *lbls[] = {"Total", "Merged", "Open", "Closed", "Authors", "Top Author", "Latest release", "Top contributor", "Default branch"};
+        const char *lbls[] = {"Total", "Merged", "Open", "Closed", "Authors", "Top Author", "Latest release", "Top contributor", "Default branch", "Branch"};
         float mx = 0;
-        for (int i = 0; i < 9; i++) { float w = str_width(lbls[i], fs); if (w > mx) mx = w; }
+        for (int i = 0; i < 10; i++) { float w = str_width(lbls[i], fs); if (w > mx) mx = w; }
         col2 = col1 + mx + c2pad;
     }
     float lh = fs * lh_factor;
@@ -404,6 +404,11 @@ ErrorCode export_pdf(FILE *fp, const Report *report,
         if (report->meta.default_branch[0]) {
             ct_text(ct, col1, y, "Default branch", "F1", fs, &lcol);
             ct_text(ct, col2, y, report->meta.default_branch, "F1", fs, NULL);
+            y -= lh;
+        }
+        if (report->branch[0]) {
+            ct_text(ct, col1, y, "Branch", "F1", fs, &lcol);
+            ct_text(ct, col2, y, report->branch, "F1", fs, NULL);
             y -= lh;
         }
         y -= lh;

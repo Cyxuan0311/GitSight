@@ -242,6 +242,17 @@ rm -f acme_gadget_report.json acme_other_report.md
 "$GS" watch $ARGS remove acme/other || fail "watch remove 2nd failed"
 if "$GS" watch $ARGS list | grep -q "acme/"; then fail "watch list not empty after remove"; fi
 
+# Branch: analyze --branch shows Branch row in report
+"$GS" analyze acme/gadget $ARGS --branch dev --no-cache -d 7 -f md -o "$OUT/branch.md" || fail "analyze --branch failed"
+grep -q "Branch" "$OUT/branch.md" || fail "analyze --branch missing Branch label"
+grep -q "dev" "$OUT/branch.md" || fail "analyze --branch missing branch value"
+
+# Branch: watch add --branch + list shows Branch column
+"$GS" watch $ARGS add acme/gadget --branch feature/x || fail "watch add --branch failed"
+"$GS" watch $ARGS list | grep -q "feature/x" || fail "watch list missing branch"
+"$GS" watch $ARGS list --json | grep -q '"branch": "feature/x"' || fail "watch list json missing branch"
+"$GS" watch $ARGS remove acme/gadget || fail "watch remove branch"
+
 "$GS" version || fail "version failed"
 
 # completion command: embedded scripts must round-trip byte-for-byte

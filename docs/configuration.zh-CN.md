@@ -161,6 +161,27 @@ gs analyze owner/repo \
 
 注意：PDF 颜色仅在使用 `--color always` 输出到文件时生效。
 
+## 分支分析
+
+默认情况下，commits 从仓库的默认分支获取。使用 `--branch` 分析特定分支：
+
+```bash
+# 分析 develop 分支
+gs analyze owner/repo --branch develop
+
+# 与其他选项组合使用
+gs analyze owner/repo --branch feature/auth -d 30 -f json -o report.json
+```
+
+`--branch` 参数仅影响 commits 获取。PR、Issues、Releases 和 Contributors 始终是仓库级别的，不受分支选择影响。
+
+与 `gs watch` 配合使用时，分支会保存在订阅中，并在每次批量更新时应用：
+
+```bash
+gs watch add owner/repo --branch develop
+gs watch update owner/repo --branch main
+```
+
 ## 环境变量
 
 | 变量 | 覆盖的配置字段 |

@@ -223,6 +223,11 @@ static ErrorCode fetch_commits_impl(void *ctx, Vector *commits, int since_days) 
     char url[1280];
     snprintf(url, sizeof(url), "%s/projects/%s/repository/commits?since=%s&per_page=100",
              gl->api_base, project, since_str);
+    if (gl->branch[0]) {
+        char enc[128];
+        url_encode(gl->branch, enc, sizeof(enc));
+        snprintf(url + strlen(url), sizeof(url) - strlen(url), "&ref_name=%s", enc);
+    }
 
     HttpClient hc;
     char auth[600] = "";
@@ -514,6 +519,7 @@ ErrorCode gitlab_client_init(PlatformClient *client, const Config *cfg,
     snprintf(ctx->proxy, sizeof(ctx->proxy), "%s", cfg->proxy);
     snprintf(ctx->owner, sizeof(ctx->owner), "%s", owner);
     snprintf(ctx->repo, sizeof(ctx->repo), "%s", repo);
+    snprintf(ctx->branch, sizeof(ctx->branch), "%s", cfg->branch);
     ctx->timeout_secs = 30;
     ctx->max_pages = cfg->max_pages;
     ctx->error_buf = client->last_error;

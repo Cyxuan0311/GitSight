@@ -222,6 +222,11 @@ static ErrorCode fetch_commits_impl(void *ctx, Vector *commits, int since_days) 
     char url[1152];
     snprintf(url, sizeof(url), "%s/repos/%s/%s/commits?since=%s&per_page=100",
              gh->api_base, gh->owner, gh->repo, since_str);
+    if (gh->branch[0]) {
+        char enc[128];
+        url_encode(gh->branch, enc, sizeof(enc));
+        snprintf(url + strlen(url), sizeof(url) - strlen(url), "&sha=%s", enc);
+    }
 
     HttpClient hc;
     char auth[600] = "";
@@ -530,6 +535,7 @@ ErrorCode github_client_init(PlatformClient *client, const Config *cfg,
     snprintf(ctx->proxy, sizeof(ctx->proxy), "%s", cfg->proxy);
     snprintf(ctx->owner, sizeof(ctx->owner), "%s", owner);
     snprintf(ctx->repo, sizeof(ctx->repo), "%s", repo);
+    snprintf(ctx->branch, sizeof(ctx->branch), "%s", cfg->branch);
     ctx->timeout_secs = 30;
     ctx->max_pages = cfg->max_pages;
     ctx->error_buf = client->last_error;

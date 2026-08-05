@@ -16,6 +16,7 @@ typedef struct {
     char   platform[16];
     char   proxy[512];
     char   api_base[256];
+    char   branch[128];
     int    color_mode;
     char   config_path[1024];
     char   token[512];

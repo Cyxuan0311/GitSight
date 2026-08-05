@@ -128,10 +128,11 @@ static size_t build_shared_strings(char *b, size_t c, const Report *r) {
         "[IS] Issues", "[*] Summary",
         "[RL] Releases", "Latest release", r->latest_release[0] ? r->latest_release : "-",
         "[CT] Contributors", "Top contributor", r->top_contributor[0] ? r->top_contributor : "-",
-        "[META] Repository", "Stars", "Forks", "Language", "License", "Default branch",
+        "[META] Repository", "Stars", "Forks", "Language", "License", "Default branch", "Branch",
         r->meta.language[0] ? r->meta.language : "-",
         r->meta.license[0] ? r->meta.license : "-",
-        r->meta.default_branch[0] ? r->meta.default_branch : "-"
+        r->meta.default_branch[0] ? r->meta.default_branch : "-",
+        r->branch[0] ? r->branch : "-"
     };
     int n = sizeof(strings) / sizeof(strings[0]);
 
@@ -215,9 +216,11 @@ static size_t build_sheet(char *b, size_t c, const Report *r) {
     strs[n++] = "Language";
     strs[n++] = "License";
     strs[n++] = "Default branch";
+    strs[n++] = "Branch";
     strs[n++] = r->meta.language[0] ? r->meta.language : "-";
     strs[n++] = r->meta.license[0] ? r->meta.license : "-";
     strs[n++] = r->meta.default_branch[0] ? r->meta.default_branch : "-";
+    strs[n++] = r->branch[0] ? r->branch : "-";
     int summary_idx = n;
 
 #define SI(s) str_idx((s), strs, n)
@@ -414,6 +417,12 @@ static size_t build_sheet(char *b, size_t c, const Report *r) {
         p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
         cell_s(b, c, &p, "A", row, 2, SI("Default branch"));
         cell_s(b, c, &p, "B", row, 2, SI(r->meta.default_branch[0] ? r->meta.default_branch : "-"));
+        p += snprintf(b + p, c - p, "</row>");
+
+        row = 37;
+        p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
+        cell_s(b, c, &p, "A", row, 2, SI("Branch"));
+        cell_s(b, c, &p, "B", row, 2, SI(r->branch[0] ? r->branch : "-"));
         p += snprintf(b + p, c - p, "</row>");
     }
 

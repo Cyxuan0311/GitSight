@@ -78,6 +78,7 @@ typedef struct {
     char   owner[128];
     char   repo[128];
     char   period[32];
+    char   branch[128];
     RepoMeta meta;
     int    pr_total;
     int    pr_open;

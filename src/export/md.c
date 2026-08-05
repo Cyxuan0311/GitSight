@@ -32,6 +32,8 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
             fprintf(fp, "| License        | %s |\n", report->meta.license);
         if (report->meta.default_branch[0])
             fprintf(fp, "| Default branch | %s |\n", report->meta.default_branch);
+        if (report->branch[0])
+            fprintf(fp, "| Branch         | %s |\n", report->branch);
         if (report->meta.description[0])
             fprintf(fp, "| Description    | %s |\n", report->meta.description);
         fprintf(fp, "\n");

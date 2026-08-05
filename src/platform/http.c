@@ -17,6 +17,28 @@ void http_set_cache_enabled(int enabled) {
     gs_cache_enabled = enabled;
 }
 
+int url_encode(const char *src, char *dst, size_t dst_len) {
+    static const char hex[] = "0123456789ABCDEF";
+    size_t j = 0;
+    for (size_t i = 0; src[i]; i++) {
+        unsigned char c = (unsigned char)src[i];
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+            (c >= '0' && c <= '9') || c == '-' || c == '_' ||
+            c == '.' || c == '~') {
+            if (j + 1 >= dst_len) return -1;
+            dst[j++] = c;
+        } else {
+            if (j + 3 >= dst_len) return -1;
+            dst[j++] = '%';
+            dst[j++] = hex[(c >> 4) & 0xF];
+            dst[j++] = hex[c & 0xF];
+        }
+    }
+    if (j >= dst_len) return -1;
+    dst[j] = '\0';
+    return (int)j;
+}
+
 static void http_default_cache_dir(char *out, size_t len) {
     const char *base = getenv("XDG_CACHE_HOME");
     if (base && base[0]) {

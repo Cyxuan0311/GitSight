@@ -106,7 +106,7 @@ _gs_watch() {
 
     if [[ -z $wcmd ]]; then
         if [[ $cur == -* ]]; then
-            COMPREPLY=( $(compgen -W "--since -d --max-pages --platform --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h" -- "$cur") )
+            COMPREPLY=( $(compgen -W "--since -d --max-pages --platform --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h" -- "$cur") )
         else
             COMPREPLY=( $(compgen -W "$watch_sub" -- "$cur") )
         fi
@@ -116,7 +116,7 @@ _gs_watch() {
     case "$wcmd" in
         add)
             if [[ $cur == -* ]]; then
-                COMPREPLY=( $(compgen -W "--alias --days -d --format -f --platform --config --help -h" -- "$cur") )
+                COMPREPLY=( $(compgen -W "--alias --days -d --format -f --platform --branch --config --help -h" -- "$cur") )
             else
                 COMPREPLY=( $(compgen -W "$(_gs_subscriptions)" -- "$cur") )
             fi
@@ -130,7 +130,7 @@ _gs_watch() {
             ;;
         update)
             if [[ $cur == -* ]]; then
-                COMPREPLY=( $(compgen -W "--repo --alias --days -d --format -f --platform --config --help -h" -- "$cur") )
+                COMPREPLY=( $(compgen -W "--repo --alias --days -d --format -f --platform --branch --config --help -h" -- "$cur") )
             else
                 COMPREPLY=( $(compgen -W "$(_gs_subscriptions)" -- "$cur") )
             fi
@@ -142,7 +142,7 @@ _gs_watch() {
             ;;
         analyze|run)
             if [[ $cur == -* ]]; then
-                COMPREPLY=( $(compgen -W "--since -d --max-pages --platform --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h" -- "$cur") )
+COMPREPLY=( $(compgen -W "--since -d --max-pages --platform --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h" -- "$cur") )
             fi
             ;;
     esac
@@ -159,7 +159,7 @@ _gs() {
     local platforms="github gitlab codeberg gitea forgejo"
     local colors="auto always never"
     local llm_modes="health trends release"
-    local analyze_opts="--since -d --max-pages --platform --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h"
+    local analyze_opts="--since -d --max-pages --platform --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h"
 
     if ((COMP_CWORD == 1)); then
         if [[ $cur == */* ]]; then
@@ -180,7 +180,7 @@ _gs() {
         --llm)         COMPREPLY=( $(compgen -W "$(_gs_llm_names)" -- "$cur") ); return 0 ;;
         -o|--output|--config|-c) _gs_filedir; return 0 ;;
         --export)      COMPREPLY=( $(compgen -W "pdf.margin pdf.line_height pdf.col2_padding pdf.title_color pdf.header_color pdf.label_color xlsx.font_size xlsx.font_name xlsx.col_a_width xlsx.col_b_width xlsx.border xlsx.sheet_name md.table_width txt.table_width show_prs show_commits show_issues show_summary show_top_labels show_releases show_contributors item_limit" -S '=' -- "$cur") ); return 0 ;;
-        --token|-t|--since|-d|--max-pages|--compare|--proxy|--api-base|--alias|--repo|--days)
+        --token|-t|--since|-d|--max-pages|--compare|--proxy|--api-base|--alias|--repo|--days|--branch)
             return 0 ;;
     esac
 

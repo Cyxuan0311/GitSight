@@ -87,6 +87,11 @@ static ErrorCode txt_write_report(FILE *fp, const Report *report,
     fprintf(fp, "| Period:      %s", report->period);
     fprintf(fp, "%*s|\n", W - (int)strlen(report->period) - 16, "");
 
+    if (report->branch[0]) {
+        fprintf(fp, "| Branch:      %s", report->branch);
+        fprintf(fp, "%*s|\n", W - (int)strlen(report->branch) - 16, "");
+    }
+
     if (report->meta.has_meta) {
         char mbuf[512];
         snprintf(mbuf, sizeof(mbuf), "%ld stars | %ld forks", report->meta.stars, report->meta.forks);

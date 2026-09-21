@@ -18,6 +18,7 @@ Created automatically with defaults on first `gs config` run.
 ```json
 {
     "platform": "github",
+    "lang": "en",
     "github_token": "ghp_xxxxxxxxxxxx",
     "gitlab_token": "glpat_xxxxxxxxxxxx",
     "codeberg_token": "xxxxxxxxxxxxxxxxxxxx",
@@ -63,7 +64,11 @@ Created automatically with defaults on first `gs config` run.
             "col2_padding": 12,
             "title_color": "25,55,160",
             "header_color": "25,55,160",
-            "label_color": "90,90,90"
+            "label_color": "90,90,90",
+            "link_color": "17,85,204",
+            "open_color": "26,127,55",
+            "closed_color": "207,34,46",
+            "merged_color": "130,80,223"
         }
     }
 }
@@ -74,6 +79,7 @@ Created automatically with defaults on first `gs config` run.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `platform` | string | `"github"` | Platform: `"github"`, `"gitlab"`, `"codeberg"`, `"gitea"`, `"forgejo"` |
+| `lang` | string | `"en"` | Report body language: `"en"` or `"zh"` (md/txt/pdf reports and LLM prompt; JSON/XLSX stay English) |
 | `github_token` | string | `""` | GitHub personal access token |
 | `gitlab_token` | string | `""` | GitLab personal access token |
 | `codeberg_token` | string | `""` | Token for Gitea-family platforms (Codeberg / Gitea / Forgejo) |
@@ -108,6 +114,10 @@ Created automatically with defaults on first `gs config` run.
 | `export.pdf.title_color` | string | `"25,55,160"` | PDF title text color (R,G,B) |
 | `export.pdf.header_color` | string | `"25,55,160"` | PDF section header text color (R,G,B) |
 | `export.pdf.label_color` | string | `"90,90,90"` | PDF metric label text color (R,G,B) |
+| `export.pdf.link_color` | string | `"17,85,204"` | PDF clickable item title color (PR/commit/issue/release) (R,G,B) |
+| `export.pdf.open_color` | string | `"26,127,55"` | PDF `[open]` status tag and Open count color (R,G,B) |
+| `export.pdf.closed_color` | string | `"207,34,46"` | PDF `[closed]` status tag and Closed count color (R,G,B) |
+| `export.pdf.merged_color` | string | `"130,80,223"` | PDF `[merged]` status tag and Merged count color (R,G,B) |
 
 ## Platforms
 
@@ -164,6 +174,8 @@ gs analyze owner/repo \
 
 Note: PDF colors only take effect when outputting to a file with `--color always`.
 
+When a PDF contains CJK text, GitSight embeds a subset of a TrueType CJK font found on the system (searched in order: `GITSIGHT_PDF_FONT` env var, `~/.config/gitsight/fonts/cjk.ttf`, Windows Microsoft YaHei/SimHei/SimSun, WenQuanYi, Arphic). Override with `GITSIGHT_PDF_FONT=/path/to/font.ttf`.
+
 ## Branch Analysis
 
 By default, commits are fetched from the repository's default branch.
@@ -188,6 +200,26 @@ during each batch update:
 gs watch add owner/repo --branch develop
 gs watch update owner/repo --branch main
 ```
+
+## Batch Parallelism
+
+When analyzing multiple repositories at once (several `analyze` args, or a
+`watch` run with several subscriptions), they run one after another by
+default. Use `-j` / `--parallel` to run several concurrently:
+
+```bash
+# Analyze 4 repos, up to 4 at a time
+gs analyze a/b c/d e/f g/h -j 4
+
+# The watch batch honours the same flag
+gs watch -j 8
+```
+
+- The value is capped at 8.
+- Without an API token, the default is `1` (unauthenticated GitHub allows only
+  ~60 requests/hour, so parallelism would hit HTTP 403). With a token the
+  default is `4`.
+- Passing `-j N` with no token is allowed but prints a rate-limit warning.
 
 ## Environment Variables
 

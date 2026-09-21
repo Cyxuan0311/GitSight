@@ -224,6 +224,12 @@ if "$GS" config --config "$WORK/proto.json" --set llms.claude.protocol=bogus >/d
 [ -f "foo_bar_report.md" ] || fail "batch missing second report"
 rm -f acme_gadget_report.md foo_bar_report.md
 
+# Batch parallelism: explicit -j 2 (overriding the no-token serial default)
+"$GS" analyze acme/gadget foo/bar $ARGS --no-cache -j 2 -d 7 -f md -q >/dev/null 2>&1 || fail "parallel batch failed"
+[ -f "acme_gadget_report.md" ] || fail "parallel batch missing first report"
+[ -f "foo_bar_report.md" ] || fail "parallel batch missing second report"
+rm -f acme_gadget_report.md foo_bar_report.md
+
 # watch (subscriptions) CRUD + analyze
 "$GS" watch $ARGS add acme/gadget --alias core --days 7 --format json || fail "watch add failed"
 "$GS" watch $ARGS list | grep -q "acme/gadget" || fail "watch list missing repo"

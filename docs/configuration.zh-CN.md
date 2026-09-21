@@ -18,6 +18,7 @@
 ```json
 {
     "platform": "github",
+    "lang": "en",
     "github_token": "ghp_xxxxxxxxxxxx",
     "gitlab_token": "glpat_xxxxxxxxxxxx",
     "codeberg_token": "xxxxxxxxxxxxxxxxxxxx",
@@ -63,7 +64,11 @@
             "col2_padding": 12,
             "title_color": "25,55,160",
             "header_color": "25,55,160",
-            "label_color": "90,90,90"
+            "label_color": "90,90,90",
+            "link_color": "17,85,204",
+            "open_color": "26,127,55",
+            "closed_color": "207,34,46",
+            "merged_color": "130,80,223"
         }
     }
 }
@@ -74,6 +79,7 @@
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `platform` | string | `"github"` | 平台：`"github"`, `"gitlab"`, `"codeberg"`, `"gitea"`, `"forgejo"` |
+| `lang` | string | `"en"` | 报告正文语言：`"en"` 或 `"zh"`（影响 md/txt/pdf 报告与 LLM 提示词；JSON/XLSX 保持英文）|
 | `github_token` | string | `""` | GitHub 个人访问令牌 |
 | `gitlab_token` | string | `""` | GitLab 个人访问令牌 |
 | `codeberg_token` | string | `""` | Gitea 系平台（Codeberg/Gitea/Forgejo）的令牌 |
@@ -107,6 +113,10 @@
 | `export.pdf.title_color` | string | `"25,55,160"` | PDF 标题颜色（R,G,B） |
 | `export.pdf.header_color` | string | `"25,55,160"` | PDF 板块标题颜色（R,G,B） |
 | `export.pdf.label_color` | string | `"90,90,90"` | PDF 指标标签颜色（R,G,B） |
+| `export.pdf.link_color` | string | `"17,85,204"` | PDF 可点击条目（PR/commit/issue/release 标题）颜色（R,G,B） |
+| `export.pdf.open_color` | string | `"26,127,55"` | PDF `[open]` 状态标签与 Open 计数颜色（R,G,B） |
+| `export.pdf.closed_color` | string | `"207,34,46"` | PDF `[closed]` 状态标签与 Closed 计数颜色（R,G,B） |
+| `export.pdf.merged_color` | string | `"130,80,223"` | PDF `[merged]` 状态标签与 Merged 计数颜色（R,G,B） |
 
 ## 平台
 
@@ -161,6 +171,8 @@ gs analyze owner/repo \
 
 注意：PDF 颜色仅在使用 `--color always` 输出到文件时生效。
 
+PDF 导出包含中文时会自动内嵌系统中可找到的 TrueType 中文字体子集（依次查找 `GITSIGHT_PDF_FONT` 环境变量、`~/.config/gitsight/fonts/cjk.ttf`、Windows 微软雅黑/黑体/宋体、文泉驿、Arphic 等）。可用 `GITSIGHT_PDF_FONT=/path/to/font.ttf` 指定字体。
+
 ## 分支分析
 
 默认情况下，commits 从仓库的默认分支获取。使用 `--branch` 分析特定分支：
@@ -181,6 +193,24 @@ gs analyze owner/repo --branch feature/auth -d 30 -f json -o report.json
 gs watch add owner/repo --branch develop
 gs watch update owner/repo --branch main
 ```
+
+## 批量并行
+
+一次分析多个仓库时（`analyze` 传多个参数，或 `watch` 有多个订阅），默认逐个
+串行执行。使用 `-j` / `--parallel` 可让多个仓库并发分析：
+
+```bash
+# 分析 4 个仓库，最多同时 4 个
+gs analyze a/b c/d e/f g/h -j 4
+
+# watch 批量同样支持
+gs watch -j 8
+```
+
+- 上限为 8。
+- 未配置 API token 时默认值为 `1`（GitHub 未认证请求每小时仅约 60 次，并发会
+  触发 HTTP 403）；配置 token 后默认为 `4`。
+- 无 token 时显式传入 `-j N` 仍会执行，但会打印速率限制警告。
 
 ## 环境变量
 

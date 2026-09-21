@@ -56,12 +56,13 @@ _gs_filedir() {
 _gs_config() {
     local cur="$1" prev="$2"
     local config_opts="--set-token -t --set-llm --list-llms --show --edit --set --config -c --help -h"
-    local config_keys="platform github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm export.show_prs export.show_commits export.show_issues export.show_summary export.show_top_labels export.show_releases export.show_contributors export.item_limit export.md.table_width export.txt.table_width export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width export.xlsx.border export.xlsx.sheet_name export.pdf.margin export.pdf.line_height export.pdf.col2_padding export.pdf.title_color export.pdf.header_color export.pdf.label_color"
+    local config_keys="platform lang github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm export.show_prs export.show_commits export.show_issues export.show_summary export.show_top_labels export.show_releases export.show_contributors export.item_limit export.md.table_width export.txt.table_width export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width export.xlsx.border export.xlsx.sheet_name export.pdf.margin export.pdf.line_height export.pdf.col2_padding export.pdf.title_color export.pdf.header_color export.pdf.label_color"
 
     if [[ $cur == *=* ]]; then
         local key="${cur%%=*}"
         local val="${cur#*=}"
         case "$key" in
+            lang)     COMPREPLY=( $(compgen -W "en zh" -P "$key=" -- "$val") ) ;;
             platform) COMPREPLY=( $(compgen -W "github gitlab codeberg gitea forgejo" -P "$key=" -- "$val") ) ;;
             color)    COMPREPLY=( $(compgen -W "auto always never" -P "$key=" -- "$val") ) ;;
             format)   COMPREPLY=( $(compgen -W "json md txt xlsx pdf" -P "$key=" -- "$val") ) ;;
@@ -106,7 +107,7 @@ _gs_watch() {
 
     if [[ -z $wcmd ]]; then
         if [[ $cur == -* ]]; then
-            COMPREPLY=( $(compgen -W "--since -d --max-pages --platform --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h" -- "$cur") )
+            COMPREPLY=( $(compgen -W "--since -d --max-pages --platform --lang --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --parallel -j --config --help -h" -- "$cur") )
         else
             COMPREPLY=( $(compgen -W "$watch_sub" -- "$cur") )
         fi
@@ -116,7 +117,7 @@ _gs_watch() {
     case "$wcmd" in
         add)
             if [[ $cur == -* ]]; then
-                COMPREPLY=( $(compgen -W "--alias --days -d --format -f --platform --branch --config --help -h" -- "$cur") )
+                COMPREPLY=( $(compgen -W "--alias --days -d --format -f --platform --lang --branch --parallel -j --config --help -h" -- "$cur") )
             else
                 COMPREPLY=( $(compgen -W "$(_gs_subscriptions)" -- "$cur") )
             fi
@@ -130,7 +131,7 @@ _gs_watch() {
             ;;
         update)
             if [[ $cur == -* ]]; then
-                COMPREPLY=( $(compgen -W "--repo --alias --days -d --format -f --platform --branch --config --help -h" -- "$cur") )
+                COMPREPLY=( $(compgen -W "--repo --alias --days -d --format -f --platform --lang --branch --parallel -j --config --help -h" -- "$cur") )
             else
                 COMPREPLY=( $(compgen -W "$(_gs_subscriptions)" -- "$cur") )
             fi
@@ -142,7 +143,7 @@ _gs_watch() {
             ;;
         analyze|run)
             if [[ $cur == -* ]]; then
-COMPREPLY=( $(compgen -W "--since -d --max-pages --platform --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h" -- "$cur") )
+COMPREPLY=( $(compgen -W "--since -d --max-pages --platform --lang --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --parallel -j --config --help -h" -- "$cur") )
             fi
             ;;
     esac
@@ -159,7 +160,7 @@ _gs() {
     local platforms="github gitlab codeberg gitea forgejo"
     local colors="auto always never"
     local llm_modes="health trends release"
-    local analyze_opts="--since -d --max-pages --platform --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --config --help -h"
+    local analyze_opts="--since -d --max-pages --platform --lang --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --parallel -j --config --help -h"
 
     if ((COMP_CWORD == 1)); then
         if [[ $cur == */* ]]; then
@@ -176,6 +177,7 @@ _gs() {
         -f|--format)   COMPREPLY=( $(compgen -W "$formats" -- "$cur") ); return 0 ;;
         --platform)    COMPREPLY=( $(compgen -W "$platforms" -- "$cur") ); return 0 ;;
         --color)       COMPREPLY=( $(compgen -W "$colors" -- "$cur") ); return 0 ;;
+        --lang)        COMPREPLY=( $(compgen -W "en zh" -- "$cur") ); return 0 ;;
         --llm-mode)    COMPREPLY=( $(compgen -W "$llm_modes" -- "$cur") ); return 0 ;;
         --llm)         COMPREPLY=( $(compgen -W "$(_gs_llm_names)" -- "$cur") ); return 0 ;;
         -o|--output|--config|-c) _gs_filedir; return 0 ;;

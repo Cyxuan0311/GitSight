@@ -53,7 +53,7 @@ _gs_colors()    { compadd auto always never }
 _gs_llm_modes() { compadd health trends release }
 
 _gs_config_keys() {
-    compadd -S '=' platform github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm \
+    compadd -S '=' platform lang github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm \
         export.show_prs export.show_commits export.show_issues export.show_summary \
         export.show_top_labels export.show_releases export.show_contributors export.item_limit \
         export.md.table_width export.txt.table_width \
@@ -74,6 +74,7 @@ _gs_analyze() {
         '--since[analysis period in days]:days:' \
         '--max-pages[api pages to fetch]:pages:' \
         '--platform[platform]:platform:->platform' \
+        '--lang[report language]:lang:(en zh)' \
         '--branch[branch name]:branch:' \
         '-t[token]:token:' \
         '--token[token]:token:' \
@@ -91,6 +92,8 @@ _gs_analyze() {
         '-q[quiet]' \
         '--quiet[quiet]' \
         '--compare[periods a:b]:period:' \
+        '-j[batch parallelism]:n:' \
+        '--parallel[batch parallelism]:n:' \
         '--config[config file]:file:_files' \
         '1:repository:->repo' \
         '*:repository:->repo'
@@ -113,7 +116,10 @@ _gs_watch_add() {
         '-f[format]:format:->format' \
         '--format[format]:format:->format' \
         '--platform[platform]:platform:->platform' \
+        '--lang[report language]:lang:(en zh)' \
         '--branch[branch name]:branch:' \
+        '-j[batch parallelism]:n:' \
+        '--parallel[batch parallelism]:n:' \
         '--config[config file]:file:_files' \
         '1:repository:->repo'
 
@@ -142,7 +148,10 @@ _gs_watch_update() {
         '-f[format]:format:->format' \
         '--format[format]:format:->format' \
         '--platform[platform]:platform:->platform' \
+        '--lang[report language]:lang:(en zh)' \
         '--branch[branch name]:branch:' \
+        '-j[batch parallelism]:n:' \
+        '--parallel[batch parallelism]:n:' \
         '--config[config file]:file:_files' \
         '1:subscription:->repo'
 
@@ -211,6 +220,7 @@ _gs_config() {
                 local val="${words[CURRENT]#*=}"
                 case "$key" in
                     platform) compadd -P "$key=" -- github gitlab codeberg gitea forgejo ;;
+                    lang)     compadd -P "$key=" -- en zh ;;
                     color)    compadd -P "$key=" -- auto always never ;;
                     format)   compadd -P "$key=" -- json md txt xlsx pdf ;;
                     *.protocol) compadd -P "$key=" -- openai anthropic gemini ;;

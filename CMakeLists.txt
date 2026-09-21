@@ -38,6 +38,7 @@ set(SOURCES
     src/models.c
     src/container.c
     src/platform/client.c
+    src/platform/driver.c
     src/platform/http.c
     src/platform/profile.c
     src/platform/github.c

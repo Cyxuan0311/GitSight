@@ -1,4 +1,5 @@
 #include "gitsight/platform/github.h"
+#include "driver.h"
 #include "gitsight/models.h"
 #include "gitsight/error.h"
 #include "gitsight/platform/http.h"
@@ -6,7 +7,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
 
 #define GITHUB_ACCEPT "Accept: application/vnd.github.v3+json"
 
@@ -17,53 +17,34 @@ static void build_auth(const GitHubContext *gh, char *auth, size_t len) {
              gh->profile->auth_scheme, gh->token);
 }
 
-static void build_since_date(int since_days, char *buf, size_t len) {
-    time_t now = time(NULL);
-    time_t since_ts = now - (time_t)since_days * 86400;
-    struct tm *tm = gmtime(&since_ts);
-    strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", tm);
+static void fill_base(const GitHubContext *gh, DriverBase *base) {
+    base->api_base = gh->api_base;
+    base->proxy = gh->proxy;
+    base->accept = GITHUB_ACCEPT;
+    base->timeout_secs = gh->timeout_secs;
+    base->max_pages = gh->max_pages;
+    base->owner = gh->owner;
+    base->repo = gh->repo;
+    base->error_buf = gh->error_buf;
+    base->error_len = gh->error_len;
+    base->token_check = "platform access token";
+    base->token_set = "an access token";
+    base->repo_noun = "Repository";
 }
 
-static int date_in_range(const char *date_str, const char *since_str) {
-    if (!date_str || date_str[0] == '\0') return 0;
-    return strcmp(date_str, since_str) >= 0;
+static ErrorCode gh_get(const GitHubContext *gh, const char *url,
+                        HttpPageFn cb, void *userdata, int tolerate_404) {
+    DriverBase base;
+    fill_base(gh, &base);
+    char auth[600] = "";
+    build_auth(gh, auth, sizeof(auth));
+    return gs_fetch_paginated(&base, auth, url, cb, userdata, tolerate_404);
 }
 
-static void extract_labels(cJSON *labels_json, char *buf, size_t len) {
-    buf[0] = '\0';
-    if (!cJSON_IsArray(labels_json)) return;
-
-    int first = 1;
-    cJSON *label;
-    cJSON_ArrayForEach(label, labels_json) {
-        cJSON *name = cJSON_GetObjectItem(label, "name");
-        if (name && cJSON_IsString(name)) {
-            if (!first) strncat(buf, ", ", len - strlen(buf) - 1);
-            strncat(buf, name->valuestring, len - strlen(buf) - 1);
-            first = 0;
-        }
-    }
+static void init_since_ctx(PageCtx *pctx, Vector *vec, int since_days) {
+    pctx->vec = vec;
+    gs_build_since_date(since_days, pctx->since_str, sizeof(pctx->since_str));
 }
-
-static void set_http_error(GitHubContext *gh, long http_code) {
-    if (!gh->error_buf) return;
-    if (http_code == 401)
-        snprintf(gh->error_buf, gh->error_len,
-            "HTTP 401 (bad credentials). Check your platform access token.");
-    else if (http_code == 403)
-        snprintf(gh->error_buf, gh->error_len,
-            "HTTP 403 (rate limited). Set an access token in config or env.");
-    else if (http_code == 404)
-        snprintf(gh->error_buf, gh->error_len,
-            "HTTP 404. Repository '%s/%s' not found.", gh->owner, gh->repo);
-    else
-        snprintf(gh->error_buf, gh->error_len, "HTTP %ld error.", http_code);
-}
-
-typedef struct {
-    Vector *vec;
-    char since_str[MAX_DATE_LEN];
-} PageCtx;
 
 /* ---- Pull Requests ---- */
 static int parse_prs_page(void *userdata, const char *body, const HttpResult *res) {
@@ -78,7 +59,7 @@ static int parse_prs_page(void *userdata, const char *body, const HttpResult *re
     cJSON_ArrayForEach(item, json) {
         cJSON *updated = cJSON_GetObjectItem(item, "updated_at");
         if (!updated || !cJSON_IsString(updated)) continue;
-        if (!date_in_range(updated->valuestring, ctx->since_str)) {
+        if (!gs_date_in_range(updated->valuestring, ctx->since_str)) {
             cJSON_Delete(json);
             return 1; /* items sorted desc; rest are older too */
         }
@@ -106,7 +87,7 @@ static int parse_prs_page(void *userdata, const char *body, const HttpResult *re
                 snprintf(pr->author, sizeof(pr->author), "%s", login->valuestring);
         }
         n = cJSON_GetObjectItem(item, "labels");
-        if (n) extract_labels(n, pr->labels, sizeof(pr->labels));
+        if (n) gs_extract_labels(n, pr->labels, sizeof(pr->labels));
 
         vector_push(ctx->vec, pr);
     }
@@ -118,28 +99,14 @@ static int parse_prs_page(void *userdata, const char *body, const HttpResult *re
 static ErrorCode fetch_prs_impl(void *ctx, Vector *prs, int since_days) {
     GitHubContext *gh = (GitHubContext *)ctx;
 
-    char since_str[MAX_DATE_LEN];
-    build_since_date(since_days, since_str, sizeof(since_str));
+    PageCtx pctx;
+    init_since_ctx(&pctx, prs, since_days);
 
     char url[1024];
     snprintf(url, sizeof(url), "%s/repos/%s/%s/pulls?state=all&sort=updated&direction=desc&per_page=100",
              gh->api_base, gh->owner, gh->repo);
 
-    HttpClient hc;
-    char auth[600] = "";
-    build_auth(gh, auth, sizeof(auth));
-    http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
-
-    PageCtx pctx = { prs, "" };
-    snprintf(pctx.since_str, sizeof(pctx.since_str), "%s", since_str);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_prs_page, &pctx, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_http_error(gh, last_http);
-        return err;
-    }
-    return GS_OK;
+    return gh_get(gh, url, parse_prs_page, &pctx, 0);
 }
 
 /* ---- Commits ---- */
@@ -161,7 +128,7 @@ static int parse_commits_page(void *userdata, const char *body, const HttpResult
                 date = cJSON_GetObjectItem(author, "date");
         }
         if (!date || !cJSON_IsString(date)) continue;
-        if (!date_in_range(date->valuestring, ctx->since_str)) {
+        if (!gs_date_in_range(date->valuestring, ctx->since_str)) {
             cJSON_Delete(json);
             return 1;
         }
@@ -179,23 +146,8 @@ static int parse_commits_page(void *userdata, const char *body, const HttpResult
 
         if (commit_obj && cJSON_IsObject(commit_obj)) {
             cJSON *msg = cJSON_GetObjectItem(commit_obj, "message");
-            if (msg && cJSON_IsString(msg)) {
-                const char *src = msg->valuestring;
-                char *dst = c->message;
-                int max = sizeof(c->message) - 1;
-                int i = 0;
-                while (*src && i < max) {
-                    if (*src == '\n') {
-                        *dst++ = ' ';
-                        src++;
-                        while (*src == '\n') src++;
-                    } else {
-                        *dst++ = *src++;
-                    }
-                    i++;
-                }
-                *dst = '\0';
-            }
+            if (msg && cJSON_IsString(msg))
+                gs_flatten_message(msg->valuestring, c->message, sizeof(c->message) - 1);
             cJSON *author = cJSON_GetObjectItem(commit_obj, "author");
             if (author && cJSON_IsObject(author)) {
                 cJSON *name = cJSON_GetObjectItem(author, "name");
@@ -216,33 +168,19 @@ static int parse_commits_page(void *userdata, const char *body, const HttpResult
 static ErrorCode fetch_commits_impl(void *ctx, Vector *commits, int since_days) {
     GitHubContext *gh = (GitHubContext *)ctx;
 
-    char since_str[MAX_DATE_LEN];
-    build_since_date(since_days, since_str, sizeof(since_str));
+    PageCtx pctx;
+    init_since_ctx(&pctx, commits, since_days);
 
     char url[1152];
     snprintf(url, sizeof(url), "%s/repos/%s/%s/commits?since=%s&per_page=100",
-             gh->api_base, gh->owner, gh->repo, since_str);
+             gh->api_base, gh->owner, gh->repo, pctx.since_str);
     if (gh->branch[0]) {
         char enc[128];
         url_encode(gh->branch, enc, sizeof(enc));
         snprintf(url + strlen(url), sizeof(url) - strlen(url), "&sha=%s", enc);
     }
 
-    HttpClient hc;
-    char auth[600] = "";
-    build_auth(gh, auth, sizeof(auth));
-    http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
-
-    PageCtx pctx = { commits, "" };
-    snprintf(pctx.since_str, sizeof(pctx.since_str), "%s", since_str);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_commits_page, &pctx, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_http_error(gh, last_http);
-        return err;
-    }
-    return GS_OK;
+    return gh_get(gh, url, parse_commits_page, &pctx, 0);
 }
 
 /* ---- Issues ---- */
@@ -261,7 +199,7 @@ static int parse_issues_page(void *userdata, const char *body, const HttpResult 
 
         cJSON *updated = cJSON_GetObjectItem(item, "updated_at");
         if (!updated || !cJSON_IsString(updated)) continue;
-        if (!date_in_range(updated->valuestring, ctx->since_str)) {
+        if (!gs_date_in_range(updated->valuestring, ctx->since_str)) {
             cJSON_Delete(json);
             return 1;
         }
@@ -287,7 +225,7 @@ static int parse_issues_page(void *userdata, const char *body, const HttpResult 
                 snprintf(iss->author, sizeof(iss->author), "%s", login->valuestring);
         }
         n = cJSON_GetObjectItem(item, "labels");
-        if (n) extract_labels(n, iss->labels, sizeof(iss->labels));
+        if (n) gs_extract_labels(n, iss->labels, sizeof(iss->labels));
 
         vector_push(ctx->vec, iss);
     }
@@ -299,28 +237,14 @@ static int parse_issues_page(void *userdata, const char *body, const HttpResult 
 static ErrorCode fetch_issues_impl(void *ctx, Vector *issues, int since_days) {
     GitHubContext *gh = (GitHubContext *)ctx;
 
-    char since_str[MAX_DATE_LEN];
-    build_since_date(since_days, since_str, sizeof(since_str));
+    PageCtx pctx;
+    init_since_ctx(&pctx, issues, since_days);
 
     char url[1024];
     snprintf(url, sizeof(url), "%s/repos/%s/%s/issues?state=all&sort=updated&direction=desc&per_page=100",
              gh->api_base, gh->owner, gh->repo);
 
-    HttpClient hc;
-    char auth[600] = "";
-    build_auth(gh, auth, sizeof(auth));
-    http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
-
-    PageCtx pctx = { issues, "" };
-    snprintf(pctx.since_str, sizeof(pctx.since_str), "%s", since_str);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_issues_page, &pctx, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_http_error(gh, last_http);
-        return err;
-    }
-    return GS_OK;
+    return gh_get(gh, url, parse_issues_page, &pctx, 0);
 }
 
 /* ---- Releases ---- */
@@ -339,7 +263,7 @@ static int parse_releases_page(void *userdata, const char *body, const HttpResul
 
         cJSON *published = cJSON_GetObjectItem(item, "published_at");
         if (!published || !cJSON_IsString(published)) continue;
-        if (!date_in_range(published->valuestring, ctx->since_str)) {
+        if (!gs_date_in_range(published->valuestring, ctx->since_str)) {
             cJSON_Delete(json);
             return 1;
         }
@@ -372,55 +296,31 @@ static int parse_releases_page(void *userdata, const char *body, const HttpResul
 static ErrorCode fetch_releases_impl(void *ctx, Vector *releases, int since_days) {
     GitHubContext *gh = (GitHubContext *)ctx;
 
-    char since_str[MAX_DATE_LEN];
-    build_since_date(since_days, since_str, sizeof(since_str));
+    PageCtx pctx;
+    init_since_ctx(&pctx, releases, since_days);
 
     char url[1024];
     snprintf(url, sizeof(url), "%s/repos/%s/%s/releases?per_page=100",
              gh->api_base, gh->owner, gh->repo);
 
-    HttpClient hc;
-    char auth[600] = "";
-    build_auth(gh, auth, sizeof(auth));
-    http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
-
-    PageCtx pctx = { releases, "" };
-    snprintf(pctx.since_str, sizeof(pctx.since_str), "%s", since_str);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_releases_page, &pctx, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS && last_http == 404) return GS_OK; /* no releases */
-        if (err == ERR_HTTP_STATUS) set_http_error(gh, last_http);
-        return err;
-    }
-    return GS_OK;
+    /* a 404 here means the repo simply has no releases */
+    return gh_get(gh, url, parse_releases_page, &pctx, 1);
 }
 
 static ErrorCode fetch_meta_impl(void *ctx, RepoMeta *meta) {
     GitHubContext *gh = (GitHubContext *)ctx;
 
+    DriverBase base;
+    fill_base(gh, &base);
+    char auth[600] = "";
+    build_auth(gh, auth, sizeof(auth));
+
     char url[1024];
     snprintf(url, sizeof(url), "%s/repos/%s/%s", gh->api_base, gh->owner, gh->repo);
 
-    HttpClient hc;
-    char auth[600] = "";
-    build_auth(gh, auth, sizeof(auth));
-    http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
-
-    HttpBuffer buf;
-    HttpResult res;
-    http_buffer_init(&buf);
-    ErrorCode err = http_get(&hc, url, &buf, &res);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_http_error(gh, res.http_code);
-        http_buffer_free(&buf);
-        return err;
-    }
-
-    cJSON *json = cJSON_Parse(buf.data);
-    http_buffer_free(&buf);
-    if (!json) return ERR_JSON_PARSE;
+    cJSON *json = NULL;
+    ErrorCode err = gs_fetch_json(&base, auth, url, &json);
+    if (err != GS_OK) return err;
 
     memset(meta, 0, sizeof(*meta));
     cJSON *n;
@@ -497,18 +397,7 @@ static ErrorCode fetch_contributors_impl(void *ctx, Vector *contributors) {
     snprintf(url, sizeof(url), "%s/repos/%s/%s/contributors?per_page=100&anon=1",
              gh->api_base, gh->owner, gh->repo);
 
-    HttpClient hc;
-    char auth[600] = "";
-    build_auth(gh, auth, sizeof(auth));
-    http_client_init(&hc, auth, gh->proxy, GITHUB_ACCEPT, gh->timeout_secs, gh->max_pages);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_contributors_page, contributors, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_http_error(gh, last_http);
-        return err;
-    }
-    return GS_OK;
+    return gh_get(gh, url, parse_contributors_page, contributors, 0);
 }
 
 static void github_destroy(void *ctx) {

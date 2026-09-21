@@ -1,4 +1,5 @@
 #include "gitsight/platform/gitlab.h"
+#include "driver.h"
 #include "gitsight/models.h"
 #include "gitsight/error.h"
 #include "gitsight/platform/http.h"
@@ -6,21 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
 
 #define GITLAB_ACCEPT "Accept: application/json"
-
-static void build_since_date(int since_days, char *buf, size_t len) {
-    time_t now = time(NULL);
-    time_t since_ts = now - (time_t)since_days * 86400;
-    struct tm *tm = gmtime(&since_ts);
-    strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", tm);
-}
-
-static int date_in_range(const char *date_str, const char *since_str) {
-    if (!date_str || date_str[0] == '\0') return 0;
-    return strcmp(date_str, since_str) >= 0;
-}
 
 static void encode_project_path(const char *owner, const char *repo,
                                 char *out, size_t len)
@@ -28,47 +16,40 @@ static void encode_project_path(const char *owner, const char *repo,
     snprintf(out, len, "%s%%2F%s", owner, repo);
 }
 
-static void extract_labels(cJSON *labels_json, char *buf, size_t len) {
-    buf[0] = '\0';
-    if (!cJSON_IsArray(labels_json)) return;
-
-    int first = 1;
-    cJSON *label;
-    cJSON_ArrayForEach(label, labels_json) {
-        const char *name = NULL;
-        if (cJSON_IsString(label)) {
-            name = label->valuestring;
-        } else {
-            cJSON *n = cJSON_GetObjectItem(label, "title");
-            if (n && cJSON_IsString(n)) name = n->valuestring;
-        }
-        if (name) {
-            if (!first) strncat(buf, ", ", len - strlen(buf) - 1);
-            strncat(buf, name, len - strlen(buf) - 1);
-            first = 0;
-        }
-    }
+static void build_auth(const GitLabContext *gl, char *auth, size_t len) {
+    auth[0] = '\0';
+    if (gl->token[0])
+        snprintf(auth, len, "PRIVATE-TOKEN: %s", gl->token);
 }
 
-static void set_error(GitLabContext *ctx, long http_code) {
-    if (!ctx->error_buf) return;
-    if (http_code == 401)
-        snprintf(ctx->error_buf, ctx->error_len,
-            "HTTP 401 (bad credentials). Check your GITLAB_TOKEN.");
-    else if (http_code == 403)
-        snprintf(ctx->error_buf, ctx->error_len,
-            "HTTP 403 (rate limited). Set GITLAB_TOKEN in config or env.");
-    else if (http_code == 404)
-        snprintf(ctx->error_buf, ctx->error_len,
-            "HTTP 404. Project '%s/%s' not found.", ctx->owner, ctx->repo);
-    else
-        snprintf(ctx->error_buf, ctx->error_len, "HTTP %ld error.", http_code);
+static void fill_base(const GitLabContext *gl, DriverBase *base) {
+    base->api_base = gl->api_base;
+    base->proxy = gl->proxy;
+    base->accept = GITLAB_ACCEPT;
+    base->timeout_secs = gl->timeout_secs;
+    base->max_pages = gl->max_pages;
+    base->owner = gl->owner;
+    base->repo = gl->repo;
+    base->error_buf = gl->error_buf;
+    base->error_len = gl->error_len;
+    base->token_check = "GITLAB_TOKEN";
+    base->token_set = "GITLAB_TOKEN";
+    base->repo_noun = "Project";
 }
 
-typedef struct {
-    Vector *vec;
-    char since_str[MAX_DATE_LEN];
-} PageCtx;
+static ErrorCode gl_get(const GitLabContext *gl, const char *url,
+                        HttpPageFn cb, void *userdata, int tolerate_404) {
+    DriverBase base;
+    fill_base(gl, &base);
+    char auth[600] = "";
+    build_auth(gl, auth, sizeof(auth));
+    return gs_fetch_paginated(&base, auth, url, cb, userdata, tolerate_404);
+}
+
+static void init_since_ctx(PageCtx *pctx, Vector *vec, int since_days) {
+    pctx->vec = vec;
+    gs_build_since_date(since_days, pctx->since_str, sizeof(pctx->since_str));
+}
 
 /* ---- Merge Requests ---- */
 static int parse_mrs_page(void *userdata, const char *body, const HttpResult *res) {
@@ -83,7 +64,7 @@ static int parse_mrs_page(void *userdata, const char *body, const HttpResult *re
     cJSON_ArrayForEach(item, json) {
         cJSON *updated = cJSON_GetObjectItem(item, "updated_at");
         if (!updated || !cJSON_IsString(updated)) continue;
-        if (!date_in_range(updated->valuestring, ctx->since_str)) {
+        if (!gs_date_in_range(updated->valuestring, ctx->since_str)) {
             cJSON_Delete(json);
             return 1;
         }
@@ -114,7 +95,7 @@ static int parse_mrs_page(void *userdata, const char *body, const HttpResult *re
                 snprintf(pr->author, sizeof(pr->author), "%s", name->valuestring);
         }
         n = cJSON_GetObjectItem(item, "labels");
-        if (n) extract_labels(n, pr->labels, sizeof(pr->labels));
+        if (n) gs_extract_labels(n, pr->labels, sizeof(pr->labels));
 
         vector_push(ctx->vec, pr);
     }
@@ -128,29 +109,14 @@ static ErrorCode fetch_mrs_impl(void *ctx, Vector *prs, int since_days) {
     char project[512];
     encode_project_path(gl->owner, gl->repo, project, sizeof(project));
 
-    char since_str[MAX_DATE_LEN];
-    build_since_date(since_days, since_str, sizeof(since_str));
+    PageCtx pctx;
+    init_since_ctx(&pctx, prs, since_days);
 
     char url[1152];
     snprintf(url, sizeof(url), "%s/projects/%s/merge_requests?state=all&order_by=updated_at&sort=desc&per_page=100",
              gl->api_base, project);
 
-    HttpClient hc;
-    char auth[600] = "";
-    if (gl->token[0])
-        snprintf(auth, sizeof(auth), "PRIVATE-TOKEN: %s", gl->token);
-    http_client_init(&hc, auth, gl->proxy, GITLAB_ACCEPT, gl->timeout_secs, gl->max_pages);
-
-    PageCtx pctx = { prs, "" };
-    snprintf(pctx.since_str, sizeof(pctx.since_str), "%s", since_str);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_mrs_page, &pctx, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_error(gl, last_http);
-        return err;
-    }
-    return GS_OK;
+    return gl_get(gl, url, parse_mrs_page, &pctx, 0);
 }
 
 /* ---- Commits ---- */
@@ -166,7 +132,7 @@ static int parse_commits_page(void *userdata, const char *body, const HttpResult
     cJSON_ArrayForEach(item, json) {
         cJSON *date = cJSON_GetObjectItem(item, "committed_date");
         if (!date || !cJSON_IsString(date)) continue;
-        if (!date_in_range(date->valuestring, ctx->since_str)) {
+        if (!gs_date_in_range(date->valuestring, ctx->since_str)) {
             cJSON_Delete(json);
             return 1;
         }
@@ -182,23 +148,8 @@ static int parse_commits_page(void *userdata, const char *body, const HttpResult
         n = cJSON_GetObjectItem(item, "web_url");
         if (n && cJSON_IsString(n)) snprintf(c->html_url, sizeof(c->html_url), "%s", n->valuestring);
         n = cJSON_GetObjectItem(item, "message");
-        if (n && cJSON_IsString(n)) {
-            const char *src = n->valuestring;
-            char *dst = c->message;
-            int max = sizeof(c->message) - 1;
-            int i = 0;
-            while (*src && i < max) {
-                if (*src == '\n') {
-                    *dst++ = ' ';
-                    src++;
-                    while (*src == '\n') src++;
-                } else {
-                    *dst++ = *src++;
-                }
-                i++;
-            }
-            *dst = '\0';
-        }
+        if (n && cJSON_IsString(n))
+            gs_flatten_message(n->valuestring, c->message, sizeof(c->message) - 1);
         n = cJSON_GetObjectItem(item, "committer_name");
         if (n && cJSON_IsString(n))
             snprintf(c->author, sizeof(c->author), "%s", n->valuestring);
@@ -217,34 +168,19 @@ static ErrorCode fetch_commits_impl(void *ctx, Vector *commits, int since_days) 
     char project[512];
     encode_project_path(gl->owner, gl->repo, project, sizeof(project));
 
-    char since_str[MAX_DATE_LEN];
-    build_since_date(since_days, since_str, sizeof(since_str));
+    PageCtx pctx;
+    init_since_ctx(&pctx, commits, since_days);
 
     char url[1280];
     snprintf(url, sizeof(url), "%s/projects/%s/repository/commits?since=%s&per_page=100",
-             gl->api_base, project, since_str);
+             gl->api_base, project, pctx.since_str);
     if (gl->branch[0]) {
         char enc[128];
         url_encode(gl->branch, enc, sizeof(enc));
         snprintf(url + strlen(url), sizeof(url) - strlen(url), "&ref_name=%s", enc);
     }
 
-    HttpClient hc;
-    char auth[600] = "";
-    if (gl->token[0])
-        snprintf(auth, sizeof(auth), "PRIVATE-TOKEN: %s", gl->token);
-    http_client_init(&hc, auth, gl->proxy, GITLAB_ACCEPT, gl->timeout_secs, gl->max_pages);
-
-    PageCtx pctx = { commits, "" };
-    snprintf(pctx.since_str, sizeof(pctx.since_str), "%s", since_str);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_commits_page, &pctx, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_error(gl, last_http);
-        return err;
-    }
-    return GS_OK;
+    return gl_get(gl, url, parse_commits_page, &pctx, 0);
 }
 
 /* ---- Issues ---- */
@@ -263,7 +199,7 @@ static int parse_issues_page(void *userdata, const char *body, const HttpResult 
 
         cJSON *updated = cJSON_GetObjectItem(item, "updated_at");
         if (!updated || !cJSON_IsString(updated)) continue;
-        if (!date_in_range(updated->valuestring, ctx->since_str)) {
+        if (!gs_date_in_range(updated->valuestring, ctx->since_str)) {
             cJSON_Delete(json);
             return 1;
         }
@@ -289,7 +225,7 @@ static int parse_issues_page(void *userdata, const char *body, const HttpResult 
                 snprintf(iss->author, sizeof(iss->author), "%s", name->valuestring);
         }
         n = cJSON_GetObjectItem(item, "labels");
-        if (n) extract_labels(n, iss->labels, sizeof(iss->labels));
+        if (n) gs_extract_labels(n, iss->labels, sizeof(iss->labels));
 
         vector_push(ctx->vec, iss);
     }
@@ -303,29 +239,14 @@ static ErrorCode fetch_issues_impl(void *ctx, Vector *issues, int since_days) {
     char project[512];
     encode_project_path(gl->owner, gl->repo, project, sizeof(project));
 
-    char since_str[MAX_DATE_LEN];
-    build_since_date(since_days, since_str, sizeof(since_str));
+    PageCtx pctx;
+    init_since_ctx(&pctx, issues, since_days);
 
     char url[1152];
     snprintf(url, sizeof(url), "%s/projects/%s/issues?state=all&order_by=updated_at&sort=desc&per_page=100",
              gl->api_base, project);
 
-    HttpClient hc;
-    char auth[600] = "";
-    if (gl->token[0])
-        snprintf(auth, sizeof(auth), "PRIVATE-TOKEN: %s", gl->token);
-    http_client_init(&hc, auth, gl->proxy, GITLAB_ACCEPT, gl->timeout_secs, gl->max_pages);
-
-    PageCtx pctx = { issues, "" };
-    snprintf(pctx.since_str, sizeof(pctx.since_str), "%s", since_str);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_issues_page, &pctx, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_error(gl, last_http);
-        return err;
-    }
-    return GS_OK;
+    return gl_get(gl, url, parse_issues_page, &pctx, 0);
 }
 
 /* ---- Releases ---- */
@@ -341,7 +262,7 @@ static int parse_releases_page(void *userdata, const char *body, const HttpResul
     cJSON_ArrayForEach(item, json) {
         cJSON *released = cJSON_GetObjectItem(item, "released_at");
         if (!released || !cJSON_IsString(released)) continue;
-        if (!date_in_range(released->valuestring, ctx->since_str)) {
+        if (!gs_date_in_range(released->valuestring, ctx->since_str)) {
             cJSON_Delete(json);
             return 1;
         }
@@ -380,30 +301,15 @@ static ErrorCode fetch_releases_impl(void *ctx, Vector *releases, int since_days
     char project[512];
     encode_project_path(gl->owner, gl->repo, project, sizeof(project));
 
-    char since_str[MAX_DATE_LEN];
-    build_since_date(since_days, since_str, sizeof(since_str));
+    PageCtx pctx;
+    init_since_ctx(&pctx, releases, since_days);
 
     char url[1152];
     snprintf(url, sizeof(url), "%s/projects/%s/releases?per_page=100",
              gl->api_base, project);
 
-    HttpClient hc;
-    char auth[600] = "";
-    if (gl->token[0])
-        snprintf(auth, sizeof(auth), "PRIVATE-TOKEN: %s", gl->token);
-    http_client_init(&hc, auth, gl->proxy, GITLAB_ACCEPT, gl->timeout_secs, gl->max_pages);
-
-    PageCtx pctx = { releases, "" };
-    snprintf(pctx.since_str, sizeof(pctx.since_str), "%s", since_str);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_releases_page, &pctx, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS && last_http == 404) return GS_OK; /* no releases */
-        if (err == ERR_HTTP_STATUS) set_error(gl, last_http);
-        return err;
-    }
-    return GS_OK;
+    /* a 404 here means the project simply has no releases */
+    return gl_get(gl, url, parse_releases_page, &pctx, 1);
 }
 
 static ErrorCode fetch_meta_impl(void *ctx, RepoMeta *meta) {
@@ -411,28 +317,17 @@ static ErrorCode fetch_meta_impl(void *ctx, RepoMeta *meta) {
     char project[512];
     encode_project_path(gl->owner, gl->repo, project, sizeof(project));
 
+    DriverBase base;
+    fill_base(gl, &base);
+    char auth[600] = "";
+    build_auth(gl, auth, sizeof(auth));
+
     char url[1152];
     snprintf(url, sizeof(url), "%s/projects/%s", gl->api_base, project);
 
-    HttpClient hc;
-    char auth[600] = "";
-    if (gl->token[0])
-        snprintf(auth, sizeof(auth), "PRIVATE-TOKEN: %s", gl->token);
-    http_client_init(&hc, auth, gl->proxy, GITLAB_ACCEPT, gl->timeout_secs, gl->max_pages);
-
-    HttpBuffer buf;
-    HttpResult res;
-    http_buffer_init(&buf);
-    ErrorCode err = http_get(&hc, url, &buf, &res);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_error(gl, res.http_code);
-        http_buffer_free(&buf);
-        return err;
-    }
-
-    cJSON *json = cJSON_Parse(buf.data);
-    http_buffer_free(&buf);
-    if (!json) return ERR_JSON_PARSE;
+    cJSON *json = NULL;
+    ErrorCode err = gs_fetch_json(&base, auth, url, &json);
+    if (err != GS_OK) return err;
 
     memset(meta, 0, sizeof(*meta));
     cJSON *n;
@@ -489,19 +384,7 @@ static ErrorCode fetch_contributors_impl(void *ctx, Vector *contributors) {
     char url[1152];
     snprintf(url, sizeof(url), "%s/projects/%s/repository/contributors", gl->api_base, project);
 
-    HttpClient hc;
-    char auth[600] = "";
-    if (gl->token[0])
-        snprintf(auth, sizeof(auth), "PRIVATE-TOKEN: %s", gl->token);
-    http_client_init(&hc, auth, gl->proxy, GITLAB_ACCEPT, gl->timeout_secs, gl->max_pages);
-
-    long last_http = 0;
-    ErrorCode err = http_get_paginated(&hc, url, parse_contributors_page, contributors, &last_http);
-    if (err != GS_OK) {
-        if (err == ERR_HTTP_STATUS) set_error(gl, last_http);
-        return err;
-    }
-    return GS_OK;
+    return gl_get(gl, url, parse_contributors_page, contributors, 0);
 }
 
 static void gitlab_destroy(void *ctx) {

@@ -19,6 +19,7 @@ void cli_print_usage(void) {
     printf("  -d, --since <days>      Analysis period in days (default: 7)\n");
     printf("  --max-pages <n>         Max API result pages to fetch (default: 20)\n");
     printf("  --platform <name>       Platform: github, gitlab, codeberg, gitea, forgejo (default: github)\n");
+    printf("  --lang <code>           Report language: en, zh (default: en)\n");
     printf("  -t, --token <token>     Platform access token (GitHub or GitLab)\n");
     printf("  -f, --format <fmt>      Output format: json, md, txt, xlsx, pdf (default: md)\n");
     printf("  -o, --output <path>     Output file path (default: stdout)\n");
@@ -33,6 +34,8 @@ void cli_print_usage(void) {
     printf("  --no-cache               Bypass the disk response cache\n");
     printf("  -q, --quiet              Suppress progress output\n");
     printf("  --compare <a>:<b>        Compare two analysis periods (e.g. --compare 7:30)\n");
+    printf("  -j, --parallel <n>        Analyze up to n repos concurrently in batch mode\n");
+    printf("                          (default: 1 without a token, 4 with; max 8)\n");
     printf("  --config <path>         Config file path\n");
     printf("  -h, --help              Show this help\n\n");
     printf("Config options:\n");
@@ -78,7 +81,7 @@ static void cli_print_watch_usage(void) {
     printf("  list [--json]                      List subscriptions\n");
     printf("  analyze                            Analyze all subscriptions (default)\n");
     printf("  -d, --since <days>  -f, --format <fmt>  -q, --quiet  --no-cache  --llm <name>\n");
-    printf("  -o, --output <path>  --color <mode>\n");
+    printf("  -o, --output <path>  --color <mode>  -j, --parallel <n>\n");
 }
 
 static int parse_color(const char *s) {
@@ -152,6 +155,8 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
                 snprintf(opts->watch_format, sizeof(opts->watch_format), "%s", argv[++i]);
             } else if (strcmp(argv[i], "--platform") == 0 && i + 1 < argc) {
                 snprintf(opts->watch_platform, sizeof(opts->watch_platform), "%s", argv[++i]);
+            } else if (strcmp(argv[i], "--lang") == 0 && i + 1 < argc) {
+                snprintf(opts->lang, sizeof(opts->lang), "%s", argv[++i]);
             } else if (strcmp(argv[i], "--branch") == 0 && i + 1 < argc) {
                 snprintf(opts->branch, sizeof(opts->branch), "%s", argv[++i]);
             } else if (strcmp(argv[i], "--json") == 0) {
@@ -162,6 +167,8 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
                 opts->quiet = 1;
             } else if (strcmp(argv[i], "--llm") == 0 && i + 1 < argc) {
                 snprintf(opts->llm_name, sizeof(opts->llm_name), "%s", argv[++i]);
+            } else if ((strcmp(argv[i], "--parallel") == 0 || strcmp(argv[i], "-j") == 0) && i + 1 < argc) {
+                opts->parallel = atoi(argv[++i]);
             } else if (strcmp(argv[i], "--output") == 0 || strcmp(argv[i], "-o") == 0) {
                 if (i + 1 < argc) snprintf(opts->output, sizeof(opts->output), "%s", argv[++i]);
             } else if (strcmp(argv[i], "--color") == 0 && i + 1 < argc) {
@@ -281,6 +288,8 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
         {"platform", required_argument, 0, 262},
         {"max-pages", required_argument, 0, 263},
         {"branch",    required_argument, 0, 267},
+        {"lang",      required_argument, 0, 268},
+        {"parallel",  required_argument, 0, 269},
         {"no-cache",  no_argument,       0, 264},
         {"quiet",     no_argument,       0, 'q'},
         {"compare",   required_argument, 0, 265},
@@ -291,7 +300,7 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
     int opt;
     int opt_idx = 0;
     optind = next_arg;
-    while ((opt = getopt_long(argc, argv, "d:t:f:o:hq", long_opts, &opt_idx)) != -1) {
+    while ((opt = getopt_long(argc, argv, "d:t:f:o:hqj:", long_opts, &opt_idx)) != -1) {
         switch (opt) {
             case 'd': opts->since_days = atoi(optarg); break;
             case 't': snprintf(opts->token, sizeof(opts->token), "%s", optarg); break;
@@ -315,6 +324,9 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
             case 265: snprintf(opts->compare, sizeof(opts->compare), "%s", optarg); break;
             case 266: snprintf(opts->llm_mode, sizeof(opts->llm_mode), "%s", optarg); break;
             case 267: snprintf(opts->branch, sizeof(opts->branch), "%s", optarg); break;
+            case 268: snprintf(opts->lang, sizeof(opts->lang), "%s", optarg); break;
+            case 'j':
+            case 269: opts->parallel = atoi(optarg); break;
             default: return ERR_INVALID_ARGS;
         }
     }

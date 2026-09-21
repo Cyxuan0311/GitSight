@@ -26,6 +26,11 @@ add_custom_command(
 
 set(SOURCES
     src/main.c
+    src/cmd_common.c
+    src/cmd_usage.c
+    src/cmd_config.c
+    src/cmd_watch.c
+    src/cmd_analyze.c
     src/cli.c
     src/config.c
     src/error.c

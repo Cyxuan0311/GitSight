@@ -14,6 +14,7 @@ typedef struct {
     char   format[64];
     char   output[512];
     char   platform[16];
+    char   lang[16];
     char   proxy[512];
     char   api_base[256];
     char   branch[128];
@@ -36,6 +37,7 @@ typedef struct {
     char   set_key[128];
     char   set_value[512];
     char   compare[32];
+    int    parallel;           /* batch cross-repo concurrency (0 = auto) */
 
     /* watch (subscriptions) */
     int    watch_cmd;              /* 0=add 1=remove 2=update 3=list 4=analyze */

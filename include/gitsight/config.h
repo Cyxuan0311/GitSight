@@ -32,6 +32,10 @@ typedef struct {
     unsigned char title_color[3];
     unsigned char header_color[3];
     unsigned char label_color[3];
+    unsigned char link_color[3];
+    unsigned char open_color[3];
+    unsigned char closed_color[3];
+    unsigned char merged_color[3];
 } PdfExportConfig;
 
 typedef struct {
@@ -54,6 +58,7 @@ typedef struct {
     int   max_pages;
     int   color_mode;
     char  format[64];
+    char  lang[16];
     char  branch[128];
     char  output[512];
     LLMConfig llms[MAX_LLMS];
@@ -75,6 +80,10 @@ typedef struct {
     char  pdf_title_color[16];
     char  pdf_header_color[16];
     char  pdf_label_color[16];
+    char  pdf_link_color[16];
+    char  pdf_open_color[16];
+    char  pdf_closed_color[16];
+    char  pdf_merged_color[16];
     char  export_extra[1024];
 
     /* Repository subscriptions */

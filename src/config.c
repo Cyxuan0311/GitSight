@@ -5,6 +5,7 @@
 #include "gitsight/platform/profile.h"
 #include <cJSON.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -61,6 +62,62 @@ void config_get_default_path(char *buf, size_t len) {
     }
 }
 
+/* ---- Table-driven export configuration ----
+ * Every export.* field is declared once here; config_init (defaults),
+ * config_load (JSON), apply_export_override (CLI k=v) and config_save
+ * (JSON out) all iterate this table, so adding a field means adding one row. */
+typedef enum { CF_BOOL, CF_INT, CF_FLOAT, CF_STR } CfgType;
+
+typedef struct {
+    const char *section;   /* NULL = directly under "export", else md/txt/xlsx/pdf */
+    const char *key;       /* JSON key; CLI name is "section.key" or "key" */
+    size_t offset;         /* offsetof(Config, field) */
+    size_t size;           /* sizeof field for CF_STR, else 0 */
+    CfgType type;
+    int check;             /* CLI numeric validation: 0 = any, 1 = > 0, 2 = >= 0 */
+    const char *dstr;      /* CF_STR default */
+    double dnum;           /* numeric/bool default */
+} ExportField;
+
+#define EF(sec, k, fld, ty, chk, dnum) \
+    { sec, k, offsetof(Config, fld), sizeof(((Config *)0)->fld), ty, chk, NULL, (double)(dnum) }
+#define EFS(sec, k, fld, dstr) \
+    { sec, k, offsetof(Config, fld), sizeof(((Config *)0)->fld), CF_STR, 0, (dstr), 0.0 }
+
+static const ExportField EXPORT_FIELDS[] = {
+    EF(NULL,   "show_prs",          show_prs,          CF_BOOL,  0, 1),
+    EF(NULL,   "show_commits",      show_commits,      CF_BOOL,  0, 1),
+    EF(NULL,   "show_issues",       show_issues,       CF_BOOL,  0, 1),
+    EF(NULL,   "show_summary",      show_summary,      CF_BOOL,  0, 1),
+    EF(NULL,   "show_top_labels",   show_top_labels,   CF_BOOL,  0, 1),
+    EF(NULL,   "show_releases",     show_releases,     CF_BOOL,  0, 1),
+    EF(NULL,   "show_contributors", show_contributors, CF_BOOL,  0, 1),
+    EF(NULL,   "item_limit",        item_limit,        CF_INT,   2, 10),
+    EF("md",   "table_width",       md_table_width,    CF_INT,   1, 60),
+    EF("txt",  "table_width",       txt_table_width,   CF_INT,   1, 56),
+    EF("xlsx", "font_size",         xlsx_font_size,    CF_INT,   1, 11),
+    EFS("xlsx", "font_name",        xlsx_font_name,    "Calibri"),
+    EF("xlsx", "col_a_width",       xlsx_col_a_width,  CF_FLOAT, 1, 20.0),
+    EF("xlsx", "col_b_width",       xlsx_col_b_width,  CF_FLOAT, 1, 60.0),
+    EF("xlsx", "border",            xlsx_border,       CF_BOOL,  0, 1),
+    EFS("xlsx", "sheet_name",       xlsx_sheet_name,   "Report"),
+    EF("pdf",  "margin",            pdf_margin,        CF_FLOAT, 1, 50.0),
+    EF("pdf",  "line_height",       pdf_line_height,   CF_FLOAT, 1, 1.4),
+    EF("pdf",  "col2_padding",      pdf_col2_padding,  CF_FLOAT, 2, 12.0),
+    EFS("pdf",  "title_color",      pdf_title_color,   "25,55,160"),
+    EFS("pdf",  "header_color",     pdf_header_color,  "25,55,160"),
+    EFS("pdf",  "label_color",      pdf_label_color,   "90,90,90"),
+    EFS("pdf",  "link_color",       pdf_link_color,    "17,85,204"),
+    EFS("pdf",  "open_color",       pdf_open_color,    "26,127,55"),
+    EFS("pdf",  "closed_color",     pdf_closed_color,  "207,34,46"),
+    EFS("pdf",  "merged_color",     pdf_merged_color,  "130,80,223"),
+};
+#define N_EXPORT_FIELDS (sizeof(EXPORT_FIELDS) / sizeof(EXPORT_FIELDS[0]))
+
+static int cli_num_ok(int check, double v) {
+    return check == 0 || (check == 1 && v > 0) || (check == 2 && v >= 0);
+}
+
 void config_init(Config *cfg) {
     memset(cfg, 0, sizeof(Config));
     snprintf(cfg->platform, sizeof(cfg->platform), "github");
@@ -69,25 +126,18 @@ void config_init(Config *cfg) {
     cfg->max_pages = 20;
     cfg->color_mode = 0;
     snprintf(cfg->format, sizeof(cfg->format), "md");
+    snprintf(cfg->lang, sizeof(cfg->lang), "en");
 
-    cfg->show_prs = cfg->show_commits = cfg->show_issues = 1;
-    cfg->show_summary = cfg->show_top_labels = 1;
-    cfg->show_releases = cfg->show_contributors = 1;
-    cfg->item_limit = 10;
-    cfg->md_table_width = 60;
-    cfg->txt_table_width = 56;
-    cfg->xlsx_font_size = 11;
-    snprintf(cfg->xlsx_font_name, sizeof(cfg->xlsx_font_name), "Calibri");
-    cfg->xlsx_col_a_width = 20.0f;
-    cfg->xlsx_col_b_width = 60.0f;
-    cfg->xlsx_border = 1;
-    snprintf(cfg->xlsx_sheet_name, sizeof(cfg->xlsx_sheet_name), "Report");
-    cfg->pdf_margin = 50.0f;
-    cfg->pdf_line_height = 1.4f;
-    cfg->pdf_col2_padding = 12.0f;
-    snprintf(cfg->pdf_title_color, sizeof(cfg->pdf_title_color), "25,55,160");
-    snprintf(cfg->pdf_header_color, sizeof(cfg->pdf_header_color), "25,55,160");
-    snprintf(cfg->pdf_label_color, sizeof(cfg->pdf_label_color), "90,90,90");
+    for (size_t i = 0; i < N_EXPORT_FIELDS; i++) {
+        const ExportField *f = &EXPORT_FIELDS[i];
+        char *p = (char *)cfg + f->offset;
+        switch (f->type) {
+        case CF_BOOL:
+        case CF_INT:   *(int *)p = (int)f->dnum; break;
+        case CF_FLOAT: *(float *)p = (float)f->dnum; break;
+        case CF_STR:   snprintf(p, f->size, "%s", f->dstr); break;
+        }
+    }
 
     cfg->subscription_count = 0;
 }
@@ -161,6 +211,10 @@ ErrorCode config_load(Config *cfg, const char *path) {
     if (item && cJSON_IsString(item))
         snprintf(cfg->platform, sizeof(cfg->platform), "%s", item->valuestring);
 
+    item = cJSON_GetObjectItem(json, "lang");
+    if (item && cJSON_IsString(item))
+        snprintf(cfg->lang, sizeof(cfg->lang), "%s", item->valuestring);
+
     item = cJSON_GetObjectItem(json, "github_token");
     if (item && cJSON_IsString(item))
         snprintf(cfg->github_token, sizeof(cfg->github_token), "%s", item->valuestring);
@@ -230,67 +284,33 @@ ErrorCode config_load(Config *cfg, const char *path) {
         snprintf(cfg->active_llm, sizeof(cfg->active_llm), "%s", cfg->llms[0].name);
     }
 
-    /* Parse export config */
+    /* Parse export config (table-driven: see EXPORT_FIELDS) */
     cJSON *export_obj = cJSON_GetObjectItem(json, "export");
     if (export_obj && cJSON_IsObject(export_obj)) {
-        item = cJSON_GetObjectItem(export_obj, "show_prs");
-        if (item && cJSON_IsBool(item)) cfg->show_prs = cJSON_IsTrue(item);
-        item = cJSON_GetObjectItem(export_obj, "show_commits");
-        if (item && cJSON_IsBool(item)) cfg->show_commits = cJSON_IsTrue(item);
-        item = cJSON_GetObjectItem(export_obj, "show_issues");
-        if (item && cJSON_IsBool(item)) cfg->show_issues = cJSON_IsTrue(item);
-        item = cJSON_GetObjectItem(export_obj, "show_summary");
-        if (item && cJSON_IsBool(item)) cfg->show_summary = cJSON_IsTrue(item);
-        item = cJSON_GetObjectItem(export_obj, "show_top_labels");
-        if (item && cJSON_IsBool(item)) cfg->show_top_labels = cJSON_IsTrue(item);
-        item = cJSON_GetObjectItem(export_obj, "show_releases");
-        if (item && cJSON_IsBool(item)) cfg->show_releases = cJSON_IsTrue(item);
-        item = cJSON_GetObjectItem(export_obj, "show_contributors");
-        if (item && cJSON_IsBool(item)) cfg->show_contributors = cJSON_IsTrue(item);
-
-        item = cJSON_GetObjectItem(export_obj, "item_limit");
-        if (item && cJSON_IsNumber(item)) cfg->item_limit = item->valueint;
-
-        cJSON *sub;
-        sub = cJSON_GetObjectItem(export_obj, "md");
-        if (sub && cJSON_IsObject(sub)) {
-            item = cJSON_GetObjectItem(sub, "table_width");
-            if (item && cJSON_IsNumber(item)) cfg->md_table_width = item->valueint;
-        }
-        sub = cJSON_GetObjectItem(export_obj, "txt");
-        if (sub && cJSON_IsObject(sub)) {
-            item = cJSON_GetObjectItem(sub, "table_width");
-            if (item && cJSON_IsNumber(item)) cfg->txt_table_width = item->valueint;
-        }
-        sub = cJSON_GetObjectItem(export_obj, "xlsx");
-        if (sub && cJSON_IsObject(sub)) {
-            item = cJSON_GetObjectItem(sub, "font_size");
-            if (item && cJSON_IsNumber(item)) cfg->xlsx_font_size = item->valueint;
-            item = cJSON_GetObjectItem(sub, "font_name");
-            if (item && cJSON_IsString(item)) snprintf(cfg->xlsx_font_name, sizeof(cfg->xlsx_font_name), "%s", item->valuestring);
-            item = cJSON_GetObjectItem(sub, "col_a_width");
-            if (item && cJSON_IsNumber(item)) cfg->xlsx_col_a_width = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(sub, "col_b_width");
-            if (item && cJSON_IsNumber(item)) cfg->xlsx_col_b_width = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(sub, "border");
-            if (item && cJSON_IsBool(item)) cfg->xlsx_border = cJSON_IsTrue(item);
-            item = cJSON_GetObjectItem(sub, "sheet_name");
-            if (item && cJSON_IsString(item)) snprintf(cfg->xlsx_sheet_name, sizeof(cfg->xlsx_sheet_name), "%s", item->valuestring);
-        }
-        sub = cJSON_GetObjectItem(export_obj, "pdf");
-        if (sub && cJSON_IsObject(sub)) {
-            item = cJSON_GetObjectItem(sub, "margin");
-            if (item && cJSON_IsNumber(item)) cfg->pdf_margin = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(sub, "line_height");
-            if (item && cJSON_IsNumber(item)) cfg->pdf_line_height = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(sub, "col2_padding");
-            if (item && cJSON_IsNumber(item)) cfg->pdf_col2_padding = (float)item->valuedouble;
-            item = cJSON_GetObjectItem(sub, "title_color");
-            if (item && cJSON_IsString(item)) snprintf(cfg->pdf_title_color, sizeof(cfg->pdf_title_color), "%s", item->valuestring);
-            item = cJSON_GetObjectItem(sub, "header_color");
-            if (item && cJSON_IsString(item)) snprintf(cfg->pdf_header_color, sizeof(cfg->pdf_header_color), "%s", item->valuestring);
-            item = cJSON_GetObjectItem(sub, "label_color");
-            if (item && cJSON_IsString(item)) snprintf(cfg->pdf_label_color, sizeof(cfg->pdf_label_color), "%s", item->valuestring);
+        for (size_t i = 0; i < N_EXPORT_FIELDS; i++) {
+            const ExportField *f = &EXPORT_FIELDS[i];
+            cJSON *parent = export_obj;
+            if (f->section) {
+                parent = cJSON_GetObjectItem(export_obj, f->section);
+                if (!parent || !cJSON_IsObject(parent)) continue;
+            }
+            item = cJSON_GetObjectItem(parent, f->key);
+            if (!item) continue;
+            char *p = (char *)cfg + f->offset;
+            switch (f->type) {
+            case CF_BOOL:
+                if (cJSON_IsBool(item)) *(int *)p = cJSON_IsTrue(item);
+                break;
+            case CF_INT:
+                if (cJSON_IsNumber(item)) *(int *)p = item->valueint;
+                break;
+            case CF_FLOAT:
+                if (cJSON_IsNumber(item)) *(float *)p = (float)item->valuedouble;
+                break;
+            case CF_STR:
+                if (cJSON_IsString(item)) snprintf(p, f->size, "%s", item->valuestring);
+                break;
+            }
         }
     }
 
@@ -335,6 +355,8 @@ static int parse_bool(const char *s) {
     return strcmp(s, "true") == 0 || strcmp(s, "1") == 0 || strcmp(s, "yes") == 0;
 }
 
+/* Apply one "key=value" (or "section.key=value") export override from
+   --export / `gs config set export.*`, validated via EXPORT_FIELDS. */
 static void apply_export_override(Config *cfg, const char *kv) {
     const char *eq = strchr(kv, '=');
     if (!eq) return;
@@ -347,28 +369,34 @@ static void apply_export_override(Config *cfg, const char *kv) {
     memcpy(key, kv, klen);
     key[klen] = '\0';
 
-    if (strcmp(key, "show_prs") == 0) cfg->show_prs = parse_bool(val);
-    else if (strcmp(key, "show_commits") == 0) cfg->show_commits = parse_bool(val);
-    else if (strcmp(key, "show_issues") == 0) cfg->show_issues = parse_bool(val);
-    else if (strcmp(key, "show_summary") == 0) cfg->show_summary = parse_bool(val);
-    else if (strcmp(key, "show_top_labels") == 0) cfg->show_top_labels = parse_bool(val);
-    else if (strcmp(key, "show_releases") == 0) cfg->show_releases = parse_bool(val);
-    else if (strcmp(key, "show_contributors") == 0) cfg->show_contributors = parse_bool(val);
-    else if (strcmp(key, "item_limit") == 0) { int v = atoi(val); if (v >= 0) cfg->item_limit = v; }
-    else if (strcmp(key, "md.table_width") == 0) { int v = atoi(val); if (v > 0) cfg->md_table_width = v; }
-    else if (strcmp(key, "txt.table_width") == 0) { int v = atoi(val); if (v > 0) cfg->txt_table_width = v; }
-    else if (strcmp(key, "xlsx.font_size") == 0) { int v = atoi(val); if (v > 0) cfg->xlsx_font_size = v; }
-    else if (strcmp(key, "xlsx.font_name") == 0) snprintf(cfg->xlsx_font_name, sizeof(cfg->xlsx_font_name), "%s", val);
-    else if (strcmp(key, "xlsx.col_a_width") == 0) { float v = (float)atof(val); if (v > 0) cfg->xlsx_col_a_width = v; }
-    else if (strcmp(key, "xlsx.col_b_width") == 0) { float v = (float)atof(val); if (v > 0) cfg->xlsx_col_b_width = v; }
-    else if (strcmp(key, "xlsx.border") == 0) cfg->xlsx_border = parse_bool(val);
-    else if (strcmp(key, "xlsx.sheet_name") == 0) snprintf(cfg->xlsx_sheet_name, sizeof(cfg->xlsx_sheet_name), "%s", val);
-    else if (strcmp(key, "pdf.margin") == 0) { float v = (float)atof(val); if (v > 0) cfg->pdf_margin = v; }
-    else if (strcmp(key, "pdf.line_height") == 0) { float v = (float)atof(val); if (v > 0) cfg->pdf_line_height = v; }
-    else if (strcmp(key, "pdf.col2_padding") == 0) { float v = (float)atof(val); if (v >= 0) cfg->pdf_col2_padding = v; }
-    else if (strcmp(key, "pdf.title_color") == 0) snprintf(cfg->pdf_title_color, sizeof(cfg->pdf_title_color), "%s", val);
-    else if (strcmp(key, "pdf.header_color") == 0) snprintf(cfg->pdf_header_color, sizeof(cfg->pdf_header_color), "%s", val);
-    else if (strcmp(key, "pdf.label_color") == 0) snprintf(cfg->pdf_label_color, sizeof(cfg->pdf_label_color), "%s", val);
+    for (size_t i = 0; i < N_EXPORT_FIELDS; i++) {
+        const ExportField *f = &EXPORT_FIELDS[i];
+        char name[160];
+        if (f->section) snprintf(name, sizeof(name), "%s.%s", f->section, f->key);
+        else snprintf(name, sizeof(name), "%s", f->key);
+        if (strcmp(name, key) != 0) continue;
+
+        char *p = (char *)cfg + f->offset;
+        switch (f->type) {
+        case CF_BOOL:
+            *(int *)p = parse_bool(val);
+            break;
+        case CF_INT: {
+            int v = atoi(val);
+            if (cli_num_ok(f->check, v)) *(int *)p = v;
+            break;
+        }
+        case CF_FLOAT: {
+            float v = (float)atof(val);
+            if (cli_num_ok(f->check, v)) *(float *)p = v;
+            break;
+        }
+        case CF_STR:
+            snprintf(p, f->size, "%s", val);
+            break;
+        }
+        return;
+    }
 }
 
 void config_merge(Config *cfg,
@@ -568,6 +596,7 @@ ErrorCode config_save(const char *path, const Config *cfg) {
     cJSON *json = cJSON_CreateObject();
 
     cJSON_AddStringToObject(json, "platform", cfg->platform);
+    cJSON_AddStringToObject(json, "lang", cfg->lang);
     cJSON_AddStringToObject(json, "github_token", cfg->github_token);
     cJSON_AddStringToObject(json, "gitlab_token", cfg->gitlab_token);
     cJSON_AddStringToObject(json, "codeberg_token", cfg->codeberg_token);
@@ -606,36 +635,26 @@ ErrorCode config_save(const char *path, const Config *cfg) {
 
     {
         cJSON *exp = cJSON_AddObjectToObject(json, "export");
-        cJSON_AddBoolToObject(exp, "show_prs", cfg->show_prs);
-        cJSON_AddBoolToObject(exp, "show_commits", cfg->show_commits);
-        cJSON_AddBoolToObject(exp, "show_issues", cfg->show_issues);
-        cJSON_AddBoolToObject(exp, "show_summary", cfg->show_summary);
-        cJSON_AddBoolToObject(exp, "show_top_labels", cfg->show_top_labels);
-        cJSON_AddBoolToObject(exp, "show_releases", cfg->show_releases);
-        cJSON_AddBoolToObject(exp, "show_contributors", cfg->show_contributors);
-        cJSON_AddNumberToObject(exp, "item_limit", cfg->item_limit);
-
-        cJSON *md = cJSON_AddObjectToObject(exp, "md");
-        cJSON_AddNumberToObject(md, "table_width", cfg->md_table_width);
-
-        cJSON *txt = cJSON_AddObjectToObject(exp, "txt");
-        cJSON_AddNumberToObject(txt, "table_width", cfg->txt_table_width);
-
-        cJSON *xlsx = cJSON_AddObjectToObject(exp, "xlsx");
-        cJSON_AddNumberToObject(xlsx, "font_size", cfg->xlsx_font_size);
-        cJSON_AddStringToObject(xlsx, "font_name", cfg->xlsx_font_name);
-        cJSON_AddNumberToObject(xlsx, "col_a_width", cfg->xlsx_col_a_width);
-        cJSON_AddNumberToObject(xlsx, "col_b_width", cfg->xlsx_col_b_width);
-        cJSON_AddBoolToObject(xlsx, "border", cfg->xlsx_border);
-        cJSON_AddStringToObject(xlsx, "sheet_name", cfg->xlsx_sheet_name);
-
-        cJSON *pdf = cJSON_AddObjectToObject(exp, "pdf");
-        cJSON_AddNumberToObject(pdf, "margin", cfg->pdf_margin);
-        cJSON_AddNumberToObject(pdf, "line_height", cfg->pdf_line_height);
-        cJSON_AddNumberToObject(pdf, "col2_padding", cfg->pdf_col2_padding);
-        cJSON_AddStringToObject(pdf, "title_color", cfg->pdf_title_color);
-        cJSON_AddStringToObject(pdf, "header_color", cfg->pdf_header_color);
-        cJSON_AddStringToObject(pdf, "label_color", cfg->pdf_label_color);
+        cJSON *sec_obj = NULL;
+        const char *sec_name = NULL;
+        for (size_t i = 0; i < N_EXPORT_FIELDS; i++) {
+            const ExportField *f = &EXPORT_FIELDS[i];
+            cJSON *parent = exp;
+            if (f->section) {   /* table is grouped: one sub-object per section run */
+                if (!sec_name || strcmp(sec_name, f->section) != 0) {
+                    sec_obj = cJSON_AddObjectToObject(exp, f->section);
+                    sec_name = f->section;
+                }
+                parent = sec_obj;
+            }
+            const char *p = (const char *)cfg + f->offset;
+            switch (f->type) {
+            case CF_BOOL:  cJSON_AddBoolToObject(parent, f->key, *(const int *)p); break;
+            case CF_INT:   cJSON_AddNumberToObject(parent, f->key, *(const int *)p); break;
+            case CF_FLOAT: cJSON_AddNumberToObject(parent, f->key, *(const float *)p); break;
+            case CF_STR:   cJSON_AddStringToObject(parent, f->key, p); break;
+            }
+        }
     }
 
     if (cfg->subscription_count > 0) {
@@ -723,6 +742,9 @@ static int set_top_level(Config *cfg, const char *key, const char *val) {
             return 0;
         snprintf(cfg->platform, sizeof(cfg->platform), "%s", val);
         apply_platform_defaults(cfg);
+    } else if (strcmp(key, "lang") == 0) {
+        if (strcmp(val, "en") != 0 && strcmp(val, "zh") != 0) return 0;
+        snprintf(cfg->lang, sizeof(cfg->lang), "%s", val);
     } else if (strcmp(key, "default_days") == 0) {
         int v = atoi(val);
         if (v <= 0) return 0;

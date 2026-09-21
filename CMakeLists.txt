@@ -29,6 +29,7 @@ set(SOURCES
     src/cli.c
     src/config.c
     src/error.c
+    src/i18n.c
     src/color.c
     src/anim.c
     src/chart.c

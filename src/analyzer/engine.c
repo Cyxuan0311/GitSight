@@ -1,5 +1,6 @@
 #include "gitsight/analyzer/engine.h"
 #include "gitsight/error.h"
+#include "gitsight/i18n.h"
 #include <string.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -248,7 +249,7 @@ void analyzer_run(Report *report, const char *owner, const char *repo,
 
     snprintf(report->owner, sizeof(report->owner), "%s", owner);
     snprintf(report->repo, sizeof(report->repo), "%s", repo);
-    snprintf(report->period, sizeof(report->period), "last %d days", since_days);
+    snprintf(report->period, sizeof(report->period), gs_t("last %d days"), since_days);
 
     report->pr_total = (int)vector_len(prs);
     report->pr_open = 0;
@@ -353,48 +354,48 @@ void analyzer_run(Report *report, const char *owner, const char *repo,
     int pos = 0;
 
     pos += snprintf(summary + pos, sizeof(summary) - pos,
-        "The repository %s/%s has been active over the %s. ", owner, repo, report->period);
+        gs_t("The repository %s/%s has been active over the %s. "), owner, repo, report->period);
 
     if (report->pr_total > 0) {
         pos += snprintf(summary + pos, sizeof(summary) - pos,
-            "There were %d pull requests total (%d merged, %d open, %d closed). ",
+            gs_t("There were %d pull requests total (%d merged, %d open, %d closed). "),
             report->pr_total, report->pr_merged, report->pr_open,
             report->pr_closed - report->pr_merged);
         if (report->pr_merged_count > 0) {
             pos += snprintf(summary + pos, sizeof(summary) - pos,
-                "Average merge time was %.1f hours. ",
+                gs_t("Average merge time was %.1f hours. "),
                 report->pr_avg_merge_hours);
         }
     } else {
         pos += snprintf(summary + pos, sizeof(summary) - pos,
-            "No pull requests found in this period. ");
+            gs_t("No pull requests found in this period. "));
     }
 
     if (report->commit_total > 0) {
         pos += snprintf(summary + pos, sizeof(summary) - pos,
-            "%d commits from %d contributors were made, with %s being the most active. ",
+            gs_t("%d commits from %d contributors were made, with %s being the most active. "),
             report->commit_total, report->author_total, report->top_author);
     }
 
     if (report->issue_total > 0) {
         pos += snprintf(summary + pos, sizeof(summary) - pos,
-            "%d issues were active (%d open, %d closed). ",
+            gs_t("%d issues were active (%d open, %d closed). "),
             report->issue_total, report->issue_open, report->issue_closed);
         if (report->issue_closed_count > 0) {
             pos += snprintf(summary + pos, sizeof(summary) - pos,
-                "Average close time was %.1f hours. ",
+                gs_t("Average close time was %.1f hours. "),
                 report->issue_avg_close_hours);
         }
     }
 
     if (report->top_labels[0]) {
         pos += snprintf(summary + pos, sizeof(summary) - pos,
-            "Top labels: %s.", report->top_labels);
+            gs_t("Top labels: %s."), report->top_labels);
     }
 
     if (report->release_total > 0) {
         pos += snprintf(summary + pos, sizeof(summary) - pos,
-            " %d releases published, latest: %s.",
+            gs_t(" %d releases published, latest: %s."),
             report->release_total, report->latest_release);
     }
 
@@ -539,6 +540,12 @@ ErrorCode analyzer_llm_summary(char *summary, size_t summary_len,
             "2. Main themes and areas of focus\n"
             "3. Notable changes or patterns\n"
             "4. Brief summary (2-3 sentences)\n");
+    }
+
+    if (gs_get_lang() == GS_LANG_ZH) {
+        CHECK_PT();
+        pos += snprintf(prompt + pos, sizeof(prompt) - pos,
+            "\nWrite the entire analysis in Simplified Chinese.\n");
     }
 
 prompt_done:

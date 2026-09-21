@@ -31,6 +31,12 @@ typedef struct {
                               const FormatOptions *opts);
 } Exporter;
 
+/* Re-flow crammed markdown (a common LLM output shape): strips '\r' and
+ * inserts a newline before "N. " items and "**" runs that directly follow
+ * sentence punctuation. Writes at most outcap-1 bytes + NUL; returns the
+ * output length. Used by the md/txt/pdf Summary renderers. */
+size_t md_prettify_text(const char *in, char *out, size_t outcap);
+
 ErrorCode exporter_init(Exporter *exporter, const char *format);
 
 #endif

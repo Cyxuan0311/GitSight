@@ -54,6 +54,11 @@ set(SOURCES
     src/export/txt.c
     src/export/xlsx.c
     src/export/pdf.c
+    src/export/pdf_util.c
+    src/export/pdf_font.c
+    src/export/pdf_write.c
+    src/export/pdf_doc.c
+    src/export/pdf_objects.c
     ${COMPLETIONS_EMBED}
     third_party/cJSON/cJSON.c
     third_party/miniz/miniz.c

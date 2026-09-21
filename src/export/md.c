@@ -1,6 +1,56 @@
 #include "gitsight/export/exporter.h"
 #include "gitsight/color.h"
+#include "gitsight/i18n.h"
+#include <stdlib.h>
 #include <string.h>
+
+static int md_prev_punct(const char *s, size_t i) {
+    while (i && s[i - 1] == ' ') i--;
+    if (!i) return 0;
+    char c = s[i - 1];
+    return c == '.' || c == '!' || c == '?' || c == ')';
+}
+
+/* True when buf[0..n) (up to the current line start) is just "N." / "N)" —
+ * used so "**Title**" after a list marker stays on the marker's line. */
+static int md_is_marker_line(const char *buf, size_t n) {
+    size_t i = 0;
+    while (i < n && (buf[i] == ' ' || buf[i] == '\t')) i++;
+    if (i >= n || buf[i] < '1' || buf[i] > '9') return 0;
+    while (i < n && buf[i] >= '0' && buf[i] <= '9') i++;
+    if (i < n && (buf[i] == '.' || buf[i] == ')')) i++;
+    while (i < n && (buf[i] == ' ' || buf[i] == '\t')) i++;
+    return i == n;
+}
+
+size_t md_prettify_text(const char *in, char *out, size_t outcap) {
+    if (!outcap) return 0;
+    size_t len = strlen(in);
+    size_t b = 0, ls = 0;   /* ls = start of current output line in out */
+    for (size_t i = 0; i < len && b + 1 < outcap; i++) {
+        char c = in[i];
+        if (c == '\r') continue;
+        if (c == '\n') ls = b + 1;
+        int brk = 0;
+        if (c == '*' && i + 1 < len && in[i + 1] == '*') {
+            brk = md_prev_punct(in, i);
+        } else if (c >= '1' && c <= '9') {
+            size_t j = i + 1;
+            while (j < len && in[j] >= '0' && in[j] <= '9') j++;
+            if (j + 1 < len && in[j] == '.' && in[j + 1] == ' ')
+                brk = md_prev_punct(in, i);
+        }
+        if (brk && md_is_marker_line(out + ls, b - ls)) brk = 0;
+        if (brk && b && out[b - 1] != '\n') {
+            out[b++] = '\n';
+            ls = b;
+            if (b + 1 >= outcap) break;
+        }
+        out[b++] = c;
+    }
+    out[b] = '\0';
+    return b;
+}
 
 static ErrorCode md_write_report(FILE *fp, const Report *report,
                                  const Vector *prs, const Vector *commits,
@@ -15,40 +65,40 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
     const char *Y = uc ? CLR_YELLOW: "";
     const char *R = uc ? CLR_RESET : "";
 
-    fprintf(fp, "# GitSight Report\n\n");
-    fprintf(fp, "**Repository**: %s%s%s/%s%s%s\n", B, report->owner, R, B, report->repo, R);
-    fprintf(fp, "**Period**:     %s\n\n", report->period);
+    fprintf(fp, "# %s\n\n", gs_t("GitSight Report"));
+    fprintf(fp, "**%s**: %s%s%s/%s%s%s\n", gs_t("Repository"), B, report->owner, R, B, report->repo, R);
+    fprintf(fp, "**%s**:     %s\n\n", gs_t("Period"), report->period);
     fprintf(fp, "---\n\n");
 
     if (report->meta.has_meta) {
-        fprintf(fp, "## Repository\n\n");
-        fprintf(fp, "| Metric         | Value |\n");
+        fprintf(fp, "## %s\n\n", gs_t("Repository"));
+        fprintf(fp, "| %-15s | %-5s |\n", gs_t("Metric"), gs_t("Value"));
         fprintf(fp, "|----------------|-------|\n");
-        fprintf(fp, "| Stars          | %s%ld%s |\n", C, report->meta.stars, R);
-        fprintf(fp, "| Forks          | %s%ld%s |\n", C, report->meta.forks, R);
+        fprintf(fp, "| %-15s | %s%ld%s |\n", gs_t("Stars"), C, report->meta.stars, R);
+        fprintf(fp, "| %-15s | %s%ld%s |\n", gs_t("Forks"), C, report->meta.forks, R);
         if (report->meta.language[0])
-            fprintf(fp, "| Language       | %s |\n", report->meta.language);
+            fprintf(fp, "| %-15s | %s |\n", gs_t("Language"), report->meta.language);
         if (report->meta.license[0])
-            fprintf(fp, "| License        | %s |\n", report->meta.license);
+            fprintf(fp, "| %-15s | %s |\n", gs_t("License"), report->meta.license);
         if (report->meta.default_branch[0])
-            fprintf(fp, "| Default branch | %s |\n", report->meta.default_branch);
+            fprintf(fp, "| %-15s | %s |\n", gs_t("Default branch"), report->meta.default_branch);
         if (report->branch[0])
-            fprintf(fp, "| Branch         | %s |\n", report->branch);
+            fprintf(fp, "| %-15s | %s |\n", gs_t("Branch"), report->branch);
         if (report->meta.description[0])
-            fprintf(fp, "| Description    | %s |\n", report->meta.description);
+            fprintf(fp, "| %-15s | %s |\n", gs_t("Description"), report->meta.description);
         fprintf(fp, "\n");
     }
 
     if (flags & FMT_SHOW_PRS) {
-    fprintf(fp, "## [PR] Pull Requests\n\n");
-    fprintf(fp, "| Metric | Value |\n");
+    fprintf(fp, "## %s\n\n", gs_t("[PR] Pull Requests"));
+    fprintf(fp, "| %-6s | %-5s |\n", gs_t("Metric"), gs_t("Value"));
     fprintf(fp, "|--------|-------|\n");
-    fprintf(fp, "| Total  | %s%d%s |\n", C, report->pr_total, R);
-    fprintf(fp, "| Merged | %s%d%s |\n", G, report->pr_merged, R);
-    fprintf(fp, "| Open   | %s%d%s |\n", Y, report->pr_open, R);
-    fprintf(fp, "| Closed | %d |\n", report->pr_closed - report->pr_merged);
+    fprintf(fp, "| %-6s | %s%d%s |\n", gs_t("Total"), C, report->pr_total, R);
+    fprintf(fp, "| %-6s | %s%d%s |\n", gs_t("Merged"), G, report->pr_merged, R);
+    fprintf(fp, "| %-6s | %s%d%s |\n", gs_t("Open"), Y, report->pr_open, R);
+    fprintf(fp, "| %-6s | %d |\n", gs_t("Closed"), report->pr_closed - report->pr_merged);
     if (report->pr_merged_count > 0) {
-        fprintf(fp, "| Avg merge time | %.1f hours |\n", report->pr_avg_merge_hours);
+        fprintf(fp, "| %s | %.1f %s |\n", gs_t("Avg merge time"), report->pr_avg_merge_hours, gs_t("hours"));
     }
     fprintf(fp, "\n");
 
@@ -56,8 +106,8 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
         size_t n = vector_len(prs);
         if (n > (size_t)limit) n = (size_t)limit;
         if (n > 0) {
-            fprintf(fp, "**Recent pull requests:**\n\n");
-            fprintf(fp, "| # | Title | State | Author |\n");
+            fprintf(fp, "**%s**\n\n", gs_t("Recent pull requests:"));
+            fprintf(fp, "| # | %s | %s | %s |\n", gs_t("Title"), gs_t("State"), gs_t("Author"));
             fprintf(fp, "|---|-------|-------|--------|\n");
             for (size_t i = 0; i < n; i++) {
                 PR *pr = (PR *)vector_get(prs, i);
@@ -71,18 +121,20 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
     }
 
     if (flags & FMT_SHOW_COMMITS) {
-    fprintf(fp, "## [CM] Commits\n\n");
-    fprintf(fp, "| Metric      | Value |\n");
+    fprintf(fp, "## %s\n\n", gs_t("[CM] Commits"));
+    fprintf(fp, "| %-11s | %-5s |\n", gs_t("Metric"), gs_t("Value"));
     fprintf(fp, "|-------------|-------|\n");
-    fprintf(fp, "| Total       | %s%d%s |\n", C, report->commit_total, R);
-    fprintf(fp, "| Authors     | %d |\n", report->author_total);
+    fprintf(fp, "| %-11s | %s%d%s |\n", gs_t("Total"), C, report->commit_total, R);
+    fprintf(fp, "| %-11s | %d |\n", gs_t("Authors"), report->author_total);
     if (report->top_author[0]) {
-        fprintf(fp, "| Top author  | %s |\n", report->top_author);
+        fprintf(fp, "| %-11s | %s |\n", gs_t("Top author"), report->top_author);
     }
     fprintf(fp, "\n");
 
     if (report->activity_count > 1 && report->activity_max > 0) {
-        fprintf(fp, "**Commit activity (last %d buckets):**\n\n", report->activity_count);
+        char abuf[128];
+        snprintf(abuf, sizeof(abuf), gs_t("Commit activity (last %d buckets):"), report->activity_count);
+        fprintf(fp, "**%s**\n\n", abuf);
         fprintf(fp, "```\n");
         for (int i = report->activity_count - 1; i >= 0; i--) {
             int bar = (report->activity_values[i] * 40) / report->activity_max;
@@ -98,8 +150,8 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
         size_t n = vector_len(commits);
         if (n > (size_t)limit) n = (size_t)limit;
         if (n > 0) {
-            fprintf(fp, "**Recent commits:**\n\n");
-            fprintf(fp, "| Sha | Message | Author | Date |\n");
+            fprintf(fp, "**%s**\n\n", gs_t("Recent commits:"));
+            fprintf(fp, "| Sha | %s | %s | %s |\n", gs_t("Message"), gs_t("Author"), gs_t("Date"));
             fprintf(fp, "|-----|---------|--------|------|\n");
             for (size_t i = 0; i < n; i++) {
                 Commit *c = (Commit *)vector_get(commits, i);
@@ -113,14 +165,14 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
     }
 
     if (flags & FMT_SHOW_ISSUES) {
-    fprintf(fp, "## [IS] Issues\n\n");
-    fprintf(fp, "| Metric | Value |\n");
+    fprintf(fp, "## %s\n\n", gs_t("[IS] Issues"));
+    fprintf(fp, "| %-6s | %-5s |\n", gs_t("Metric"), gs_t("Value"));
     fprintf(fp, "|--------|-------|\n");
-    fprintf(fp, "| Total  | %s%d%s |\n", C, report->issue_total, R);
-    fprintf(fp, "| Open   | %s%d%s |\n", Y, report->issue_open, R);
-    fprintf(fp, "| Closed | %s%d%s |\n", G, report->issue_closed, R);
+    fprintf(fp, "| %-6s | %s%d%s |\n", gs_t("Total"), C, report->issue_total, R);
+    fprintf(fp, "| %-6s | %s%d%s |\n", gs_t("Open"), Y, report->issue_open, R);
+    fprintf(fp, "| %-6s | %s%d%s |\n", gs_t("Closed"), G, report->issue_closed, R);
     if (report->issue_closed_count > 0) {
-        fprintf(fp, "| Avg close time | %.1f hours |\n", report->issue_avg_close_hours);
+        fprintf(fp, "| %s | %.1f %s |\n", gs_t("Avg close time"), report->issue_avg_close_hours, gs_t("hours"));
     }
     fprintf(fp, "\n");
 
@@ -128,8 +180,8 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
         size_t n = vector_len(issues);
         if (n > (size_t)limit) n = (size_t)limit;
         if (n > 0) {
-            fprintf(fp, "**Recent issues:**\n\n");
-            fprintf(fp, "| # | Title | State | Author |\n");
+            fprintf(fp, "**%s**\n\n", gs_t("Recent issues:"));
+            fprintf(fp, "| # | %s | %s | %s |\n", gs_t("Title"), gs_t("State"), gs_t("Author"));
             fprintf(fp, "|---|-------|-------|--------|\n");
             for (size_t i = 0; i < n; i++) {
                 Issue *iss = (Issue *)vector_get(issues, i);
@@ -143,16 +195,16 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
     }
 
     if ((flags & FMT_SHOW_LABELS) && report->top_labels[0]) {
-        fprintf(fp, "**Top labels**: %s\n\n", report->top_labels);
+        fprintf(fp, "**%s**: %s\n\n", gs_t("Top labels"), report->top_labels);
     }
 
     if ((flags & FMT_SHOW_RELEASES) && report->release_total > 0) {
-    fprintf(fp, "## [RL] Releases\n\n");
-    fprintf(fp, "| Metric      | Value |\n");
+    fprintf(fp, "## %s\n\n", gs_t("[RL] Releases"));
+    fprintf(fp, "| %-11s | %-5s |\n", gs_t("Metric"), gs_t("Value"));
     fprintf(fp, "|-------------|-------|\n");
-    fprintf(fp, "| Total       | %s%d%s |\n", C, report->release_total, R);
+    fprintf(fp, "| %-11s | %s%d%s |\n", gs_t("Total"), C, report->release_total, R);
     if (report->latest_release[0]) {
-        fprintf(fp, "| Latest      | %s |\n", report->latest_release);
+        fprintf(fp, "| %-11s | %s |\n", gs_t("Latest"), report->latest_release);
     }
     fprintf(fp, "\n");
 
@@ -160,8 +212,8 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
         size_t n = vector_len(releases);
         if (n > (size_t)limit) n = (size_t)limit;
         if (n > 0) {
-            fprintf(fp, "**Recent releases:**\n\n");
-            fprintf(fp, "| Tag | Name | Author | Date |\n");
+            fprintf(fp, "**%s**\n\n", gs_t("Recent releases:"));
+            fprintf(fp, "| %s | %s | %s | %s |\n", gs_t("Tag"), gs_t("Name"), gs_t("Author"), gs_t("Date"));
             fprintf(fp, "|-----|------|--------|------|\n");
             for (size_t i = 0; i < n; i++) {
                 Release *rel = (Release *)vector_get(releases, i);
@@ -176,25 +228,33 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
     }
 
     if ((flags & FMT_SHOW_CONTRIBUTORS) && report->contributor_total > 0) {
-    fprintf(fp, "## [CT] Contributors\n\n");
-    fprintf(fp, "| Metric      | Value |\n");
+    fprintf(fp, "## %s\n\n", gs_t("[CT] Contributors"));
+    fprintf(fp, "| %-11s | %-5s |\n", gs_t("Metric"), gs_t("Value"));
     fprintf(fp, "|-------------|-------|\n");
-    fprintf(fp, "| Total       | %s%d%s |\n", C, report->contributor_total, R);
+    fprintf(fp, "| %-11s | %s%d%s |\n", gs_t("Total"), C, report->contributor_total, R);
     if (report->top_contributor[0]) {
-        fprintf(fp, "| Top         | %s |\n", report->top_contributor);
+        fprintf(fp, "| %-11s | %s |\n", gs_t("Top"), report->top_contributor);
     }
     if (report->top_contributor_list[0]) {
-        fprintf(fp, "| Top list    | %s |\n", report->top_contributor_list);
+        fprintf(fp, "| %-11s | %s |\n", gs_t("Top list"), report->top_contributor_list);
     }
     fprintf(fp, "\n");
     }
 
     if (flags & FMT_SHOW_SUMMARY) {
-    fprintf(fp, "## [*] Summary\n\n");
-    fprintf(fp, "%s\n", report->summary);
+    fprintf(fp, "## %s\n\n", gs_t("[*] Summary"));
+    size_t slen = strlen(report->summary);
+    char *pretty = malloc(slen * 2 + 2);
+    if (pretty) {
+        md_prettify_text(report->summary, pretty, slen * 2 + 2);
+        fprintf(fp, "%s\n", pretty);
+        free(pretty);
+    } else {
+        fprintf(fp, "%s\n", report->summary);
+    }
     }
     fprintf(fp, "\n---\n");
-    fprintf(fp, "*Generated by [GitSight](https://github.com/user/gitsight)*\n");
+    fprintf(fp, "*%s*\n", gs_t("Generated by [GitSight](https://github.com/user/gitsight)"));
 
     return GS_OK;
 }

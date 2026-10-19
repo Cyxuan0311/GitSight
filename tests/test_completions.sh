@@ -71,8 +71,8 @@ check_contains() {
     fi
 }
 
-check "top-level commands" $'analyze\nwatch\nsub\nsubscribe\nconfig\nusage\nversion\ncompletion' gs ""
-check "analyze format" $'json\nmd\ntxt\nxlsx\npdf' gs analyze -f ""
+check "top-level commands" $'analyze\nwatch\nsub\nsubscribe\nconfig\nusage\nserve\nversion\ncompletion' gs ""
+check "analyze format" $'json\nmd\ntxt\nhtml\ncsv\nxlsx\npdf' gs analyze -f ""
 check "analyze platform" $'github\ngitlab\ncodeberg\ngitea\nforgejo' gs analyze --platform ""
 check "analyze color" $'auto\nalways\nnever' gs analyze --color ""
 check "analyze llm" $'local' gs analyze --llm ""
@@ -89,6 +89,8 @@ check "config --set-llm names" "local" gs config --set-llm ""
 check_contains "config --set llms keys" "llms.local.protocol=" gs config --set ""
 check "config --set llms.protocol values" $'llms.local.protocol=openai\nllms.local.protocol=anthropic\nllms.local.protocol=gemini' gs config --set llms.local.protocol=
 check "completion shells" $'bash\nzsh\nfish' gs completion ""
+# compgen drops the single-dash forms here, exactly as it does for analyze.
+check "serve flags" $'--host\n--port\n--web-root\n--config\n--jobs\n--quiet\n--help' gs serve --
 check_contains "usage options" "--days" gs usage --
 
 # Inline --config must take precedence over the default config path

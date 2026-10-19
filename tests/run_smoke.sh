@@ -65,6 +65,14 @@ cat > "$FIX/contributors.json" <<EOF
 ]
 EOF
 
+cat > "$FIX/languages.json" <<EOF
+{
+  "C": 61000,
+  "Python": 30000,
+  "Shell": 1000
+}
+EOF
+
 cat > "$FIX/meta.json" <<EOF
 {
   "description": "A test gadget",
@@ -97,12 +105,15 @@ grep -q "Contributors" "$OUT/report.md" || fail "md missing contributors section
 grep -q "v1.2.3" "$OUT/report.md" || fail "md missing release"
 grep -q "1234" "$OUT/report.md" || fail "md missing repo meta"
 grep -q "bug" "$OUT/report.md" || fail "md missing top labels"
+grep -q "Languages" "$OUT/report.md" || fail "md missing languages section"
+grep -q "66.3%" "$OUT/report.md" || fail "md missing language percentage"
 
 "$GS" analyze acme/gadget $ARGS --no-cache -q -d 7 -f json -o "$OUT/report.json" || fail "json export failed"
 grep -q '"items"' "$OUT/report.json" || fail "json missing items"
 grep -q '"repository"' "$OUT/report.json" || fail "json missing repository"
 grep -q '"pull_requests"' "$OUT/report.json" || fail "json missing pull_requests"
 grep -q '"activity"' "$OUT/report.json" || fail "json missing activity"
+grep -q '"languages"' "$OUT/report.json" || fail "json missing languages"
 
 "$GS" analyze acme/gadget $ARGS --no-cache -q -d 7 -f txt -o "$OUT/report.txt" || fail "txt export failed"
 grep -q "Pull Requests" "$OUT/report.txt" || fail "txt missing PR section"
@@ -113,6 +124,32 @@ head -c 2 "$OUT/report.xlsx" | grep -q "PK" || fail "xlsx not a valid zip"
 
 "$GS" analyze acme/gadget $ARGS --no-cache -q -d 7 -f pdf -o "$OUT/report.pdf" || fail "pdf export failed"
 head -c 4 "$OUT/report.pdf" | grep -q "%PDF" || fail "pdf missing header"
+
+"$GS" analyze acme/gadget $ARGS --no-cache -q -d 7 -f html -o "$OUT/report.html" || fail "html export failed"
+grep -qi "<!DOCTYPE html>" "$OUT/report.html" || fail "html missing doctype"
+grep -q "badge" "$OUT/report.html" || fail "html missing state badges"
+grep -q 'href="#prs"' "$OUT/report.html" || fail "html missing TOC anchor"
+grep -q 'class="tfilter"' "$OUT/report.html" || fail "html missing filter inputs"
+grep -q 'data-target="tbl-prs"' "$OUT/report.html" || fail "html filter not bound to PR table"
+grep -q "<script>" "$OUT/report.html" || fail "html missing inline filter script"
+grep -q 'href="#languages"' "$OUT/report.html" || fail "html missing languages anchor"
+"$GS" analyze acme/gadget $ARGS --no-cache -q -d 7 -f html --export html.open_color=red -o "$OUT/report_colors.html" || fail "html color export failed"
+grep -q '.b-open{color:#dc2629}' "$OUT/report_colors.html" || fail "html --export named color not applied"
+
+# --filter keeps only matching items; --to bounds the window
+"$GS" analyze acme/gadget $ARGS --no-cache -q --filter author:bob -f md -o "$OUT/filt.md" || fail "filter analyze failed"
+grep -q "Add docs" "$OUT/filt.md" || fail "filter dropped bob's own PR"
+grep -q "Fix the widget" "$OUT/filt.md" && fail "filter kept alice's PR"
+"$GS" analyze acme/gadget $ARGS --no-cache -q --to "$(date -u -d '3 days ago' +%Y-%m-%d)" -f md -o "$OUT/win.md" || fail "window analyze failed"
+grep -q "first commit" "$OUT/win.md" && fail "--to kept commit after cutoff"
+"$GS" analyze acme/gadget $ARGS --no-cache -q --from bad-date -f md -o /dev/null 2>"$OUT/bad.txt" && fail "bad --from accepted"
+grep -q "YYYY-MM-DD" "$OUT/bad.txt" || fail "bad --from wrong error"
+
+"$GS" analyze acme/gadget $ARGS --no-cache -q -d 7 -f csv -o "$OUT/report.csv" || fail "csv export failed"
+grep -q "^# metrics$" "$OUT/report.csv" || fail "csv missing metrics block"
+grep -q "^# pull_requests$" "$OUT/report.csv" || fail "csv missing pull_requests block"
+grep -q "^# commits$" "$OUT/report.csv" || fail "csv missing commits block"
+grep -q "Fix the widget" "$OUT/report.csv" || fail "csv missing PR row"
 
 "$GS" analyze acme/gadget $ARGS --no-cache -q -d 7 --compare 7:30 -o "$OUT/compare.md" || fail "compare failed"
 grep -q "Activity comparison" "$OUT/compare.md" || fail "compare missing header"

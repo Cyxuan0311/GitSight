@@ -4,6 +4,7 @@
  * English everywhere. Format specifiers are carried inside the key
  * (e.g. gs_t("Page %d of %d")). */
 #include "gitsight/i18n.h"
+#include <cJSON.h>
 #include <string.h>
 
 typedef struct {
@@ -11,7 +12,11 @@ typedef struct {
     const char *zh;
 } GsEntry;
 
-static GsLang g_lang = GS_LANG_EN;
+/* Thread-local: every connection thread renders its own export, and one
+ * request may ask for a different language than the next. A single process-wide
+ * value would let two concurrent downloads interleave and produce a report
+ * whose headings are in two languages. */
+static _Thread_local GsLang g_lang = GS_LANG_EN;
 
 static const GsEntry TABLE[] = {
     /* Headings / common labels */
@@ -43,6 +48,7 @@ static const GsEntry TABLE[] = {
     { "[IS] Issues", "[IS] 议题" },
     { "[RL] Releases", "[RL] 发布" },
     { "[CT] Contributors", "[CT] 贡献者" },
+    { "[LG] Languages", "[LG] 编程语言" },
     { "[*] Summary", "[*] 总结" },
 
     /* Stats labels */
@@ -74,6 +80,7 @@ static const GsEntry TABLE[] = {
     { "Recent commits:", "最近的提交：" },
     { "Recent issues:", "最近的议题：" },
     { "Recent releases:", "最近的发布：" },
+    { "Filter rows", "输入关键词过滤" },
     { "Title", "标题" },
     { "State", "状态" },
     { "Date", "日期" },
@@ -137,4 +144,15 @@ const char *gs_weekday(int i) {
     static const char *zh[] = { "周日", "周一", "周二", "周三", "周四", "周五", "周六" };
     if (i < 0 || i > 6) i = 0;
     return g_lang == GS_LANG_ZH ? zh[i] : en[i];
+}
+
+void *gs_i18n_table_json(void) {
+    cJSON *arr = cJSON_CreateArray();
+    for (size_t i = 0; i < sizeof(TABLE) / sizeof(TABLE[0]); i++) {
+        cJSON *o = cJSON_CreateObject();
+        cJSON_AddStringToObject(o, "en", TABLE[i].en);
+        cJSON_AddStringToObject(o, "zh", TABLE[i].zh);
+        cJSON_AddItemToArray(arr, o);
+    }
+    return arr;
 }

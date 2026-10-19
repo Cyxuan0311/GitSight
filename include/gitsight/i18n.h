@@ -16,4 +16,10 @@ const char *gs_t(const char *id);
 /* Weekday name, index 0 = Sunday. */
 const char *gs_weekday(int i);
 
+/* The whole EN/ZH table as a cJSON array of {"en","zh"} objects, so a browser
+ * client can render report labels in the same language the exporters use
+ * without re-keying the table by hand. Caller owns the result.
+ * Declared with void* to keep cJSON out of this header. */
+void *gs_i18n_table_json(void);
+
 #endif

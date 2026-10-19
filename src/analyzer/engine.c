@@ -240,15 +240,51 @@ static void build_contributor_stats(Report *report, const Vector *contributors)
     }
 }
 
+static void build_language_stats(Report *report, const Vector *langs)
+{
+    report->lang_count = 0;
+    if (!langs) return;
+    size_t n = vector_len(langs);
+    if (n == 0) return;
+
+    /* sort a local index array desc by bytes (insertion sort, n is small) */
+    int order[REPORT_LANGS_MAX * 4];
+    if (n > (size_t)(REPORT_LANGS_MAX * 4)) n = (size_t)(REPORT_LANGS_MAX * 4);
+    for (size_t i = 0; i < n; i++) order[i] = (int)i;
+    for (size_t i = 1; i < n; i++) {
+        int key = order[i];
+        long long kb = ((const LangEntry *)vector_get(langs, key))->bytes;
+        size_t j = i;
+        while (j > 0 && ((const LangEntry *)vector_get(langs, order[j - 1]))->bytes < kb) {
+            order[j] = order[j - 1];
+            j--;
+        }
+        order[j] = key;
+    }
+
+    int shown = 0;
+    for (size_t i = 0; i < n && shown < REPORT_LANGS_MAX; i++) {
+        const LangEntry *le = (const LangEntry *)vector_get(langs, order[i]);
+        if (le->bytes <= 0) continue;
+        snprintf(report->lang_names[shown], sizeof(report->lang_names[0]),
+                 "%s", le->name);
+        report->lang_bytes[shown] = le->bytes;
+        shown++;
+    }
+    report->lang_count = shown;
+}
+
 void analyzer_run(Report *report, const char *owner, const char *repo,
                   int since_days, const Vector *prs,
                   const Vector *commits, const Vector *issues,
-                  const Vector *releases, const Vector *contributors)
+                  const Vector *releases, const Vector *contributors,
+                  const Vector *langs)
 {
     memset(report, 0, sizeof(Report));
 
     snprintf(report->owner, sizeof(report->owner), "%s", owner);
     snprintf(report->repo, sizeof(report->repo), "%s", repo);
+    report->period_days = since_days;
     snprintf(report->period, sizeof(report->period), gs_t("last %d days"), since_days);
 
     report->pr_total = (int)vector_len(prs);
@@ -349,6 +385,7 @@ void analyzer_run(Report *report, const char *owner, const char *repo,
 
     compute_merge_close_times(report, prs, issues);
     compute_activity(report, commits, since_days);
+    build_language_stats(report, langs);
 
     char summary[MAX_SUMMARY_LEN];
     int pos = 0;
@@ -557,4 +594,61 @@ prompt_done:
         }
     }
     return llm_generate(llm, prompt, summary, summary_len);
+}
+
+ErrorCode analyzer_llm_compare(char *out, size_t out_len,
+                               const LLMConfig *llm,
+                               const char *owner, const char *repo,
+                               int days_a, int days_b,
+                               const Report *a, const Report *b)
+{
+    if (!llm->api_key[0] || !llm->api_base[0]) {
+        return ERR_LLM_CONFIG;
+    }
+
+    char prompt[4096];
+    snprintf(prompt, sizeof(prompt),
+        "Compare two activity snapshots of the repository %s/%s.\n"
+        "Window A: the last %d days (recent, short-term).\n"
+        "Window B: the last %d days (longer-term baseline).\n\n"
+        "Metric              A        B\n"
+        "Pull requests       %-8d%-8d\n"
+        "PRs merged          %-8d%-8d\n"
+        "Commits             %-8d%-8d\n"
+        "Commit authors      %-8d%-8d\n"
+        "Top author          %-8s%-8s\n"
+        "Issues              %-8d%-8d\n"
+        "Issues open         %-8d%-8d\n"
+        "Releases            %-8d%-8d\n"
+        "Contributors        %-8d%-8d\n"
+        "Top contributor     %-8s%-8s\n"
+        "Avg merge time (h)  %-8.1f%-8.1f\n"
+        "Avg close time (h)  %-8.1f%-8.1f\n"
+        "Top labels A: %s\n"
+        "Top labels B: %s\n\n"
+        "Based only on these numbers, write 2-4 sentences describing how the\n"
+        "project's activity changed in the recent short window relative to the\n"
+        "longer baseline: accelerating or slowing, focus shifts, contributor\n"
+        "changes, and what that implies for project health.\n",
+        owner, repo, days_a, days_b,
+        a->pr_total, b->pr_total,
+        a->pr_merged, b->pr_merged,
+        a->commit_total, b->commit_total,
+        a->author_total, b->author_total,
+        a->top_author[0] ? a->top_author : "-", b->top_author[0] ? b->top_author : "-",
+        a->issue_total, b->issue_total,
+        a->issue_open, b->issue_open,
+        a->release_total, b->release_total,
+        a->contributor_total, b->contributor_total,
+        a->top_contributor[0] ? a->top_contributor : "-",
+        b->top_contributor[0] ? b->top_contributor : "-",
+        a->pr_avg_merge_hours, b->pr_avg_merge_hours,
+        a->issue_avg_close_hours, b->issue_avg_close_hours,
+        a->top_labels, b->top_labels);
+
+    if (gs_get_lang() == GS_LANG_ZH)
+        strncat(prompt, "\nWrite the entire analysis in Simplified Chinese.\n",
+                sizeof(prompt) - strlen(prompt) - 1);
+
+    return llm_generate(llm, prompt, out, out_len);
 }

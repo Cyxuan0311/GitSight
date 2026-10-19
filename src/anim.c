@@ -19,6 +19,8 @@ static const char *const frames_points[]   = { "▖", "▘", "▝", "▗" };
 
 static int g_quiet = 0;
 static int g_tty_override = -1;
+static AnimListener g_listener = NULL;
+static void *g_listener_user = NULL;
 
 static int stderr_is_tty(void) {
     if (g_tty_override >= 0) return g_tty_override;
@@ -36,6 +38,15 @@ void anim_set_quiet(int quiet) {
 
 void anim_set_tty(int enabled) {
     g_tty_override = enabled;
+}
+
+void anim_set_listener(AnimListener fn, void *user) {
+    g_listener = fn;
+    g_listener_user = user;
+}
+
+void anim_emit(const char *stage, int current, int total, int state) {
+    if (g_listener) g_listener(stage ? stage : "", current, total, state, g_listener_user);
 }
 
 static const char *current_glyph(Anim *a) {
@@ -108,6 +119,8 @@ void anim_start(Anim *a, AnimStyle style, int current, int total, const char *me
     a->running = 1;
     snprintf(a->message, sizeof(a->message), "%s", message);
 
+    anim_emit(a->message, current, total, ANIM_PROG_START);
+
     if (!g_quiet && stderr_is_tty()) {
         if (pthread_create(&a->thread, NULL, anim_run, a) == 0) {
             a->thread_started = 1;
@@ -131,13 +144,17 @@ void anim_start(Anim *a, AnimStyle style, int current, int total, const char *me
 void anim_update(Anim *a, int current, int total) {
     a->current = current;
     if (total >= 0) a->total = total;
+    anim_emit(a->message, a->current, a->total, ANIM_PROG_UPDATE);
 }
 
 void anim_update_message(Anim *a, const char *message) {
     snprintf(a->message, sizeof(a->message), "%s", message);
+    anim_emit(a->message, a->current, a->total, ANIM_PROG_UPDATE);
 }
 
 void anim_stop(Anim *a, int success) {
+    anim_emit(a->message, a->current, a->total,
+              success ? ANIM_PROG_OK : ANIM_PROG_FAIL);
     if (a->running) {
         a->running = 0;
         if (a->thread_started) {

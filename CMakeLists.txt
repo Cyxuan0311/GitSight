@@ -34,6 +34,7 @@ set(SOURCES
     src/cli.c
     src/config.c
     src/error.c
+    src/cancel.c
     src/i18n.c
     src/color.c
     src/anim.c
@@ -58,6 +59,8 @@ set(SOURCES
     src/export/json.c
     src/export/md.c
     src/export/txt.c
+    src/export/html.c
+    src/export/csv.c
     src/export/xlsx.c
     src/export/pdf.c
     src/export/pdf_util.c
@@ -65,6 +68,19 @@ set(SOURCES
     src/export/pdf_write.c
     src/export/pdf_doc.c
     src/export/pdf_objects.c
+    src/server/api.c
+    src/server/api_config.c
+    src/server/api_jobs.c
+    src/server/api_llm.c
+    src/server/api_meta.c
+    src/server/api_subs.c
+    src/server/api_usage.c
+    src/server/api_util.c
+    src/server/jobs.c
+    src/server/net.c
+    src/server/respond.c
+    src/server/serve.c
+    src/server/static_files.c
     ${COMPLETIONS_EMBED}
     third_party/cJSON/cJSON.c
     third_party/miniz/miniz.c
@@ -76,6 +92,7 @@ set(SOURCES
 add_executable(gs ${SOURCES})
 target_include_directories(gs PRIVATE
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/third_party
     ${CMAKE_SOURCE_DIR}/third_party/cJSON
     ${CMAKE_SOURCE_DIR}/third_party/miniz
@@ -85,8 +102,49 @@ target_link_libraries(gs PRIVATE ${CURL_LIBRARIES} m z)
 
 install(TARGETS gs RUNTIME DESTINATION bin)
 
+# ---------------------------------------------------------------------------
+# Web console
+#
+# `gs serve` serves the built console from --web-root, which defaults to
+# <exe dir>/web and then ./web. This target builds the frontend and drops the
+# result where the daemon looks first, so `gs serve` works with no flags after
+# a normal build. It is opt-in so a C-only build never needs Node installed.
+# ---------------------------------------------------------------------------
+option(GITSIGHT_BUILD_WEB "Build the web console and bundle it next to gs" OFF)
+
+if(GITSIGHT_BUILD_WEB)
+  find_program(NPM_EXECUTABLE npm)
+  if(NOT NPM_EXECUTABLE)
+    message(FATAL_ERROR "GITSIGHT_BUILD_WEB is ON but npm was not found")
+  endif()
+
+  set(WEB_SRC ${CMAKE_SOURCE_DIR}/web)
+  set(WEB_OUT ${CMAKE_BINARY_DIR}/web)
+
+  add_custom_target(web ALL
+    COMMAND ${NPM_EXECUTABLE} --prefix ${WEB_SRC} install --no-audit --no-fund
+    COMMAND ${NPM_EXECUTABLE} --prefix ${WEB_SRC} run build
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${WEB_OUT}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${WEB_SRC}/dist ${WEB_OUT}
+    WORKING_DIRECTORY ${WEB_SRC}
+    COMMENT "Building the GitSight web console"
+    VERBATIM)
+
+  add_dependencies(gs web)
+  install(DIRECTORY ${WEB_OUT} DESTINATION share/gitsight/web)
+endif()
+
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/web/dist
+        DESTINATION share/gitsight/web
+        OPTIONAL)
+
 include(CTest)
 if(BUILD_TESTING)
     add_test(NAME smoke COMMAND bash ${CMAKE_SOURCE_DIR}/tests/run_smoke.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
     add_test(NAME completions COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_completions.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
+    add_test(NAME server COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_server.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
+    # Static serving of the built console; both skip when web/dist is absent.
+    add_test(NAME web COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_web.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
+    add_test(NAME console COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_console.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
+    add_test(NAME smoke_console COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_smoke_console.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
 endif()

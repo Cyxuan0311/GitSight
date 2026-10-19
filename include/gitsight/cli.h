@@ -25,6 +25,12 @@ typedef struct {
     char   set_token_value[512];
     char   llm_name[64];
     char   llm_mode[16];
+    int    suppress_llm;     /* internal: skip per-repo LLM summary (compare path) */
+    int    serial_fetch;     /* internal: fetch the 7 resources one at a time
+                              * instead of fanning out across threads. Set when
+                              * many repositories already run in parallel, so a
+                              * batch of N repos uses N threads rather than
+                              * N*7. Results are identical either way. */
     int    set_llm;
     char   set_llm_value[64];
     int    list_llms;
@@ -38,6 +44,9 @@ typedef struct {
     char   set_value[512];
     char   compare[32];
     int    parallel;           /* batch cross-repo concurrency (0 = auto) */
+    char   from[32];           /* analyze date range start (YYYY-MM-DD) */
+    char   to[32];             /* analyze date range end (YYYY-MM-DD) */
+    char   filters[512];       /* newline-joined --filter expressions */
 
     /* watch (subscriptions) */
     int    watch_cmd;              /* 0=add 1=remove 2=update 3=list 4=analyze */

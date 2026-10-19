@@ -2,10 +2,9 @@
 #include "gitsight/cli.h"
 #include "gitsight/error.h"
 #include "gitsight/completions.h"
+#include "gitsight/version.h"
 #include <stdio.h>
 #include <string.h>
-
-#define GS_VERSION "0.1.0"
 
 int main(int argc, char **argv) {
     Options opts;
@@ -22,6 +21,12 @@ int main(int argc, char **argv) {
 
     if (opts.command == 5) {
         return cmd_usage(&opts);
+    }
+
+    if (opts.command == 6) {
+        /* argv+2 skips argv[0] and the "serve" verb; cmd_serve parses the
+         * rest itself because the server has its own flag set. */
+        return cmd_serve(argc - 2, argv + 2);
     }
 
     if (opts.command == 4) {

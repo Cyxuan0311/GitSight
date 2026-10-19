@@ -12,22 +12,66 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#define strcasecmp _stricmp
+#else
+#include <strings.h>
+#endif
 
+static const struct { const char *name; int rgb[3]; } NAMED_COLORS[] = {
+    {"black",  {0,0,0}},     {"white",   {255,255,255}}, {"red",    {220,38,41}},
+    {"green",  {26,127,55}}, {"blue",    {37,86,196}},   {"yellow", {212,167,21}},
+    {"orange", {230,126,34}},{"purple",  {130,80,223}},  {"gray",   {119,119,119}},
+    {"grey",   {119,119,119}},{"pink",   {234,120,181}}, {"brown",  {121,85,72}},
+    {"cyan",   {23,178,178}},{"magenta", {186,59,212}},  {"gold",   {180,140,20}},
+    {"navy",   {16,32,96}},  {"teal",   {0,96,96}},     {"silver", {192,192,192}},
+    {"maroon", {128,0,0}},   {"olive",  {107,107,0}},   {NULL, {0,0,0}},
+};
+
+static int hex_nib(char c) {
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    return -1;
+}
+
+/* Accepts "R,G,B", "#rrggbb", or a color name; unknown -> black. */
 static void color_str_to_rgb(const char *s, unsigned char out[3]) {
     int r, g, b;
     if (sscanf(s, "%d,%d,%d", &r, &g, &b) == 3) {
         out[0] = (unsigned char)r; out[1] = (unsigned char)g; out[2] = (unsigned char)b;
-    } else {
-        out[0] = 0; out[1] = 0; out[2] = 0;
+        return;
     }
+    if (s[0] == '#') s++;
+    int h0 = hex_nib(s[0]), h1 = hex_nib(s[1]), h2 = hex_nib(s[2]), h3 = hex_nib(s[3]),
+        h4 = hex_nib(s[4]), h5 = hex_nib(s[5]);
+    if (s[6] == '\0' && h0 >= 0 && h1 >= 0 && h2 >= 0 && h3 >= 0 && h4 >= 0 && h5 >= 0) {
+        out[0] = (unsigned char)(h0 * 16 + h1);
+        out[1] = (unsigned char)(h2 * 16 + h3);
+        out[2] = (unsigned char)(h4 * 16 + h5);
+        return;
+    }
+    for (int i = 0; NAMED_COLORS[i].name; i++) {
+        if (strcasecmp(s, NAMED_COLORS[i].name) == 0) {
+            out[0] = (unsigned char)NAMED_COLORS[i].rgb[0];
+            out[1] = (unsigned char)NAMED_COLORS[i].rgb[1];
+            out[2] = (unsigned char)NAMED_COLORS[i].rgb[2];
+            return;
+        }
+    }
+    out[0] = 0; out[1] = 0; out[2] = 0;
 }
 
 int build_fopts(FormatOptions *fopts, const Config *cfg, int close_fp, const char *format) {
     memset(fopts, 0, sizeof(*fopts));
     /* txt/md carry ANSI escapes, so color is only sane when streaming to a
-     * terminal; pdf/xlsx use the flag for in-document color, files included. */
-    int doc_color = format && (strcmp(format, "pdf") == 0 || strcmp(format, "xlsx") == 0);
-    fopts->color_active = color_active() && (!close_fp || doc_color);
+     * terminal; pdf/xlsx/html embed their own colors, independent of stdout. */
+    int doc_color = format && (strcmp(format, "pdf") == 0 || strcmp(format, "xlsx") == 0 ||
+                               strcmp(format, "html") == 0);
+    if (doc_color)
+        fopts->color_active = color_doc_active();
+    else
+        fopts->color_active = color_active() && !close_fp;
     fopts->font_size = 11.0f;
     fopts->page_width = 595.0f;
     fopts->page_height = 842.0f;
@@ -43,6 +87,7 @@ int build_fopts(FormatOptions *fopts, const Config *cfg, int close_fp, const cha
     if (cfg->show_top_labels) fopts->flags |= FMT_SHOW_LABELS;
     if (cfg->show_releases)   fopts->flags |= FMT_SHOW_RELEASES;
     if (cfg->show_contributors) fopts->flags |= FMT_SHOW_CONTRIBUTORS;
+    if (cfg->show_languages)  fopts->flags |= FMT_SHOW_LANGS;
 
     /* Format-specific table width */
     if (strcmp(format, "md") == 0)
@@ -68,6 +113,17 @@ int build_fopts(FormatOptions *fopts, const Config *cfg, int close_fp, const cha
         fopts->page_width = 595.0f;
         fopts->page_height = 842.0f;
         fopts->extra = pec;
+    } else if (strcmp(format, "html") == 0) {
+        HtmlExportConfig *hec = malloc(sizeof(HtmlExportConfig));
+        if (!hec) return 0;
+        color_str_to_rgb(cfg->html_title_color, hec->title_color);
+        color_str_to_rgb(cfg->html_header_color, hec->header_color);
+        color_str_to_rgb(cfg->html_label_color, hec->label_color);
+        color_str_to_rgb(cfg->html_link_color, hec->link_color);
+        color_str_to_rgb(cfg->html_open_color, hec->open_color);
+        color_str_to_rgb(cfg->html_closed_color, hec->closed_color);
+        color_str_to_rgb(cfg->html_merged_color, hec->merged_color);
+        fopts->extra = hec;
     } else if (strcmp(format, "xlsx") == 0) {
         XlsxExportConfig *xec = malloc(sizeof(XlsxExportConfig));
         if (!xec) return 0;
@@ -140,13 +196,20 @@ struct BatchPool {
     atomic_int   next;
 };
 
+/* Run one task, handing back the full analysis when the caller wants it. */
+int batch_run_one(BatchTask *t) {
+    if (!t->result_out) return analyze_repo(&t->opts, *t->cfg, t->repo, t->batch, NULL);
+    analysis_result_init(t->result_out);
+    return analyze_repo(&t->opts, *t->cfg, t->repo, t->batch, t->result_out);
+}
+
 static void *batch_pool_worker(void *arg) {
     struct BatchPool *pool = (struct BatchPool *)arg;
     for (;;) {
         int i = atomic_fetch_add(&pool->next, 1);
         if (i >= pool->n) break;
         BatchTask *t = &pool->tasks[i];
-        t->result = analyze_repo(&t->opts, *t->cfg, t->repo, t->batch, NULL);
+        t->result = batch_run_one(t);
     }
     return NULL;
 }
@@ -156,20 +219,26 @@ int run_batch_tasks(BatchTask *tasks, int n, int par, int quiet) {
     if (par <= 1 || n <= 1) {
         for (int i = 0; i < n; i++) {
             if (!quiet) fprintf(stderr, "\n== %s ==\n", tasks[i].label);
-            tasks[i].result = analyze_repo(&tasks[i].opts, *tasks[i].cfg,
-                                           tasks[i].repo, tasks[i].batch, NULL);
+            tasks[i].result = batch_run_one(&tasks[i]);
             rc |= tasks[i].result;
         }
         return rc;
     }
 
     /* Concurrent spinners would interleave; silence per-repo output and
-     * report progress through the final batch summary table instead. */
+     * report progress through the final batch summary table instead.
+     *
+     * Each repo is already analyzed on its own thread, so this also switches
+     * its 7-resource fetch to serial: a batch of N repos then costs N threads
+     * instead of N*7, with identical results. */
     anim_set_quiet(1);
     struct BatchPool pool;
     pool.tasks = tasks;
     pool.n = n;
     atomic_store(&pool.next, 0);
+
+    for (int i = 0; i < n; i++)
+        tasks[i].opts.serial_fetch = 1;
 
     int nthreads = par < n ? par : n;
     pthread_t th[GS_BATCH_MAX_THREADS];
@@ -183,8 +252,7 @@ int run_batch_tasks(BatchTask *tasks, int n, int par, int quiet) {
     if (created == 0) {
         /* no threads could start: run everything serially on this thread */
         for (int i = 0; i < n; i++) {
-            tasks[i].result = analyze_repo(&tasks[i].opts, *tasks[i].cfg,
-                                           tasks[i].repo, tasks[i].batch, NULL);
+            tasks[i].result = batch_run_one(&tasks[i]);
         }
     }
     anim_set_quiet(quiet);

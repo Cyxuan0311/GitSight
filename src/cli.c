@@ -14,14 +14,15 @@ void cli_print_usage(void) {
     printf("  config                   Show/edit configuration\n");
     printf("  usage                    Show LLM usage as a unicode bar chart\n");
     printf("  version                  Show version\n");
-    printf("  completion <shell>      Print a shell completion script (bash, zsh, fish)\n\n");
+    printf("  completion <shell>      Print a shell completion script (bash, zsh, fish)\n");
+    printf("  serve                   Start the local web console (loopback only, no auth)\n\n");
     printf("Analyze options:\n");
     printf("  -d, --since <days>      Analysis period in days (default: 7)\n");
     printf("  --max-pages <n>         Max API result pages to fetch (default: 20)\n");
     printf("  --platform <name>       Platform: github, gitlab, codeberg, gitea, forgejo (default: github)\n");
     printf("  --lang <code>           Report language: en, zh (default: en)\n");
     printf("  -t, --token <token>     Platform access token (GitHub or GitLab)\n");
-    printf("  -f, --format <fmt>      Output format: json, md, txt, xlsx, pdf (default: md)\n");
+    printf("  -f, --format <fmt>      Output format: json, md, txt, html, csv, xlsx, pdf (default: md)\n");
     printf("  -o, --output <path>     Output file path (default: stdout)\n");
     printf("  --proxy <url>           HTTP proxy URL\n");
     printf("  --api-base <url>        API base URL (mirror support)\n");
@@ -34,6 +35,11 @@ void cli_print_usage(void) {
     printf("  --no-cache               Bypass the disk response cache\n");
     printf("  -q, --quiet              Suppress progress output\n");
     printf("  --compare <a>:<b>        Compare two analysis periods (e.g. --compare 7:30)\n");
+    printf("  --from <date>           Range start (YYYY-MM-DD, overrides -d)\n");
+    printf("  --to <date>             Range end (YYYY-MM-DD, default: today)\n");
+    printf("  --filter <expr>         Keep matching items (repeatable):\n");
+    printf("                          author:<name> | label:<name> | keyword\n");
+    printf("                          OR within one kind, AND across kinds\n");
     printf("  -j, --parallel <n>        Analyze up to n repos concurrently in batch mode\n");
     printf("                          (default: 1 without a token, 4 with; max 8)\n");
     printf("  --config <path>         Config file path\n");
@@ -69,6 +75,8 @@ void cli_print_usage(void) {
     printf("  gs usage\n");
     printf("  gs usage --by-llm\n");
     printf("  gs usage --days 30\n");
+    printf("  gs serve\n");
+    printf("  gs serve --port 9000\n");
 }
 
 static void cli_print_watch_usage(void) {
@@ -109,6 +117,12 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
         opts->command = 4;
         if (argc > 2)
             snprintf(opts->completion_shell, sizeof(opts->completion_shell), "%s", argv[2]);
+        return GS_OK;
+    }
+
+    /* `serve` takes no shared flags, so it short-circuits parsing entirely. */
+    if (strcmp(argv[1], "serve") == 0 || strcmp(argv[1], "server") == 0) {
+        opts->command = 6;
         return GS_OK;
     }
 
@@ -294,6 +308,9 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
         {"quiet",     no_argument,       0, 'q'},
         {"compare",   required_argument, 0, 265},
         {"llm-mode",  required_argument, 0, 266},
+        {"from",      required_argument, 0, 270},
+        {"to",        required_argument, 0, 271},
+        {"filter",    required_argument, 0, 272},
         {0, 0, 0, 0}
     };
 
@@ -327,6 +344,13 @@ ErrorCode cli_parse(int argc, char **argv, Options *opts) {
             case 268: snprintf(opts->lang, sizeof(opts->lang), "%s", optarg); break;
             case 'j':
             case 269: opts->parallel = atoi(optarg); break;
+            case 270: snprintf(opts->from, sizeof(opts->from), "%s", optarg); break;
+            case 271: snprintf(opts->to, sizeof(opts->to), "%s", optarg); break;
+            case 272:
+                if (opts->filters[0])
+                    strncat(opts->filters, "\n", sizeof(opts->filters) - strlen(opts->filters) - 1);
+                strncat(opts->filters, optarg, sizeof(opts->filters) - strlen(opts->filters) - 1);
+                break;
             default: return ERR_INVALID_ARGS;
         }
     }

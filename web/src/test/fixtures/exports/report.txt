@@ -1,0 +1,67 @@
++------------------------------------------------------|
+|                     GitSight Report                |
+|------------------------------------------------------|
+| Repository:  acme/gadget                             |
+| Period:      last 7 days                             |
+| Branch:      main                                    |
+|1234 stars | 56 forks                                |
+|Language: C  License: MIT                            |
+|------------------------------------------------------|
+|
+| [PR] Pull Requests
+|   Total:    2                                      |
+|   Merged:   1                                      |
+|   Open:     1                                      |
+|   Avg merge: 72.0 h                                |
+|   #42 Fix the widget [merged]                       |
+|   #41 Add <script>alert(1)</script> docs [open]     |
+|
+| [CM] Commits
+|   Total:       2                                   |
+|   Authors:     2                                   |
+|   Top:     alice (1 commits)                  |
+|   Activity (commits/day):
+|   10-12 | 0                                         |
+|   10-13 | 0                                         |
+|   10-14 | 0                                         |
+|   10-15 | 0                                         |
+|   10-16 |############################## 1           |
+|   10-17 |############################## 1           |
+|   10-18 | 0                                         |
+|   aaaa111 fix the widget (alice)                    |
+|   cccc222 add docs (bob)                            |
+|
+| [IS] Issues
+|   Total:    1                                      |
+|   Open:     0                                      |
+|   Closed:   1                                      |
+|   Avg close: 72.0 h                                |
+|   #99 Something broke [closed]                      |
+|
+| Top labels: bug, ui                                |
+|
+| [RL] Releases
+|   Total:    1                                      |
+|   Latest: v1.2.3                              |
+|   v1.2.3 Release 1.2.3 (alice)                      |
+|
+| [CT] Contributors
+|   Total:    2                                      |
+|   Top:    alice (9 contributions)             |
+| Top5: alice (9), bob (3)                           |
+|
+| [LG] Languages
+|    C            |################## 61.0%          |
+|    Go           |########### 39.0%                 |
+|
+| [*] Summary
+|   The repository acme/gadget has been active over  |
+|   the last 7 days. There were 2 pull requests total|
+|   (1 merged, 1 open, 0 closed). Average merge time |
+|   was 72.0 hours. 2 commits from 2 contributors    |
+|   were made, with alice (1 commits) being the most |
+|   active. 1 issues were active (0 open, 1 closed). |
+|   Average close time was 72.0 hours. Top labels:   |
+|   bug, ui. 1 releases published, latest: v1.2.3.   |
+|
++------------------------------------------------------+

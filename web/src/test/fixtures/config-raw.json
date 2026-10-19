@@ -1,0 +1,78 @@
+{
+	"platform":	"github",
+	"lang":	"en",
+	"github_token":	"",
+	"gitlab_token":	"",
+	"codeberg_token":	"",
+	"api_base":	"https://api.github.com",
+	"proxy":	"",
+	"default_days":	7,
+	"max_pages":	20,
+	"color":	"auto",
+	"format":	"md",
+	"llms":	{
+		"default":	{
+			"api_key":	"",
+			"api_base":	"https://api.openai.com/v1",
+			"model":	"gpt-4o-mini",
+			"timeout":	60,
+			"max_tokens":	1024,
+			"temperature":	0.300000011920929
+		},
+		"local":	{
+			"api_key":	"not-needed",
+			"api_base":	"http://localhost:11434/v1",
+			"model":	"llama3.2",
+			"timeout":	120,
+			"max_tokens":	1024,
+			"temperature":	0.300000011920929
+		}
+	},
+	"active_llm":	"default",
+	"export":	{
+		"show_prs":	true,
+		"show_commits":	true,
+		"show_issues":	true,
+		"show_summary":	true,
+		"show_top_labels":	true,
+		"show_releases":	true,
+		"show_contributors":	true,
+		"show_languages":	true,
+		"item_limit":	10,
+		"md":	{
+			"table_width":	60
+		},
+		"txt":	{
+			"table_width":	56
+		},
+		"xlsx":	{
+			"font_size":	11,
+			"font_name":	"Calibri",
+			"col_a_width":	20,
+			"col_b_width":	60,
+			"border":	true,
+			"sheet_name":	"Report"
+		},
+		"pdf":	{
+			"margin":	50,
+			"line_height":	1.3999999761581421,
+			"col2_padding":	12,
+			"title_color":	"25,55,160",
+			"header_color":	"25,55,160",
+			"label_color":	"90,90,90",
+			"link_color":	"17,85,204",
+			"open_color":	"26,127,55",
+			"closed_color":	"207,34,46",
+			"merged_color":	"130,80,223"
+		},
+		"html":	{
+			"title_color":	"25,55,160",
+			"header_color":	"25,55,160",
+			"label_color":	"90,90,90",
+			"link_color":	"17,85,204",
+			"open_color":	"26,127,55",
+			"closed_color":	"207,34,46",
+			"merged_color":	"130,80,223"
+		}
+	}
+}

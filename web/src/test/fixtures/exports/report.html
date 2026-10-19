@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>GitSight Report - acme/gadget</title>
+<style>
+body{font-family:system-ui,'Segoe UI',Arial,'Noto Sans CJK SC',sans-serif;max-width:860px;margin:2em auto;padding:0 1em;color:#111;line-height:1.5}
+h1{color:#1937a0}h2{color:#1937a0;border-bottom:2px solid #ddd;padding-bottom:.2em}
+a{color:#1155cc}
+.muted{color:#5a5a5a}.period{color:#5a5a5a}
+table{border-collapse:collapse;margin:.6em 0}
+th,td{border:1px solid #ccc;padding:4px 10px;text-align:left}
+th{background:#1937a0;color:#fff}
+nav a{margin-right:1em}
+.badge{border-radius:10px;padding:1px 8px;font-size:85%;border:1px solid #999}
+.b-open{color:#1a7f37}.b-closed{color:#cf222e}.b-merged{color:#8250df}.b-none{color:inherit}
+.chart{margin:.6em 0}.row{display:flex;align-items:center;margin:2px 0}
+.row .lbl{width:8em;font-size:90%;color:#5a5a5a}.row .val{margin-left:6px;font-size:90%}
+.bar{flex:1;background:#eee;height:12px;border-radius:3px}
+.bar i{display:block;height:100%;background:#1937a0;border-radius:3px}
+code{background:#f4f4f4;padding:1px 4px;border-radius:3px}
+input.tfilter{padding:4px 8px;border:1px solid #ccc;border-radius:4px;margin:.2em 0 0;width:16em;font-size:90%}
+.foot{margin-top:2em;color:#5a5a5a;font-size:85%}
+</style>
+</head>
+<body>
+<h1>GitSight Report - acme/gadget</h1>
+<p class="period">Period: last 7 days</p>
+<nav class="muted"><a href="#meta">Repository</a><a href="#prs">Pull Requests</a><a href="#commits">Commits</a><a href="#issues">Issues</a><a href="#releases">Releases</a><a href="#languages">Languages</a><a href="#summary">Summary</a></nav>
+<h2 id="meta">Repository</h2>
+<table>
+<tr><th>Stars</th><th>Forks</th><th>Language</th><th>License</th><th>Default branch</th></tr>
+<tr><td>1234</td><td>56</td><td>C</td><td>MIT</td><td>main</td></tr>
+</table>
+<p class="muted">demo repo</p>
+<p class="muted">Branch: main</p>
+<h2 id="prs">Pull Requests</h2>
+<ul class="muted"><li>Total: 2</li><li>Merged: 1</li><li>Open: 1</li><li>Closed: 0</li><li>Avg merge time: 72.0 hours</li></ul>
+<p><strong>Recent pull requests:</strong></p>
+<p><input class="tfilter" type="text" data-target="tbl-prs" placeholder="Filter rows"></p>
+<table id="tbl-prs">
+<tr><th>#</th><th>Title</th><th>State</th><th>Author</th></tr>
+<tr><td><a href="https://example.test/p/42">#42</a></td><td>Fix the widget</td><td><span class="badge b-merged">merged</span></td><td>alice</td></tr>
+<tr><td><a href="https://example.test/p/41">#41</a></td><td>Add &lt;script&gt;alert(1)&lt;/script&gt; docs</td><td><span class="badge b-open">open</span></td><td>bob</td></tr>
+</table>
+<h2 id="commits">Commits</h2>
+<ul class="muted"><li>Total: 2</li><li>Authors: 2</li><li>Top author: alice (1 commits)</li></ul>
+<p><strong>Activity (commits/day):</strong></p>
+<div class="chart">
+<div class="row"><span class="lbl">10-12</span><span class="bar"><i style="width:0%"></i></span><span class="val">0</span></div>
+<div class="row"><span class="lbl">10-13</span><span class="bar"><i style="width:0%"></i></span><span class="val">0</span></div>
+<div class="row"><span class="lbl">10-14</span><span class="bar"><i style="width:0%"></i></span><span class="val">0</span></div>
+<div class="row"><span class="lbl">10-15</span><span class="bar"><i style="width:0%"></i></span><span class="val">0</span></div>
+<div class="row"><span class="lbl">10-16</span><span class="bar"><i style="width:100%"></i></span><span class="val">1</span></div>
+<div class="row"><span class="lbl">10-17</span><span class="bar"><i style="width:100%"></i></span><span class="val">1</span></div>
+<div class="row"><span class="lbl">10-18</span><span class="bar"><i style="width:0%"></i></span><span class="val">0</span></div>
+</div>
+<p><strong>Recent commits:</strong></p>
+<p><input class="tfilter" type="text" data-target="tbl-commits" placeholder="Filter rows"></p>
+<table id="tbl-commits">
+<tr><th>Sha</th><th>Message</th><th>Author</th><th>Date</th></tr>
+<tr><td><code>aaaa111</code></td><td><a href="https://example.test/c/1">fix the widget</a></td><td>alice</td><td>2026-10-17T02:23:07Z</td></tr>
+<tr><td><code>cccc222</code></td><td><a href="https://example.test/c/2">add docs</a></td><td>bob</td><td>2026-10-16T02:23:07Z</td></tr>
+</table>
+<h2 id="issues">Issues</h2>
+<ul class="muted"><li>Total: 1</li><li>Open: 0</li><li>Closed: 1</li><li>Avg close time: 72.0 hours</li></ul>
+<p><strong>Recent issues:</strong></p>
+<p><input class="tfilter" type="text" data-target="tbl-issues" placeholder="Filter rows"></p>
+<table id="tbl-issues">
+<tr><th>#</th><th>Title</th><th>State</th><th>Author</th></tr>
+<tr><td><a href="https://example.test/i/99">#99</a></td><td>Something broke</td><td><span class="badge b-closed">closed</span></td><td>bob</td></tr>
+</table>
+<p class="muted"><strong>Top labels</strong>: bug, ui</p>
+<h2 id="releases">Releases</h2>
+<ul class="muted"><li>Total: 1</li><li>Latest: v1.2.3</li></ul>
+<p><strong>Recent releases:</strong></p>
+<p><input class="tfilter" type="text" data-target="tbl-releases" placeholder="Filter rows"></p>
+<table id="tbl-releases">
+<tr><th>Tag</th><th>Name</th><th>Author</th><th>Date</th></tr>
+<tr><td><a href="https://example.test/r">v1.2.3</a></td><td>Release 1.2.3</td><td>alice</td><td>2026-10-16T02:23:07Z</td></tr>
+</table>
+<p class="muted"><strong>Contributors</strong>: 2 · alice (9 contributions)</p>
+<h2 id="languages">Languages</h2>
+<div class="chart">
+<div class="row"><span class="lbl">C</span><span class="bar"><i style="width:61%"></i></span><span class="val">61.0%</span></div>
+<div class="row"><span class="lbl">Go</span><span class="bar"><i style="width:39%"></i></span><span class="val">39.0%</span></div>
+</div>
+<h2 id="summary">Summary</h2>
+<p>The repository acme/gadget has been active over the last 7 days. There were 2 pull requests total (1 merged, 1 open, 0 closed). Average merge time was 72.0 hours. 2 commits from 2 contributors were made, with alice (1 commits) being the most active. 1 issues were active (0 open, 1 closed). Average close time was 72.0 hours. Top labels: bug, ui. 1 releases published, latest: v1.2.3.</p>
+<p class="foot">Generated by <a href="https://github.com/user/gitsight">GitSight</a></p>
+<script>
+document.querySelectorAll('input.tfilter').forEach(function(inp){
+  var tbl=document.getElementById(inp.getAttribute('data-target'));
+  if(!tbl)return;
+  inp.addEventListener('input',function(){
+    var q=inp.value.toLowerCase();
+    tbl.querySelectorAll('tr').forEach(function(tr){
+      if(!tr.querySelector('td'))return;
+      tr.style.display=tr.textContent.toLowerCase().indexOf(q)>=0?'':'none';
+    });
+  });
+});
+</script>
+</body>
+</html>

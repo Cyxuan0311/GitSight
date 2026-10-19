@@ -21,6 +21,9 @@ typedef enum {
 
 void color_init(ColorMode mode);
 int  color_active(void);
+/* In-document color (pdf/xlsx): files carry their own colors regardless of
+ * whether stdout is a terminal; only an explicit never mode disables them. */
+int  color_doc_active(void);
 
 int color_printf(const char *fmt, ...);
 int color_printf_color(const char *color, const char *fmt, ...);

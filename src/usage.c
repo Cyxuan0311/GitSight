@@ -60,7 +60,8 @@ void usage_file_path(char *buf, size_t len) {
 }
 
 static long load_records(const char *path, UsageRecord **out) {
-    *out = NULL;
+    /* A NULL out is a supported "just count" probe. */
+    if (out) *out = NULL;
     FILE *fp = fopen(path, "r");
     if (!fp) return 0;
 

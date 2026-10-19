@@ -60,6 +60,13 @@ typedef struct {
     int    contributions;
 } Contributor;
 
+#define REPORT_LANGS_MAX 8
+
+typedef struct {
+    char      name[64];
+    long long bytes;   /* GitHub/Gitea: raw bytes; GitLab: scaled share */
+} LangEntry;
+
 typedef struct {
     char   description[MAX_MSG_LEN];
     char   language[64];
@@ -78,6 +85,10 @@ typedef struct {
     char   owner[128];
     char   repo[128];
     char   period[32];
+    /* Days covered by the rolling window, or 0 for an explicit --from/--to
+     * range. Travels with the report so a client can label the window in the
+     * reader's own language instead of replaying the exporter's. */
+    int    period_days;
     char   branch[128];
     RepoMeta meta;
     int    pr_total;
@@ -106,6 +117,9 @@ typedef struct {
     int    activity_max;
     int    weekday_values[7];
     int    busiest_weekday;
+    int    lang_count;
+    char   lang_names[REPORT_LANGS_MAX][64];
+    long long lang_bytes[REPORT_LANGS_MAX];
     char   summary[MAX_SUMMARY_LEN];
 } Report;
 
@@ -119,5 +133,7 @@ Release  *release_create(void);
 void      release_free(void *r);
 Contributor *contributor_create(void);
 void      contributor_free(void *c);
+LangEntry *lang_create(void);
+void      lang_free(void *l);
 
 #endif

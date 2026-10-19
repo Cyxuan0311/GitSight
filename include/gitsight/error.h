@@ -18,7 +18,8 @@ typedef enum {
     ERR_LLM_CONFIG,
     ERR_LLM_API,
     ERR_EXPORT,
-    ERR_THREAD
+    ERR_THREAD,
+    ERR_CANCELLED
 } ErrorCode;
 
 const char *gs_error_string(ErrorCode code);

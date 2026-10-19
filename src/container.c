@@ -1,5 +1,6 @@
 #include "gitsight/container.h"
 #include <stdlib.h>
+#include <string.h>
 
 #define VECTOR_INIT_CAPACITY 64
 
@@ -28,6 +29,15 @@ void *vector_get(const Vector *v, size_t index) {
 
 size_t vector_len(const Vector *v) {
     return v->count;
+}
+
+void vector_remove_at(Vector *v, size_t index, void (*free_item)(void *)) {
+    if (index >= v->count) return;
+    if (free_item) free_item(v->items[index]);
+    if (index + 1 < v->count)
+        memmove(v->items + index, v->items + index + 1,
+                sizeof(void *) * (v->count - index - 1));
+    v->count--;
 }
 
 void vector_free(Vector *v, void (*free_item)(void *)) {

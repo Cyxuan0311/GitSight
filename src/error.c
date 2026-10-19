@@ -19,6 +19,7 @@ const char *gs_error_string(ErrorCode code) {
         case ERR_LLM_API:        return "LLM API error";
         case ERR_EXPORT:         return "Export failed";
         case ERR_THREAD:         return "Failed to create worker thread";
+        case ERR_CANCELLED:      return "Cancelled";
         default:                 return "Unknown error";
     }
 }

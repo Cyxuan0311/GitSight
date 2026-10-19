@@ -25,6 +25,10 @@ int color_active(void) {
     return should_color();
 }
 
+int color_doc_active(void) {
+    return g_color_mode != COLOR_NEVER;
+}
+
 int color_printf(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);

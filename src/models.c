@@ -46,3 +46,12 @@ Contributor *contributor_create(void) {
 void contributor_free(void *c) {
     free(c);
 }
+
+LangEntry *lang_create(void) {
+    LangEntry *l = calloc(1, sizeof(LangEntry));
+    return l;
+}
+
+void lang_free(void *l) {
+    free(l);
+}

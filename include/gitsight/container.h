@@ -14,5 +14,6 @@ int      vector_push(Vector *v, void *item);
 void    *vector_get(const Vector *v, size_t index);
 size_t   vector_len(const Vector *v);
 void     vector_free(Vector *v, void (*free_item)(void *));
+void     vector_remove_at(Vector *v, size_t index, void (*free_item)(void *));
 
 #endif

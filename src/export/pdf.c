@@ -260,6 +260,21 @@ ErrorCode export_pdf(FILE *fp, const Report *report,
         d.y -= d.lh * 0.4f;
     }
 
+    /* ---- Section: Languages ---- */
+    if ((sec_flags & FMT_SHOW_LANGS) && report->lang_count > 0) {
+        long long total = 0;
+        for (int i = 0; i < report->lang_count; i++) total += report->lang_bytes[i];
+        doc_section(&d, gs_t("[LG] Languages"), d.lh * (2 + report->lang_count));
+        const PdfColor *bar = uc ? &d.hcol : &PC_BLACK;
+        for (int i = 0; i < report->lang_count; i++) {
+            double pct = total > 0 ? 100.0 * report->lang_bytes[i] / total : 0.0;
+            char vbuf[32];
+            snprintf(vbuf, sizeof(vbuf), "%.1f%%", pct);
+            doc_hbar_txt(&d, report->lang_names[i], vbuf, (float)(pct / 100.0), bar);
+        }
+        d.y -= d.lh * 0.4f;
+    }
+
     /* ---- Top labels ---- */
     if ((sec_flags & FMT_SHOW_LABELS) && report->top_labels[0]) {
         char labels[1032];

@@ -6,6 +6,8 @@
 extern const Exporter JSON_EXPORTER;
 extern const Exporter MD_EXPORTER;
 extern const Exporter TXT_EXPORTER;
+extern const Exporter HTML_EXPORTER;
+extern const Exporter CSV_EXPORTER;
 
 static ErrorCode write_xlsx(FILE *fp, const Report *r,
                             const Vector *prs, const Vector *commits,
@@ -30,6 +32,10 @@ ErrorCode exporter_init(Exporter *exporter, const char *format) {
         *exporter = MD_EXPORTER;
     } else if (strcmp(format, "txt") == 0) {
         *exporter = TXT_EXPORTER;
+    } else if (strcmp(format, "html") == 0) {
+        *exporter = HTML_EXPORTER;
+    } else if (strcmp(format, "csv") == 0) {
+        *exporter = CSV_EXPORTER;
     } else if (strcmp(format, "xlsx") == 0) {
         *exporter = XLSX_EXPORTER;
     } else if (strcmp(format, "pdf") == 0) {

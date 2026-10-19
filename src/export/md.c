@@ -241,6 +241,22 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
     fprintf(fp, "\n");
     }
 
+    if ((flags & FMT_SHOW_LANGS) && report->lang_count > 0) {
+        long long total = 0;
+        for (int i = 0; i < report->lang_count; i++) total += report->lang_bytes[i];
+        fprintf(fp, "## %s\n\n", gs_t("[LG] Languages"));
+        fprintf(fp, "```\n");
+        for (int i = 0; i < report->lang_count; i++) {
+            double pct = total > 0 ? 100.0 * report->lang_bytes[i] / total : 0.0;
+            int bar = (int)(pct * 0.4);
+            if (bar < 1 && pct > 0) bar = 1;
+            fprintf(fp, "%-14s |", report->lang_names[i]);
+            for (int b = 0; b < bar; b++) fputc('#', fp);
+            fprintf(fp, " %.1f%%\n", pct);
+        }
+        fprintf(fp, "```\n\n");
+    }
+
     if (flags & FMT_SHOW_SUMMARY) {
     fprintf(fp, "## %s\n\n", gs_t("[*] Summary"));
     size_t slen = strlen(report->summary);

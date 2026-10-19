@@ -61,6 +61,9 @@ static ErrorCode json_write_report(FILE *fp, const Report *report,
     cJSON_AddStringToObject(root, "owner", report->owner);
     cJSON_AddStringToObject(root, "repo", report->repo);
     cJSON_AddStringToObject(root, "period", report->period);
+    /* Both are numeric so a client can relabel the window and the weekdays in
+     * the reader's own language; the strings above stay for the exporters. */
+    cJSON_AddNumberToObject(root, "period_days", report->period_days);
 
     if (report->meta.has_meta) {
         cJSON *meta = cJSON_CreateObject();
@@ -108,9 +111,10 @@ static ErrorCode json_write_report(FILE *fp, const Report *report,
         }
         cJSON *wd = cJSON_AddArrayToObject(cm, "weekday");
         const char *wd_names[7] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-        for (int i = 0; i < 7; i++) {
+for (int i = 0; i < 7; i++) {
             cJSON *b = cJSON_CreateObject();
             cJSON_AddStringToObject(b, "day", wd_names[i]);
+            cJSON_AddNumberToObject(b, "index", i);
             cJSON_AddNumberToObject(b, "commits", report->weekday_values[i]);
             cJSON_AddItemToArray(wd, b);
         }
@@ -155,6 +159,20 @@ static ErrorCode json_write_report(FILE *fp, const Report *report,
     if (report->top_contributor_list[0])
         cJSON_AddStringToObject(ct, "top_list", report->top_contributor_list);
     cJSON_AddItemToObject(root, "contributors", ct);
+
+    if (report->lang_count > 0) {
+        long long total = 0;
+        for (int i = 0; i < report->lang_count; i++) total += report->lang_bytes[i];
+        cJSON *lg = cJSON_AddArrayToObject(root, "languages");
+        for (int i = 0; i < report->lang_count; i++) {
+            cJSON *b = cJSON_CreateObject();
+            cJSON_AddStringToObject(b, "name", report->lang_names[i]);
+            cJSON_AddNumberToObject(b, "bytes", (double)report->lang_bytes[i]);
+            cJSON_AddNumberToObject(b, "percent",
+                total > 0 ? 100.0 * report->lang_bytes[i] / total : 0.0);
+            cJSON_AddItemToArray(lg, b);
+        }
+    }
 
     cJSON_AddStringToObject(root, "top_labels", report->top_labels);
     cJSON_AddStringToObject(root, "summary", report->summary);

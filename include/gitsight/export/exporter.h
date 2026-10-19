@@ -12,6 +12,7 @@
 #define FMT_SHOW_LABELS     (1<<4)
 #define FMT_SHOW_RELEASES   (1<<5)
 #define FMT_SHOW_CONTRIBUTORS (1<<6)
+#define FMT_SHOW_LANGS      (1<<7)
 
 typedef struct {
     int   color_active;

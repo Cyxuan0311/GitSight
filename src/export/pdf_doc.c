@@ -362,9 +362,9 @@ void doc_md(Doc *d, const char *md, float sz) {
     free(buf);
 }
 
-/* Horizontal bar (commits/day activity). */
-void doc_hbar(Doc *d, const char *label, long value, long maxval,
-                     const PdfColor *color) {
+/* Horizontal bar with an arbitrary value label; frac in [0,1] sets bar width. */
+void doc_hbar_txt(Doc *d, const char *label, const char *value_text,
+                          float frac, const PdfColor *color) {
     doc_ensure(d, d->lh);
     float xmax = d->pw - d->mg;
     float lblw = d->col2 - d->col1 - 6.0f;
@@ -376,20 +376,28 @@ void doc_hbar(Doc *d, const char *label, long value, long maxval,
 
     doc_text(d, d->col1, d->y, lbuf, "F1", d->fs * 0.9f, &d->lcol);
 
-    char vbuf[32];
-    snprintf(vbuf, sizeof(vbuf), "%ld", value);
-    float vw = str_width(vbuf, d->fs * 0.9f);
-    doc_text(d, xmax - vw, d->y, vbuf, "F1", d->fs * 0.9f, NULL);
+    float vw = str_width(value_text, d->fs * 0.9f);
+    doc_text(d, xmax - vw, d->y, value_text, "F1", d->fs * 0.9f, NULL);
 
     float barea = xmax - d->col2 - vw - 6.0f;
     if (barea < 0) barea = 0;
-    float frac = maxval > 0 ? (float)value / (float)maxval : 0;
+    if (frac < 0) frac = 0;
+    if (frac > 1) frac = 1;
     float bw = barea * frac;
-    if (value > 0 && bw < 2) bw = 2;
+    if (frac > 0 && bw < 2) bw = 2;
     if (bw > 0) {
         ct_rect(doc_cur(d), d->col2, d->y + d->fs * 0.35f, bw, d->fs * 0.45f, *color);
     }
     d->y -= d->lh;
+}
+
+/* Horizontal bar (commits/day activity). */
+void doc_hbar(Doc *d, const char *label, long value, long maxval,
+                     const PdfColor *color) {
+    char vbuf[32];
+    snprintf(vbuf, sizeof(vbuf), "%ld", value);
+    float frac = maxval > 0 ? (float)value / (float)maxval : 0;
+    doc_hbar_txt(d, label, vbuf, frac, color);
 }
 
 /* Vertical column chart (e.g. commits by weekday). */

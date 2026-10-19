@@ -147,6 +147,8 @@ void    doc_wrapped(Doc *d, const char *text, const char *font, float sz,
 void    doc_md(Doc *d, const char *md, float sz);
 void    doc_hbar(Doc *d, const char *label, long value, long maxval,
                  const PdfColor *color);
+void    doc_hbar_txt(Doc *d, const char *label, const char *value_text,
+                     float frac, const PdfColor *color);
 void    doc_vbar(Doc *d, const char *const *labels, const int *vals, int n,
                  int maxval, float chart_w, float chart_h,
                  const PdfColor *color);

@@ -316,6 +316,28 @@ static ErrorCode txt_write_report(FILE *fp, const Report *report,
     fprintf(fp, "|\n");
     }
 
+    if ((flags & FMT_SHOW_LANGS) && report->lang_count > 0) {
+        long long total = 0;
+        for (int i = 0; i < report->lang_count; i++) total += report->lang_bytes[i];
+        fprintf(fp, "| %s\n", gs_t("[LG] Languages"));
+        for (int i = 0; i < report->lang_count; i++) {
+            double pct = total > 0 ? 100.0 * report->lang_bytes[i] / total : 0.0;
+            int bar = (int)(pct * 0.3);
+            if (bar < 1 && pct > 0) bar = 1;
+            char lbuf[128];
+            int pos = snprintf(lbuf, sizeof(lbuf), "  %-12s |", report->lang_names[i]);
+            for (int b = 0; b < bar; b++) {
+                if (pos < (int)sizeof(lbuf) - 1) lbuf[pos++] = '#';
+            }
+            snprintf(lbuf + pos, sizeof(lbuf) - pos, " %.1f%%", pct);
+            fprintf(fp, "|  %s", lbuf);
+            int pad = W - 6 - (int)strlen(lbuf);
+            if (pad < 0) pad = 0;
+            fprintf(fp, "%*s|\n", pad, "");
+        }
+        fprintf(fp, "|\n");
+    }
+
     if (flags & FMT_SHOW_SUMMARY) {
     fprintf(fp, "| %s\n", gs_t("[*] Summary"));
     size_t slen = strlen(report->summary);

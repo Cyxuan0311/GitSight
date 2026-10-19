@@ -22,7 +22,7 @@ typedef struct {
 
 typedef struct {
     int show_prs, show_commits, show_issues, show_summary, show_top_labels;
-    int show_releases, show_contributors;
+    int show_releases, show_contributors, show_languages;
 } SectionFlags;
 
 typedef struct {
@@ -37,6 +37,16 @@ typedef struct {
     unsigned char closed_color[3];
     unsigned char merged_color[3];
 } PdfExportConfig;
+
+typedef struct {
+    unsigned char title_color[3];
+    unsigned char header_color[3];
+    unsigned char label_color[3];
+    unsigned char link_color[3];
+    unsigned char open_color[3];
+    unsigned char closed_color[3];
+    unsigned char merged_color[3];
+} HtmlExportConfig;
 
 typedef struct {
     int   font_size;
@@ -67,7 +77,7 @@ typedef struct {
 
     /* Export configuration */
     int   show_prs, show_commits, show_issues, show_summary, show_top_labels;
-    int   show_releases, show_contributors;
+    int   show_releases, show_contributors, show_languages;
     int   item_limit;
     int   md_table_width;
     int   txt_table_width;
@@ -84,6 +94,13 @@ typedef struct {
     char  pdf_open_color[16];
     char  pdf_closed_color[16];
     char  pdf_merged_color[16];
+    char  html_title_color[16];
+    char  html_header_color[16];
+    char  html_label_color[16];
+    char  html_link_color[16];
+    char  html_open_color[16];
+    char  html_closed_color[16];
+    char  html_merged_color[16];
     char  export_extra[1024];
 
     /* Repository subscriptions */
@@ -107,6 +124,14 @@ const LLMConfig *config_get_active_llm(const Config *cfg);
 ErrorCode   config_set_active_llm(const char *path, const char *name);
 ErrorCode   config_set_token(const char *path, const char *token);
 ErrorCode   config_set(const char *path, const char *key, const char *value);
+
+/* Create or update one LLM provider, identified by llm->name. config_set()
+ * only reaches providers that already exist and covers a subset of fields,
+ * which is enough for the CLI but not for a console that has to create
+ * providers and edit every setting. Returns ERR_INVALID_ARGS for an unusable
+ * name, an unknown protocol, or out-of-range numbers; ERR_CONFIG_WRITE when
+ * the file cannot be persisted. */
+ErrorCode   config_set_llm(const char *path, const LLMConfig *llm);
 void        config_list_llms(const Config *cfg);
 
 /* Subscriptions: ref matches either "owner/repo" or an alias. Returns index or -1. */

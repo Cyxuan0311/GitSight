@@ -92,6 +92,7 @@ static const ExportField EXPORT_FIELDS[] = {
     EF(NULL,   "show_top_labels",   show_top_labels,   CF_BOOL,  0, 1),
     EF(NULL,   "show_releases",     show_releases,     CF_BOOL,  0, 1),
     EF(NULL,   "show_contributors", show_contributors, CF_BOOL,  0, 1),
+    EF(NULL,   "show_languages",    show_languages,    CF_BOOL,  0, 1),
     EF(NULL,   "item_limit",        item_limit,        CF_INT,   2, 10),
     EF("md",   "table_width",       md_table_width,    CF_INT,   1, 60),
     EF("txt",  "table_width",       txt_table_width,   CF_INT,   1, 56),
@@ -111,6 +112,13 @@ static const ExportField EXPORT_FIELDS[] = {
     EFS("pdf",  "open_color",       pdf_open_color,    "26,127,55"),
     EFS("pdf",  "closed_color",     pdf_closed_color,  "207,34,46"),
     EFS("pdf",  "merged_color",     pdf_merged_color,  "130,80,223"),
+    EFS("html", "title_color",      html_title_color,   "25,55,160"),
+    EFS("html", "header_color",     html_header_color,  "25,55,160"),
+    EFS("html", "label_color",      html_label_color,   "90,90,90"),
+    EFS("html", "link_color",       html_link_color,    "17,85,204"),
+    EFS("html", "open_color",       html_open_color,    "26,127,55"),
+    EFS("html", "closed_color",     html_closed_color,  "207,34,46"),
+    EFS("html", "merged_color",     html_merged_color,  "130,80,223"),
 };
 #define N_EXPORT_FIELDS (sizeof(EXPORT_FIELDS) / sizeof(EXPORT_FIELDS[0]))
 
@@ -755,7 +763,8 @@ static int set_top_level(Config *cfg, const char *key, const char *val) {
         cfg->max_pages = v;
     } else if (strcmp(key, "format") == 0) {
         if (strcmp(val, "json") && strcmp(val, "md") && strcmp(val, "txt") &&
-            strcmp(val, "xlsx") && strcmp(val, "pdf"))
+            strcmp(val, "xlsx") && strcmp(val, "pdf") && strcmp(val, "html") &&
+            strcmp(val, "csv"))
             return 0;
         snprintf(cfg->format, sizeof(cfg->format), "%s", val);
     } else if (strcmp(key, "color") == 0) {
@@ -812,6 +821,68 @@ static int set_top_level(Config *cfg, const char *key, const char *val) {
         return 0;
     }
     return 1;
+}
+
+/* Provider names appear as JSON object keys and on the command line, so keep
+ * them to a conservative character set. */
+static int llm_name_valid(const char *name) {
+    if (!name || !*name) return 0;
+    size_t n = strlen(name);
+    if (n >= sizeof(((LLMConfig *)0)->name)) return 0;
+    for (size_t i = 0; i < n; i++) {
+        char c = name[i];
+        int ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                 (c >= '0' && c <= '9') || c == '_' || c == '-';
+        if (!ok) return 0;
+    }
+    return 1;
+}
+
+static int llm_protocol_valid(const char *protocol) {
+    if (!protocol || !*protocol) return 1;   /* empty means "infer from api_base" */
+    return strcmp(protocol, "openai") == 0 ||
+           strcmp(protocol, "anthropic") == 0 ||
+           strcmp(protocol, "gemini") == 0;
+}
+
+ErrorCode config_set_llm(const char *path, const LLMConfig *llm) {
+    if (!llm) return ERR_INVALID_ARGS;
+    if (!llm_name_valid(llm->name)) return ERR_INVALID_ARGS;
+    if (!llm_protocol_valid(llm->protocol)) return ERR_INVALID_ARGS;
+    if (llm->timeout_secs < 0 || llm->timeout_secs > 3600) return ERR_INVALID_ARGS;
+    if (llm->max_tokens < 0 || llm->max_tokens > 1000000) return ERR_INVALID_ARGS;
+    if (!(llm->temperature >= 0.0f && llm->temperature <= 2.0f)) return ERR_INVALID_ARGS;
+
+    Config cfg;
+    config_init(&cfg);
+    config_load(&cfg, path);
+
+    int idx = -1;
+    for (int i = 0; i < cfg.llm_count; i++)
+        if (strcmp(cfg.llms[i].name, llm->name) == 0) { idx = i; break; }
+    if (idx < 0) {
+        if (cfg.llm_count >= MAX_LLMS) return ERR_INVALID_ARGS;
+        idx = cfg.llm_count++;
+        memset(&cfg.llms[idx], 0, sizeof(cfg.llms[idx]));
+        snprintf(cfg.llms[idx].name, sizeof(cfg.llms[idx].name), "%s", llm->name);
+        /* A newly created provider with no key cannot be selected yet, so
+         * make it active only once it has both endpoint fields. */
+        if (llm->api_key[0] && llm->api_base[0] && !cfg.active_llm[0])
+            snprintf(cfg.active_llm, sizeof(cfg.active_llm), "%s", llm->name);
+    }
+
+    LLMConfig *dst = &cfg.llms[idx];
+    snprintf(dst->api_key, sizeof(dst->api_key), "%s", llm->api_key);
+    snprintf(dst->api_base, sizeof(dst->api_base), "%s", llm->api_base);
+    snprintf(dst->model, sizeof(dst->model), "%s", llm->model);
+    snprintf(dst->protocol, sizeof(dst->protocol), "%s", llm->protocol);
+    snprintf(dst->system_prompt, sizeof(dst->system_prompt), "%s", llm->system_prompt);
+    snprintf(dst->system_prompt_file, sizeof(dst->system_prompt_file), "%s", llm->system_prompt_file);
+    dst->timeout_secs = llm->timeout_secs;
+    dst->max_tokens = llm->max_tokens;
+    dst->temperature = llm->temperature;
+
+    return config_save(path, &cfg);
 }
 
 ErrorCode config_set(const char *path, const char *key, const char *value) {
@@ -907,6 +978,8 @@ ErrorCode config_update_subscription(const char *path, const char *ref,
         s->days = changes->days;
     if (changes->format[0])
         snprintf(s->format, sizeof(s->format), "%s", changes->format);
+    if (changes->branch[0])
+        snprintf(s->branch, sizeof(s->branch), "%s", changes->branch);
 
     return config_save(path, &cfg);
 }

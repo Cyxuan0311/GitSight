@@ -9,13 +9,14 @@
   <img src="https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge" alt="PRs Welcome">
 </p>
 
-Analyze any public GitHub repository — Pull Requests, Commits, Issues — and export structured reports in 5 formats with optional AI-powered summaries.
+Analyze any public GitHub repository — Pull Requests, Commits, Issues — and export structured reports in 7 formats with optional AI-powered summaries. A local web console (`gs serve`) puts the same engine behind a browser UI.
 
 ## Features
 
-- **Multi-source analysis** — Fetches PRs, commits, and issues via the GitHub REST API
+- **Multi-source analysis** — Fetches PRs, commits, and issues from GitHub, GitLab, Codeberg, Gitea and Forgejo
+- **Web console** — `gs serve` drives the same engine from a browser, with live progress and instant format switching
 - **LLM-powered summaries** — Plug in any OpenAI-compatible API (OpenAI, Ollama, OpenRouter, etc.)
-- **5 export formats** — JSON, Markdown, Plain Text, XLSX, PDF (single or batch)
+- **7 export formats** — JSON, Markdown, Plain Text, HTML, CSV, XLSX, PDF (single or batch)
 - **Fully configurable** — Section visibility, fonts, colors, column widths, page layout
 - **Zero runtime deps on output** — PDF and XLSX generated natively, no external tools
 - **Network-friendly** — HTTP proxy, API mirror, enterprise GitHub support
@@ -26,6 +27,7 @@ Analyze any public GitHub repository — Pull Requests, Commits, Issues — and 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Usage](#usage)
+- [Web Console](#web-console)
 - [Export Formats](#export-formats)
 - [Configuration](#configuration)
 - [Documentation](#documentation)
@@ -121,6 +123,26 @@ gs analyze owner/repo --proxy http://127.0.0.1:7890
 gs analyze owner/repo --api-base https://api.github.com
 ```
 
+## Web Console
+
+```bash
+gs serve                  # → http://127.0.0.1:8787
+```
+
+`gs serve` puts the same analysis, export and configuration engine behind a
+browser UI: nine pages covering analyze, compare, batch, subscriptions, LLM
+usage and every `gs config --set` key. Progress streams to the browser over SSE
+so a run can be cancelled mid-flight, and a finished analysis stays in memory,
+so switching export format is a re-render rather than a refetch.
+
+`gs serve` binds to loopback and has **no authentication** — it reads and writes
+the config file holding your access tokens. Only pass `--host 0.0.0.0` on a
+network you trust.
+
+See [web/README.md](web/README.md) for the page tour, build steps and console
+development setup. The HTTP API is documented in
+[usage.md](docs/usage.md#http-api).
+
 ## Export Formats
 
 | Format | Ext | Output | Configurable |
@@ -128,6 +150,8 @@ gs analyze owner/repo --api-base https://api.github.com
 | **JSON** | `.json` | stdout / file | — |
 | **Markdown** | `.md` | stdout / file | Table width, section visibility |
 | **Plain Text** | `.txt` | stdout / file | Table width, section visibility |
+| **HTML** | `.html` | stdout / file | Self-contained page: inline CSS, state badges, links, TOC, activity chart |
+| **CSV** | `.csv` | stdout / file | Block-partitioned tidy tables (metrics / pull_requests / commits / issues / releases) |
 | **XLSX** | `.xlsx` | file only | Font, column widths, borders, sheet name |
 | **PDF** | `.pdf` | file only | Margin, line height, colors, page size |
 

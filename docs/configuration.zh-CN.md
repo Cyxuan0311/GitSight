@@ -69,6 +69,15 @@
             "open_color": "26,127,55",
             "closed_color": "207,34,46",
             "merged_color": "130,80,223"
+        },
+        "html": {
+            "title_color": "25,55,160",
+            "header_color": "25,55,160",
+            "label_color": "90,90,90",
+            "link_color": "17,85,204",
+            "open_color": "26,127,55",
+            "closed_color": "207,34,46",
+            "merged_color": "130,80,223"
         }
     }
 }
@@ -79,7 +88,7 @@
 | 字段 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `platform` | string | `"github"` | 平台：`"github"`, `"gitlab"`, `"codeberg"`, `"gitea"`, `"forgejo"` |
-| `lang` | string | `"en"` | 报告正文语言：`"en"` 或 `"zh"`（影响 md/txt/pdf 报告与 LLM 提示词；JSON/XLSX 保持英文）|
+| `lang` | string | `"en"` | 报告正文语言：`"en"` 或 `"zh"`（影响 md/txt/html/pdf 报告与 LLM 提示词；JSON/XLSX/CSV 保持英文）|
 | `github_token` | string | `""` | GitHub 个人访问令牌 |
 | `gitlab_token` | string | `""` | GitLab 个人访问令牌 |
 | `codeberg_token` | string | `""` | Gitea 系平台（Codeberg/Gitea/Forgejo）的令牌 |
@@ -87,7 +96,7 @@
 | `proxy` | string | `""` | HTTP/HTTPS/SOCKS5 代理地址 |
 | `default_days` | number | `7` | 默认分析天数 |
 | `color` | string | `"auto"` | 颜色模式：`"auto"`, `"always"`, `"never"` |
-| `format` | string | `"md"` | 默认输出格式：`"md"`, `"json"`, `"txt"`, `"xlsx"`, `"pdf"` |
+| `format` | string | `"md"` | 默认输出格式：`"md"`, `"json"`, `"txt"`, `"html"`, `"csv"`, `"xlsx"`, `"pdf"` |
 | `active_llm` | string | `""` | 当前激活的 LLM 提供商名称 |
 | `llms.<name>.api_key` | string | `""` | LLM API 密钥 |
 | `llms.<name>.api_base` | string | `"https://api.openai.com/v1"` | LLM API 地址 |
@@ -110,13 +119,25 @@
 | `export.pdf.margin` | number | `50` | PDF 页面边距（pt） |
 | `export.pdf.line_height` | number | `1.4` | PDF 行高倍率（× 字号） |
 | `export.pdf.col2_padding` | number | `12` | PDF 第二列偏移间距（pt） |
-| `export.pdf.title_color` | string | `"25,55,160"` | PDF 标题颜色（R,G,B） |
-| `export.pdf.header_color` | string | `"25,55,160"` | PDF 板块标题颜色（R,G,B） |
-| `export.pdf.label_color` | string | `"90,90,90"` | PDF 指标标签颜色（R,G,B） |
-| `export.pdf.link_color` | string | `"17,85,204"` | PDF 可点击条目（PR/commit/issue/release 标题）颜色（R,G,B） |
-| `export.pdf.open_color` | string | `"26,127,55"` | PDF `[open]` 状态标签与 Open 计数颜色（R,G,B） |
-| `export.pdf.closed_color` | string | `"207,34,46"` | PDF `[closed]` 状态标签与 Closed 计数颜色（R,G,B） |
-| `export.pdf.merged_color` | string | `"130,80,223"` | PDF `[merged]` 状态标签与 Merged 计数颜色（R,G,B） |
+| `export.pdf.title_color` | string | `"25,55,160"` | PDF 标题颜色 |
+| `export.pdf.header_color` | string | `"25,55,160"` | PDF 板块标题颜色 |
+| `export.pdf.label_color` | string | `"90,90,90"` | PDF 指标标签颜色 |
+| `export.pdf.link_color` | string | `"17,85,204"` | PDF 可点击条目（PR/commit/issue/release 标题）颜色 |
+| `export.pdf.open_color` | string | `"26,127,55"` | PDF `[open]` 状态标签与 Open 计数颜色 |
+| `export.pdf.closed_color` | string | `"207,34,46"` | PDF `[closed]` 状态标签与 Closed 计数颜色 |
+| `export.pdf.merged_color` | string | `"130,80,223"` | PDF `[merged]` 状态标签与 Merged 计数颜色 |
+| `export.html.title_color` | string | `"25,55,160"` | HTML 页面主标题（h1）颜色 |
+| `export.html.header_color` | string | `"25,55,160"` | HTML 板块标题（h2）、表头背景、语言占比条填充颜色 |
+| `export.html.label_color` | string | `"90,90,90"` | HTML 弱化文字（统计周期、指标标签、页脚）颜色 |
+| `export.html.link_color` | string | `"17,85,204"` | HTML 超链接颜色 |
+| `export.html.open_color` | string | `"26,127,55"` | HTML `open` 状态徽章颜色 |
+| `export.html.closed_color` | string | `"207,34,46"` | HTML `closed` 状态徽章颜色 |
+| `export.html.merged_color` | string | `"130,80,223"` | HTML `merged` 状态徽章颜色 |
+
+所有 `*_color` 字段（PDF 与 HTML）支持三种写法：`"R,G,B"`、`"#rrggbb"`、
+颜色名（不区分大小写）：`black white red green blue yellow orange purple gray
+grey pink brown cyan magenta gold navy teal silver maroon olive`。无法识别的
+值回退为黑色。
 
 ## 平台
 
@@ -159,6 +180,9 @@ gs analyze owner/repo --export pdf.margin=40 --export pdf.line_height=1.6
 # 自定义 PDF 颜色
 gs analyze owner/repo --color always --export pdf.title_color=200,50,50
 
+# 自定义 HTML 颜色（同样支持十六进制与颜色名）
+gs analyze owner/repo --export html.link_color=#ff6600 --export html.open_color=green
+
 # 自定义 XLSX
 gs analyze owner/repo --export xlsx.font_size=14 --export xlsx.sheet_name="我的报表"
 
@@ -169,7 +193,8 @@ gs analyze owner/repo \
   --export pdf.title_color=0,0,200
 ```
 
-注意：PDF 颜色仅在使用 `--color always` 输出到文件时生效。
+注意：PDF 与 HTML 的配色内嵌在文档本身，只要颜色模式不是 `never` 就会生效
+（与终端输出不同，无需 TTY 或 `--color always`）。
 
 PDF 导出包含中文时会自动内嵌系统中可找到的 TrueType 中文字体子集（依次查找 `GITSIGHT_PDF_FONT` 环境变量、`~/.config/gitsight/fonts/cjk.ttf`、Windows 微软雅黑/黑体/宋体、文泉驿、Arphic 等）。可用 `GITSIGHT_PDF_FONT=/path/to/font.ttf` 指定字体。
 

@@ -69,6 +69,15 @@ Created automatically with defaults on first `gs config` run.
             "open_color": "26,127,55",
             "closed_color": "207,34,46",
             "merged_color": "130,80,223"
+        },
+        "html": {
+            "title_color": "25,55,160",
+            "header_color": "25,55,160",
+            "label_color": "90,90,90",
+            "link_color": "17,85,204",
+            "open_color": "26,127,55",
+            "closed_color": "207,34,46",
+            "merged_color": "130,80,223"
         }
     }
 }
@@ -79,7 +88,7 @@ Created automatically with defaults on first `gs config` run.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `platform` | string | `"github"` | Platform: `"github"`, `"gitlab"`, `"codeberg"`, `"gitea"`, `"forgejo"` |
-| `lang` | string | `"en"` | Report body language: `"en"` or `"zh"` (md/txt/pdf reports and LLM prompt; JSON/XLSX stay English) |
+| `lang` | string | `"en"` | Report body language: `"en"` or `"zh"` (md/txt/html/pdf reports and LLM prompt; JSON/XLSX/CSV stay English) |
 | `github_token` | string | `""` | GitHub personal access token |
 | `gitlab_token` | string | `""` | GitLab personal access token |
 | `codeberg_token` | string | `""` | Token for Gitea-family platforms (Codeberg / Gitea / Forgejo) |
@@ -87,7 +96,7 @@ Created automatically with defaults on first `gs config` run.
 | `proxy` | string | `""` | HTTP/HTTPS/SOCKS5 proxy URL |
 | `default_days` | number | `7` | Default analysis period in days |
 | `color` | string | `"auto"` | Color mode: `"auto"`, `"always"`, `"never"` |
-| `format` | string | `"md"` | Default output format: `"md"`, `"json"`, `"txt"`, `"xlsx"`, `"pdf"` |
+| `format` | string | `"md"` | Default output format: `"md"`, `"json"`, `"txt"`, `"html"`, `"csv"`, `"xlsx"`, `"pdf"` |
 | `active_llm` | string | `""` | Active LLM provider name (must match a key in `llms`) |
 | `llms.<name>.api_key` | string | `""` | LLM API key |
 | `llms.<name>.api_base` | string | `"https://api.openai.com/v1"` | LLM API base URL |
@@ -111,13 +120,25 @@ Created automatically with defaults on first `gs config` run.
 | `export.pdf.margin` | number | `50` | PDF page margin (pt) |
 | `export.pdf.line_height` | number | `1.4` | PDF line height multiplier (× font size) |
 | `export.pdf.col2_padding` | number | `12` | PDF column 2 offset padding (pt) |
-| `export.pdf.title_color` | string | `"25,55,160"` | PDF title text color (R,G,B) |
-| `export.pdf.header_color` | string | `"25,55,160"` | PDF section header text color (R,G,B) |
-| `export.pdf.label_color` | string | `"90,90,90"` | PDF metric label text color (R,G,B) |
-| `export.pdf.link_color` | string | `"17,85,204"` | PDF clickable item title color (PR/commit/issue/release) (R,G,B) |
-| `export.pdf.open_color` | string | `"26,127,55"` | PDF `[open]` status tag and Open count color (R,G,B) |
-| `export.pdf.closed_color` | string | `"207,34,46"` | PDF `[closed]` status tag and Closed count color (R,G,B) |
-| `export.pdf.merged_color` | string | `"130,80,223"` | PDF `[merged]` status tag and Merged count color (R,G,B) |
+| `export.pdf.title_color` | string | `"25,55,160"` | PDF title text color |
+| `export.pdf.header_color` | string | `"25,55,160"` | PDF section header text color |
+| `export.pdf.label_color` | string | `"90,90,90"` | PDF metric label text color |
+| `export.pdf.link_color` | string | `"17,85,204"` | PDF clickable item title color (PR/commit/issue/release) |
+| `export.pdf.open_color` | string | `"26,127,55"` | PDF `[open]` status tag and Open count color |
+| `export.pdf.closed_color` | string | `"207,34,46"` | PDF `[closed]` status tag and Closed count color |
+| `export.pdf.merged_color` | string | `"130,80,223"` | PDF `[merged]` status tag and Merged count color |
+| `export.html.title_color` | string | `"25,55,160"` | HTML page title (`h1`) color |
+| `export.html.header_color` | string | `"25,55,160"` | HTML section headers (`h2`), table header background, language bar fill |
+| `export.html.label_color` | string | `"90,90,90"` | HTML muted text (period, metric labels, footer) color |
+| `export.html.link_color` | string | `"17,85,204"` | HTML hyperlink color |
+| `export.html.open_color` | string | `"26,127,55"` | HTML `open` status badge color |
+| `export.html.closed_color` | string | `"207,34,46"` | HTML `closed` status badge color |
+| `export.html.merged_color` | string | `"130,80,223"` | HTML `merged` status badge color |
+
+All `*_color` fields (PDF and HTML) accept `"R,G,B"`, `"#rrggbb"`, or a color
+name (case-insensitive): `black white red green blue yellow orange purple gray
+grey pink brown cyan magenta gold navy teal silver maroon olive`. Unknown
+values fall back to black.
 
 ## Platforms
 
@@ -162,6 +183,9 @@ gs analyze owner/repo --export pdf.margin=40 --export pdf.line_height=1.6
 # Customize PDF colors
 gs analyze owner/repo --color always --export pdf.title_color=200,50,50
 
+# Customize HTML colors (hex and named values work too)
+gs analyze owner/repo --export html.link_color=#ff6600 --export html.open_color=green
+
 # Customize XLSX
 gs analyze owner/repo --export xlsx.font_size=14 --export xlsx.sheet_name="My Report"
 
@@ -172,7 +196,9 @@ gs analyze owner/repo \
   --export pdf.title_color=0,0,200
 ```
 
-Note: PDF colors only take effect when outputting to a file with `--color always`.
+Note: PDF and HTML colors are embedded in the document itself, so they apply
+whenever the color mode is not `never` (unlike terminal output, they do not
+require a TTY or `--color always`).
 
 When a PDF contains CJK text, GitSight embeds a subset of a TrueType CJK font found on the system (searched in order: `GITSIGHT_PDF_FONT` env var, `~/.config/gitsight/fonts/cjk.ttf`, Windows Microsoft YaHei/SimHei/SimSun, WenQuanYi, Arphic). Override with `GITSIGHT_PDF_FONT=/path/to/font.ttf`.
 

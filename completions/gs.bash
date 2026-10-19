@@ -56,7 +56,7 @@ _gs_filedir() {
 _gs_config() {
     local cur="$1" prev="$2"
     local config_opts="--set-token -t --set-llm --list-llms --show --edit --set --config -c --help -h"
-    local config_keys="platform lang github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm export.show_prs export.show_commits export.show_issues export.show_summary export.show_top_labels export.show_releases export.show_contributors export.item_limit export.md.table_width export.txt.table_width export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width export.xlsx.border export.xlsx.sheet_name export.pdf.margin export.pdf.line_height export.pdf.col2_padding export.pdf.title_color export.pdf.header_color export.pdf.label_color"
+    local config_keys="platform lang github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm export.show_prs export.show_commits export.show_issues export.show_summary export.show_top_labels export.show_releases export.show_contributors export.show_languages export.item_limit export.md.table_width export.txt.table_width export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width export.xlsx.border export.xlsx.sheet_name export.pdf.margin export.pdf.line_height export.pdf.col2_padding export.pdf.title_color export.pdf.header_color export.pdf.label_color export.pdf.link_color export.pdf.open_color export.pdf.closed_color export.pdf.merged_color export.html.title_color export.html.header_color export.html.label_color export.html.link_color export.html.open_color export.html.closed_color export.html.merged_color"
 
     if [[ $cur == *=* ]]; then
         local key="${cur%%=*}"
@@ -65,10 +65,11 @@ _gs_config() {
             lang)     COMPREPLY=( $(compgen -W "en zh" -P "$key=" -- "$val") ) ;;
             platform) COMPREPLY=( $(compgen -W "github gitlab codeberg gitea forgejo" -P "$key=" -- "$val") ) ;;
             color)    COMPREPLY=( $(compgen -W "auto always never" -P "$key=" -- "$val") ) ;;
-            format)   COMPREPLY=( $(compgen -W "json md txt xlsx pdf" -P "$key=" -- "$val") ) ;;
+            format)   COMPREPLY=( $(compgen -W "json md txt html csv xlsx pdf" -P "$key=" -- "$val") ) ;;
             *.protocol) COMPREPLY=( $(compgen -W "openai anthropic gemini" -P "$key=" -- "$val") ) ;;
-            export.show_prs|export.show_commits|export.show_issues|export.show_summary|export.show_top_labels|export.show_releases|export.show_contributors|export.xlsx.border)
+            export.show_prs|export.show_commits|export.show_issues|export.show_summary|export.show_top_labels|export.show_releases|export.show_contributors|export.show_languages|export.xlsx.border)
                       COMPREPLY=( $(compgen -W "true false" -P "$key=" -- "$val") ) ;;
+            *_color)  COMPREPLY=( $(compgen -W "black white red green blue yellow orange purple gray pink brown cyan magenta gold navy teal silver maroon olive 25,55,160" -P "$key=" -- "$val") ) ;;
         esac
         return 0
     fi
@@ -155,12 +156,13 @@ _gs() {
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD - 1]}"
 
-    local commands="analyze watch sub subscribe config usage version completion"
-    local formats="json md txt xlsx pdf"
+    local commands="analyze watch sub subscribe config usage serve version completion"
+    local formats="json md txt html csv xlsx pdf"
     local platforms="github gitlab codeberg gitea forgejo"
     local colors="auto always never"
     local llm_modes="health trends release"
-    local analyze_opts="--since -d --max-pages --platform --lang --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --parallel -j --config --help -h"
+    local serve_opts="--host --port --web-root --config --jobs --quiet -q --help -h"
+    local analyze_opts="--since -d --max-pages --platform --lang --branch --token -t --format -f --output -o --proxy --api-base --color --llm --llm-mode --export --no-cache --quiet -q --compare --from --to --filter --parallel -j --config --help -h"
 
     if ((COMP_CWORD == 1)); then
         if [[ $cur == */* ]]; then
@@ -181,7 +183,8 @@ _gs() {
         --llm-mode)    COMPREPLY=( $(compgen -W "$llm_modes" -- "$cur") ); return 0 ;;
         --llm)         COMPREPLY=( $(compgen -W "$(_gs_llm_names)" -- "$cur") ); return 0 ;;
         -o|--output|--config|-c) _gs_filedir; return 0 ;;
-        --export)      COMPREPLY=( $(compgen -W "pdf.margin pdf.line_height pdf.col2_padding pdf.title_color pdf.header_color pdf.label_color xlsx.font_size xlsx.font_name xlsx.col_a_width xlsx.col_b_width xlsx.border xlsx.sheet_name md.table_width txt.table_width show_prs show_commits show_issues show_summary show_top_labels show_releases show_contributors item_limit" -S '=' -- "$cur") ); return 0 ;;
+        --web-root)    _gs_filedir; return 0 ;;
+        --export)      COMPREPLY=( $(compgen -W "pdf.margin pdf.line_height pdf.col2_padding pdf.title_color pdf.header_color pdf.label_color pdf.link_color pdf.open_color pdf.closed_color pdf.merged_color html.title_color html.header_color html.label_color html.link_color html.open_color html.closed_color html.merged_color xlsx.font_size xlsx.font_name xlsx.col_a_width xlsx.col_b_width xlsx.border xlsx.sheet_name md.table_width txt.table_width show_prs show_commits show_issues show_summary show_top_labels show_releases show_contributors show_languages item_limit" -S '=' -- "$cur") ); return 0 ;;
         --token|-t|--since|-d|--max-pages|--compare|--proxy|--api-base|--alias|--repo|--days|--branch)
             return 0 ;;
     esac
@@ -212,6 +215,14 @@ _gs() {
         completion)
             if ((COMP_CWORD == 2)); then
                 COMPREPLY=( $(compgen -W "bash zsh fish" -- "$cur") )
+            fi
+            return 0
+            ;;
+        serve)
+            if [[ $cur == -* ]]; then
+                COMPREPLY=( $(compgen -W "$serve_opts" -- "$cur") )
+            else
+                COMPREPLY=()
             fi
             return 0
             ;;

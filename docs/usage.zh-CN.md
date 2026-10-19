@@ -227,3 +227,100 @@ gs version
 ...
 +------------------------------------------------------+
 ```
+
+## Web 控制台
+
+`gs serve` 启动一个本地 HTTP 守护进程，用浏览器界面覆盖上面的全部命令 ——
+分析、对比、批量、订阅、LLM 提供商、设置、用量与补全脚本。
+
+```bash
+gs serve                      # → http://127.0.0.1:8787
+gs serve --port 9000
+gs serve --config ./scratch/config.json   # 使用独立的配置
+```
+
+| 选项 | 说明 |
+|------|------|
+| `--host <addr>` | 绑定地址，默认 `127.0.0.1`。 |
+| `--port <n>` | 监听端口，默认 `8787`，也可用 `GS_PORT`。 |
+| `--web-root <dir>` | 构建产物的目录，也可用 `GITSIGHT_WEB_ROOT`。 |
+| `--config <path>` | 配置文件，默认 `~/.config/gitsight/config.json`。 |
+| `--jobs <n>` | 并发分析任务数。 |
+| `--quiet`、`-q` | 不打印启动横幅。 |
+
+守护进程默认只监听回环地址且**没有鉴权** —— 它会读写保存访问令牌的配置
+文件。只有在你信任的网络里才使用 `--host 0.0.0.0`。
+
+### 构建控制台
+
+```bash
+npm --prefix web install
+npm --prefix web run build          # → web/dist
+cp -r web/dist build/web            # gs serve 默认按 ./web 查找
+
+# 或交给 CMake 完成（需要 Node）：
+cmake -B build -DGITSIGHT_BUILD_WEB=ON
+cmake --build build
+```
+
+### 开发模式
+
+```bash
+gs serve --port 8787                # API 在一个端口
+npm --prefix web run dev            # Vite 在 :5173，把 /api 代理到 :8787
+```
+
+若守护进程跑在别处，可用 `GS_API_TARGET` 覆盖代理目标。
+
+### 相比 CLI 多出的能力
+
+- **实时进度。** 分析以任务形式运行，阶段日志通过 SSE 推送到浏览器；运行中
+  可随时取消。
+- **切换格式无需重新抓取。** 任务完成后数据保留在内存中，任何导出格式都是
+  重新渲染，因此瞬时完成。
+- **跨仓库并行。** 批量任务最多同时分析 8 个仓库，每个仓库内部串行抓取。
+- **可交互报告。** 报告在浏览器中原生渲染，支持筛选的表格与图表，布局与
+  状态配色与 HTML 导出保持一致。
+
+### 环境变量
+
+`GS_FIXTURE_DIR` 对守护进程同样有效，`tests/test_server.sh` 正是靠它离线
+跑通整个 API。
+
+## HTTP 接口
+
+守护进程暴露的接口与控制台使用的完全一致，稳定到可以直接写脚本调用。
+
+```
+GET    /api/health                    版本、路径、运行时长、进行中任务
+GET    /api/meta/options              格式、平台、颜色、各项上限
+GET    /api/meta/i18n                 报告正文的 EN/ZH 对照表
+GET    /api/quota · /api/cache        配额快照；缓存位置
+
+POST   /api/jobs/analyze              → 202 {job_id}
+POST   /api/jobs/compare              → 202 {job_id}
+GET    /api/jobs/:id                  状态与进度日志
+GET    /api/jobs/:id/result           报告 JSON
+GET    /api/jobs/:id/events           SSE：progress / stage-done / done
+GET    /api/jobs/:id/export?format=   json|md|txt|html|csv|xlsx|pdf
+POST   /api/jobs/:id/cancel
+
+GET    /api/subscriptions             POST 新增 · PATCH/DELETE /:ref
+POST   /api/subscriptions/analyze     批量，可按条目覆盖参数
+POST   /api/subscriptions/:ref/analyze
+
+GET    /api/config                    令牌脱敏为 {set, masked}
+PATCH  /api/config                    {"sets": {...}}，校验在服务端完成
+GET/PUT /api/config/raw               POST /api/config/reset
+
+GET    /api/llms                      POST 新建 · PATCH/DELETE /:name
+POST   /api/llms/:name/activate · /test
+
+GET    /api/usage?days= · /records    DELETE /api/usage
+GET    /api/completion/:shell         bash | zsh | fish
+
+GET    /*                             构建后的控制台（前端路由回退）
+```
+
+密钥永远不会离开进程：配置里的令牌与提供商的 API key 只以
+`{"set": true, "masked": "…3f2a"}` 形式返回；写入空字符串表示清除。

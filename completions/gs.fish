@@ -37,10 +37,11 @@ end
 
 function __gs_config_keys
     echo platform lang github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm
-    echo export.show_prs export.show_commits export.show_issues export.show_summary export.show_top_labels export.show_releases export.show_contributors export.item_limit
+    echo export.show_prs export.show_commits export.show_issues export.show_summary export.show_top_labels export.show_releases export.show_contributors export.show_languages export.item_limit
     echo export.md.table_width export.txt.table_width
     echo export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width export.xlsx.border export.xlsx.sheet_name
-    echo export.pdf.margin export.pdf.line_height export.pdf.col2_padding export.pdf.title_color export.pdf.header_color export.pdf.label_color
+    echo export.pdf.margin export.pdf.line_height export.pdf.col2_padding export.pdf.title_color export.pdf.header_color export.pdf.label_color export.pdf.link_color export.pdf.open_color export.pdf.closed_color export.pdf.merged_color
+    echo export.html.title_color export.html.header_color export.html.label_color export.html.link_color export.html.open_color export.html.closed_color export.html.merged_color
     for name in (__gs_llm_names)
         echo llms.$name.api_key llms.$name.api_base llms.$name.model llms.$name.protocol
     end
@@ -86,6 +87,14 @@ complete -c gs -f -n '__fish_use_subcommand' -a completion -d 'Print a shell com
 
 complete -c gs -f -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish'
 
+# gs serve
+complete -c gs -f -n '__fish_seen_subcommand_from serve' -l host -r -d 'address to bind'
+complete -c gs -f -n '__fish_seen_subcommand_from serve' -l port -r -d 'port to listen on'
+complete -c gs -f -n '__fish_seen_subcommand_from serve' -l web-root -r -d 'directory holding the built console'
+complete -c gs -f -n '__fish_seen_subcommand_from serve' -l config -r -F -d 'config file to use'
+complete -c gs -f -n '__fish_seen_subcommand_from serve' -l jobs -r -d 'concurrent analysis jobs'
+complete -c gs -f -n '__fish_seen_subcommand_from serve' -s q -l quiet -d 'suppress the startup banner'
+
 # usage
 complete -c gs -n '__fish_seen_subcommand_from usage' -l days -r -d 'days to show'
 complete -c gs -n '__fish_seen_subcommand_from usage' -l by-llm -d 'group by provider'
@@ -103,7 +112,7 @@ complete -c gs -n '__fish_seen_subcommand_from analyze' -l lang -xa 'en zh' -d '
 complete -c gs -n '__fish_seen_subcommand_from analyze' -l branch -r -d 'branch name'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -l parallel -s j -r -a '1 2 4 8' -d 'batch parallelism'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -s t -l token -r -d 'access token'
-complete -c gs -n '__fish_seen_subcommand_from analyze' -s f -l format -xa 'json md txt xlsx pdf'
+complete -c gs -n '__fish_seen_subcommand_from analyze' -s f -l format -xa 'json md txt html csv xlsx pdf'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -s o -l output -r -F -d 'output file'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -l proxy -r -d 'proxy url'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -l api-base -r -d 'api base url'
@@ -114,6 +123,9 @@ complete -c gs -n '__fish_seen_subcommand_from analyze' -l export -r -d 'export 
 complete -c gs -n '__fish_seen_subcommand_from analyze' -l no-cache -d 'bypass disk cache'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -s q -l quiet -d 'suppress progress output'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -l compare -r -d 'compare periods a:b'
+complete -c gs -n '__fish_seen_subcommand_from analyze' -l from -r -d 'range start YYYY-MM-DD'
+complete -c gs -n '__fish_seen_subcommand_from analyze' -l to -r -d 'range end YYYY-MM-DD'
+complete -c gs -n '__fish_seen_subcommand_from analyze' -l filter -r -d 'filter author:/label:/keyword'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -l config -r -F -d 'config file'
 complete -c gs -n '__fish_seen_subcommand_from analyze' -s h -l help -d 'show help'
 
@@ -126,7 +138,7 @@ complete -c gs -n '__gs_watch_analyze_ctx' -l platform -xa 'github gitlab codebe
 complete -c gs -n '__gs_watch_analyze_ctx' -l lang -xa 'en zh' -d 'report language'
 complete -c gs -n '__gs_watch_analyze_ctx' -l branch -r -d 'branch name'
 complete -c gs -n '__gs_watch_analyze_ctx' -l parallel -s j -r -a '1 2 4 8' -d 'batch parallelism'
-complete -c gs -n '__gs_watch_analyze_ctx' -s f -l format -xa 'json md txt xlsx pdf'
+complete -c gs -n '__gs_watch_analyze_ctx' -s f -l format -xa 'json md txt html csv xlsx pdf'
 complete -c gs -n '__gs_watch_analyze_ctx' -s o -l output -r -F -d 'output file'
 complete -c gs -n '__gs_watch_analyze_ctx' -l color -xa 'auto always never'
 complete -c gs -n '__gs_watch_analyze_ctx' -l llm -xa '(__gs_llm_names)' -d 'llm provider'
@@ -139,7 +151,7 @@ complete -c gs -n '__gs_watch_analyze_ctx' -l config -r -F -d 'config file'
 complete -c gs -f -n '__gs_watch_add_ctx' -a '(__gs_subscriptions)' -d repository
 complete -c gs -n '__gs_watch_add_ctx' -l alias -r -d 'alias'
 complete -c gs -n '__gs_watch_add_ctx' -s d -l days -r -d 'days'
-complete -c gs -n '__gs_watch_add_ctx' -s f -l format -xa 'json md txt xlsx pdf'
+complete -c gs -n '__gs_watch_add_ctx' -s f -l format -xa 'json md txt html csv xlsx pdf'
 complete -c gs -n '__gs_watch_add_ctx' -l platform -xa 'github gitlab codeberg gitea forgejo'
 complete -c gs -n '__gs_watch_add_ctx' -l lang -xa 'en zh' -d 'report language'
 complete -c gs -n '__gs_watch_add_ctx' -l branch -r -d 'branch name'
@@ -154,7 +166,7 @@ complete -c gs -f -n '__gs_watch_update_ctx' -a '(__gs_subscriptions)' -d subscr
 complete -c gs -n '__gs_watch_update_ctx' -l repo -r -d 'new repository'
 complete -c gs -n '__gs_watch_update_ctx' -l alias -r -d 'alias'
 complete -c gs -n '__gs_watch_update_ctx' -s d -l days -r -d 'days'
-complete -c gs -n '__gs_watch_update_ctx' -s f -l format -xa 'json md txt xlsx pdf'
+complete -c gs -n '__gs_watch_update_ctx' -s f -l format -xa 'json md txt html csv xlsx pdf'
 complete -c gs -n '__gs_watch_update_ctx' -l platform -xa 'github gitlab codeberg gitea forgejo'
 complete -c gs -n '__gs_watch_update_ctx' -l lang -xa 'en zh' -d 'report language'
 complete -c gs -n '__gs_watch_update_ctx' -l branch -r -d 'branch name'

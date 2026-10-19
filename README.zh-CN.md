@@ -9,13 +9,15 @@
   <img src="https://img.shields.io/badge/PR-%E6%AC%A2%E8%BF%8E-ff69b4?style=for-the-badge" alt="PRs Welcome">
 </p>
 
-分析任意公开 GitHub 仓库的 Pull Request、Commit、Issue，以 5 种格式导出结构化报告，并可选 AI 智能摘要。
+分析任意公开 GitHub 仓库的 Pull Request、Commit、Issue，以 7 种格式导出结构化报告，并可选 AI 智能摘要。
+`gs serve` 可在同一套引擎之上启动本地 Web 控制台。
 
 ## 特性
 
-- **多源分析** — 通过 GitHub REST API 获取 PR、Commit、Issue 数据
+- **多源分析** — 支持 GitHub、GitLab、Codeberg、Gitea、Forgejo
+- **Web 控制台** — `gs serve` 把同一套引擎搬到浏览器，实时进度 + 秒切导出格式
 - **LLM 智能摘要** — 接入任何 OpenAI 兼容 API（OpenAI、Ollama、OpenRouter 等）
-- **5 种导出格式** — JSON、Markdown、纯文本、XLSX、PDF（支持单次多格式导出）
+- **7 种导出格式** — JSON、Markdown、纯文本、HTML、CSV、XLSX、PDF（支持单次多格式导出）
 - **高度可配置** — 板块可见性、字体、颜色、列宽、页面布局
 - **零运行时依赖** — PDF 和 XLSX 原生生成，无需额外工具
 - **网络友好** — HTTP 代理、API 镜像、GitHub 企业版支持
@@ -26,6 +28,7 @@
 - [安装](#安装)
 - [快速开始](#快速开始)
 - [使用指南](#使用指南)
+- [Web 控制台](#web-控制台)
 - [导出格式](#导出格式)
 - [配置](#配置)
 - [文档](#文档)
@@ -121,6 +124,24 @@ gs analyze owner/repo --proxy http://127.0.0.1:7890
 gs analyze owner/repo --api-base https://api.github.com
 ```
 
+## Web 控制台
+
+```bash
+gs serve                  # → http://127.0.0.1:8787
+```
+
+`gs serve` 把同一套分析、导出与配置引擎放到浏览器界面之后：九个页面覆盖
+分析、对比、批量、订阅、用量以及全部 `gs config --set` 配置项。进度通过
+SSE 实时推送到浏览器，运行中的任务可随时取消；分析结果保留在内存中，因此
+切换导出格式只是重新渲染，不会重新抓取。
+
+`gs serve` 默认只监听回环地址且**没有鉴权**——它会读写保存访问令牌的配置
+文件。只有在你信任的网络里才使用 `--host 0.0.0.0`。
+
+页面清单、构建步骤与控制台开发环境见
+[web/README.zh-CN.md](web/README.zh-CN.md)。HTTP 接口文档见
+[docs/usage.zh-CN.md](docs/usage.zh-CN.md#http-接口)。
+
 ## 导出格式
 
 | 格式 | 扩展名 | 输出方式 | 可配置项 |
@@ -128,6 +149,8 @@ gs analyze owner/repo --api-base https://api.github.com
 | **JSON** | `.json` | stdout / 文件 | — |
 | **Markdown** | `.md` | stdout / 文件 | 表格宽度、板块可见性 |
 | **纯文本** | `.txt` | stdout / 文件 | 表格宽度、板块可见性 |
+| **HTML** | `.html` | stdout / 文件 | 自包含单页：内嵌 CSS、状态徽章、链接、目录锚点、活动图表 |
+| **CSV** | `.csv` | stdout / 文件 | 分块规整数据表（metrics / pull_requests / commits / issues / releases） |
 | **XLSX** | `.xlsx` | 仅文件 | 字体、列宽、边框、工作表名 |
 | **PDF** | `.pdf` | 仅文件 | 边距、行高、颜色、页面尺寸 |
 

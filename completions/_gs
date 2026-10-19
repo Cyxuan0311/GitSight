@@ -47,7 +47,7 @@ _gs_llm_names() {
     ' "$cfg"
 }
 
-_gs_formats()   { compadd json md txt xlsx pdf }
+_gs_formats()   { compadd json md txt html csv xlsx pdf }
 _gs_platforms() { compadd github gitlab codeberg gitea forgejo }
 _gs_colors()    { compadd auto always never }
 _gs_llm_modes() { compadd health trends release }
@@ -55,12 +55,15 @@ _gs_llm_modes() { compadd health trends release }
 _gs_config_keys() {
     compadd -S '=' platform lang github_token gitlab_token codeberg_token api_base proxy default_days max_pages color format active_llm \
         export.show_prs export.show_commits export.show_issues export.show_summary \
-        export.show_top_labels export.show_releases export.show_contributors export.item_limit \
+        export.show_top_labels export.show_releases export.show_contributors export.show_languages export.item_limit \
         export.md.table_width export.txt.table_width \
         export.xlsx.font_size export.xlsx.font_name export.xlsx.col_a_width export.xlsx.col_b_width \
         export.xlsx.border export.xlsx.sheet_name \
         export.pdf.margin export.pdf.line_height export.pdf.col2_padding \
-        export.pdf.title_color export.pdf.header_color export.pdf.label_color
+        export.pdf.title_color export.pdf.header_color export.pdf.label_color \
+        export.pdf.link_color export.pdf.open_color export.pdf.closed_color export.pdf.merged_color \
+        export.html.title_color export.html.header_color export.html.label_color \
+        export.html.link_color export.html.open_color export.html.closed_color export.html.merged_color
 
     local name
     for name in $(_gs_llm_names); do
@@ -92,6 +95,9 @@ _gs_analyze() {
         '-q[quiet]' \
         '--quiet[quiet]' \
         '--compare[periods a:b]:period:' \
+        '--from[range start YYYY-MM-DD]:date:' \
+        '--to[range end YYYY-MM-DD]:date:' \
+        '--filter[item filter author:/label:/keyword]:filter:' \
         '-j[batch parallelism]:n:' \
         '--parallel[batch parallelism]:n:' \
         '--config[config file]:file:_files' \
@@ -222,9 +228,9 @@ _gs_config() {
                     platform) compadd -P "$key=" -- github gitlab codeberg gitea forgejo ;;
                     lang)     compadd -P "$key=" -- en zh ;;
                     color)    compadd -P "$key=" -- auto always never ;;
-                    format)   compadd -P "$key=" -- json md txt xlsx pdf ;;
+                    format)   compadd -P "$key=" -- json md txt html csv xlsx pdf ;;
                     *.protocol) compadd -P "$key=" -- openai anthropic gemini ;;
-                    export.show_prs|export.show_commits|export.show_issues|export.show_summary|export.show_top_labels|export.show_releases|export.show_contributors|export.xlsx.border)
+                    export.show_prs|export.show_commits|export.show_issues|export.show_summary|export.show_top_labels|export.show_releases|export.show_contributors|export.show_languages|export.xlsx.border)
                               compadd -P "$key=" -- true false ;;
                 esac
             else
@@ -237,7 +243,7 @@ _gs_config() {
 _gs() {
     if (( CURRENT == 2 )); then
         local -a cmds
-        cmds=(analyze watch sub subscribe config usage version completion)
+        cmds=(analyze watch sub subscribe config usage serve version completion)
         _describe 'command' cmds
         return
     fi
@@ -254,6 +260,16 @@ _gs() {
                 '--clear[clear the usage log]' \
                 '--color[color mode]:mode:(auto always never)' \
                 '--config[config file]:file:_files'
+            ;;
+        serve)
+            _arguments -C \
+                '--host[address to bind]:host:' \
+                '--port[port to listen on]:port:' \
+                '--web-root[directory holding the built console]:dir:_files -/' \
+                '--config[config file to use]:file:_files' \
+                '--jobs[concurrent analysis jobs]:n:' \
+                '(-q --quiet)'{-q,--quiet}'[suppress the startup banner]' \
+                '(-h --help)'{-h,--help}'[show help]'
             ;;
         completion)
             _arguments -C '1:shell:(bash zsh fish)'

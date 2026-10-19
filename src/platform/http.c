@@ -1,5 +1,7 @@
 #include "gitsight/platform/http.h"
+#include "gitsight/cancel.h"
 #include <curl/curl.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,10 +13,28 @@
 #define HTTP_MAX_RETRIES 3
 #define GS_CACHE_TTL_DEFAULT 300
 
+static void http_default_cache_dir(char *out, size_t len);
+
 static int gs_cache_enabled = 1;
+
+/* Last API quota seen on any response (-1 = not yet known). Advisory only:
+ * authenticated and anonymous callers share this view. */
+static atomic_long g_quota_remaining = -1;
+static atomic_long g_quota_reset = 0;
+
+void http_quota(long *remaining, long *reset_at) {
+    if (remaining) *remaining = atomic_load(&g_quota_remaining);
+    if (reset_at)  *reset_at  = atomic_load(&g_quota_reset);
+}
 
 void http_set_cache_enabled(int enabled) {
     gs_cache_enabled = enabled;
+}
+
+void http_cache_info(char *dir, size_t len, long *ttl, int *enabled) {
+    if (dir && len) http_default_cache_dir(dir, len);
+    if (ttl) *ttl = GS_CACHE_TTL_DEFAULT;
+    if (enabled) *enabled = gs_cache_enabled;
 }
 
 int url_encode(const char *src, char *dst, size_t dst_len) {
@@ -128,7 +148,7 @@ static void cache_write(const HttpClient *hc, const char *url, const HttpBuffer 
    canned responses from that directory instead of the network. This lets
    tests exercise the full parsing/analysis/export pipeline offline.
    Fixture files: prs.json, commits.json, issues.json, releases.json,
-   contributors.json (arrays) and meta.json (object). */
+   contributors.json, languages.json and meta.json. */
 static const char *fixture_name_for_url(const char *url) {
     if (strstr(url, "/pulls") || strstr(url, "/merge_requests"))
         return "prs.json";
@@ -136,6 +156,7 @@ static const char *fixture_name_for_url(const char *url) {
     if (strstr(url, "/issues"))        return "issues.json";
     if (strstr(url, "/releases"))      return "releases.json";
     if (strstr(url, "/contributors"))  return "contributors.json";
+    if (strstr(url, "/languages"))     return "languages.json";
     return "meta.json";
 }
 
@@ -292,8 +313,10 @@ static size_t header_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
     } else if (len >= 24 && strncasecmp(ptr, "X-RateLimit-Remaining:", 22) == 0) {
         r->rate_limit_remaining = atol(ptr + 22);
         r->has_rate_limit = 1;
+        atomic_store(&g_quota_remaining, r->rate_limit_remaining);
     } else if (len >= 20 && strncasecmp(ptr, "X-RateLimit-Reset:", 18) == 0) {
         r->rate_limit_reset = atol(ptr + 18);
+        atomic_store(&g_quota_reset, r->rate_limit_reset);
     } else if (len >= 14 && strncasecmp(ptr, "Retry-After:", 12) == 0) {
         r->retry_after = atol(ptr + 12);
         r->has_retry_after = 1;
@@ -319,6 +342,7 @@ static CURL *setup_curl(const HttpClient *hc, const char *url,
     CURL *curl = curl_easy_init();
     if (!curl) return NULL;
 
+    gs_cancel_attach(curl);
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, buf);
@@ -380,6 +404,17 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
         return GS_OK;
     }
 
+    /* Proactive throttle: we already know the quota is spent — wait for the
+     * window to reopen instead of firing requests that can only 403. */
+    if (atomic_load(&g_quota_remaining) == 0) {
+        long wait = atomic_load(&g_quota_reset) - (long)time(NULL) + 1;
+        if (wait > 0 && wait <= 3660) {
+            fprintf(stderr, "  -> API quota exhausted, waiting %lds for reset...\n", wait);
+            sleep_secs(wait);
+        }
+        atomic_store(&g_quota_remaining, -1);
+    }
+
     int attempt = 0;
     for (;;) {
         buf.size = 0;
@@ -399,6 +434,10 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
         curl_slist_free_all(headers);
 
         if (res != CURLE_OK) {
+            if (res == CURLE_ABORTED_BY_CALLBACK || gs_cancel_requested()) {
+                http_buffer_free(&buf);
+                return ERR_CANCELLED;
+            }
             if (is_transient_curl(res) && attempt < HTTP_MAX_RETRIES) {
                 attempt++;
                 sleep_secs(1L << (attempt - 1));

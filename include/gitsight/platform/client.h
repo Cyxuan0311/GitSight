@@ -20,6 +20,7 @@ typedef struct PlatformClient {
     ErrorCode (*fetch_releases)(void *ctx, Vector *releases, int since_days);
     ErrorCode (*fetch_meta)(void *ctx, RepoMeta *meta);
     ErrorCode (*fetch_contributors)(void *ctx, Vector *contributors);
+    ErrorCode (*fetch_languages)(void *ctx, Vector *langs);
     char      last_error[512];
     void      (*destroy)(void *ctx);
 } PlatformClient;

@@ -400,6 +400,27 @@ static ErrorCode fetch_contributors_impl(void *ctx, Vector *contributors) {
     return gh_get(gh, url, parse_contributors_page, contributors, 0);
 }
 
+static ErrorCode fetch_languages_impl(void *ctx, Vector *langs) {
+    GitHubContext *gh = (GitHubContext *)ctx;
+
+    DriverBase base;
+    fill_base(gh, &base);
+    char auth[600] = "";
+    build_auth(gh, auth, sizeof(auth));
+
+    char url[1024];
+    snprintf(url, sizeof(url), "%s/repos/%s/%s/languages",
+             gh->api_base, gh->owner, gh->repo);
+
+    cJSON *json = NULL;
+    ErrorCode err = gs_fetch_json(&base, auth, url, &json);
+    if (err != GS_OK) return GS_OK; /* optional endpoint */
+
+    gs_parse_languages_object(json, langs, 1.0);
+    cJSON_Delete(json);
+    return GS_OK;
+}
+
 static void github_destroy(void *ctx) {
     free(ctx);
 }
@@ -443,6 +464,7 @@ ErrorCode github_client_init(PlatformClient *client, const Config *cfg,
     client->fetch_releases = fetch_releases_impl;
     client->fetch_meta = fetch_meta_impl;
     client->fetch_contributors = fetch_contributors_impl;
+    client->fetch_languages = fetch_languages_impl;
     client->destroy = github_destroy;
 
     return GS_OK;

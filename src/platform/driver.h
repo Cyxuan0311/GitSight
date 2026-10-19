@@ -44,6 +44,9 @@ void gs_flatten_message(const char *src, char *dst, int max);
 /* Join label names from a JSON array of strings or objects ("name"/"title"). */
 void gs_extract_labels(cJSON *labels_json, char *buf, size_t len);
 
+/* Parse a {"C": 12345, ...} languages map into a LangEntry vector. */
+void gs_parse_languages_object(cJSON *json, Vector *langs, double scale);
+
 /* Paginated GET parsed page-by-page with cb. On ERR_HTTP_STATUS a driver
    error message is written to base->error_buf, unless tolerate_404 (a 404
    means "no such resource", reported as success). */

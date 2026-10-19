@@ -57,6 +57,23 @@ void gs_extract_labels(cJSON *labels_json, char *buf, size_t len) {
     }
 }
 
+/* Parse a {"C": 12345, ...} languages map into a LangEntry vector.
+   scale converts the API number into a comparable weight
+   (GitHub/Gitea byte counts: 1; GitLab percentage shares: 1e5). */
+void gs_parse_languages_object(cJSON *json, Vector *langs, double scale) {
+    if (!json || !cJSON_IsObject(json)) return;
+    cJSON *ent = NULL;
+    cJSON_ArrayForEach(ent, json) {
+        if (!ent->string || !cJSON_IsNumber(ent)) continue;
+        LangEntry *le = lang_create();
+        if (!le) break;
+        snprintf(le->name, sizeof(le->name), "%s", ent->string);
+        double v = ent->valuedouble * scale;
+        le->bytes = (long long)(v > 0 ? v : 0);
+        vector_push(langs, le);
+    }
+}
+
 static void set_http_error(const DriverBase *b, long http_code) {
     if (!b->error_buf) return;
     if (http_code == 401)

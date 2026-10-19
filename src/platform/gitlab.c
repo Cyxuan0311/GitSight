@@ -387,6 +387,29 @@ static ErrorCode fetch_contributors_impl(void *ctx, Vector *contributors) {
     return gl_get(gl, url, parse_contributors_page, contributors, 0);
 }
 
+/* GitLab returns percentages, not bytes; scale so all renderers can use one pct-of-total formula. */
+static ErrorCode fetch_languages_impl(void *ctx, Vector *langs) {
+    GitLabContext *gl = (GitLabContext *)ctx;
+    char project[512];
+    encode_project_path(gl->owner, gl->repo, project, sizeof(project));
+
+    DriverBase base;
+    fill_base(gl, &base);
+    char auth[600] = "";
+    build_auth(gl, auth, sizeof(auth));
+
+    char url[1152];
+    snprintf(url, sizeof(url), "%s/projects/%s/languages", gl->api_base, project);
+
+    cJSON *json = NULL;
+    ErrorCode err = gs_fetch_json(&base, auth, url, &json);
+    if (err != GS_OK) return GS_OK; /* optional endpoint */
+
+    gs_parse_languages_object(json, langs, 100000.0);
+    cJSON_Delete(json);
+    return GS_OK;
+}
+
 static void gitlab_destroy(void *ctx) {
     free(ctx);
 }
@@ -421,6 +444,7 @@ ErrorCode gitlab_client_init(PlatformClient *client, const Config *cfg,
     client->fetch_releases = fetch_releases_impl;
     client->fetch_meta = fetch_meta_impl;
     client->fetch_contributors = fetch_contributors_impl;
+    client->fetch_languages = fetch_languages_impl;
     client->destroy = gitlab_destroy;
 
     return GS_OK;

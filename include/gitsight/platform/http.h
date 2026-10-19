@@ -41,6 +41,14 @@ void http_client_init(HttpClient *hc, const char *auth_header, const char *proxy
    Defaults to enabled. Must be called before any fetch begins. */
 void http_set_cache_enabled(int enabled);
 
+/* Reports where cached responses live, how long they are kept, and whether the
+   cache is currently on. Any output pointer may be NULL. */
+void http_cache_info(char *dir, size_t len, long *ttl, int *enabled);
+
+/* Snapshot of the last API quota seen in a response header (process-wide).
+   remaining = -1 when not yet known; reset_at is an epoch value. */
+void http_quota(long *remaining, long *reset_at);
+
 /* GET a single URL. Retries transient failures and rate limits internally.
    Returns GS_OK on HTTP 200 (result/data + out filled).
    Returns ERR_HTTP_STATUS on a final non-success HTTP code (out->http_code set).

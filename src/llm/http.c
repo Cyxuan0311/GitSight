@@ -1,5 +1,6 @@
 #include "http.h"
 #include "gitsight/usage.h"
+#include "gitsight/cancel.h"
 #include <curl/curl.h>
 #include <string.h>
 #include <stdlib.h>
@@ -61,6 +62,7 @@ ErrorCode llm_http_post(const LLMConfig *cfg, const char *url,
             return ERR_CURL_INIT;
         }
 
+        gs_cancel_attach(curl);
         curl_easy_setopt(curl, CURLOPT_URL, url);
         curl_easy_setopt(curl, CURLOPT_POST, 1L);
         curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
@@ -78,6 +80,11 @@ ErrorCode llm_http_post(const LLMConfig *cfg, const char *url,
         if (out_http_code) *out_http_code = http_code;
 
         if (res != CURLE_OK) {
+            if (res == CURLE_ABORTED_BY_CALLBACK || gs_cancel_requested()) {
+                curl_slist_free_all(hdrs);
+                llm_buffer_free(out);
+                return ERR_CANCELLED;
+            }
             if (attempt < LLM_MAX_RETRIES) {
                 attempt++;
                 sleep_secs(1L << (attempt - 1));

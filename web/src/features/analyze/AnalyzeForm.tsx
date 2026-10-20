@@ -9,6 +9,8 @@ import { z } from 'zod';
 
 import { InlineError } from '@/components/ErrorBoundary';
 import { type JobRunner } from '@/hooks/useJob';
+import { ExportOverrides } from '@/components/run/RunFields';
+import { checkExportOverrides } from '@/components/run/runOptions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
@@ -38,6 +40,7 @@ const schema = z
     llm_mode: z.string(),
     no_cache: z.boolean(),
     filters: z.string(),
+    export_overrides: z.string(),
   })
   .superRefine((value, ctx) => {
     const iso = /^\d{4}-\d{2}-\d{2}$/;
@@ -52,6 +55,17 @@ const schema = z
     if (value.from && value.to && value.from > value.to) {
       ctx.addIssue({ code: 'custom', path: ['from'], message: 'from > to' });
     }
+    // Every override line must be a key=value pair, the same rule the server
+    // applies before it stores the override.
+    value.export_overrides
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        if (!line.includes('=')) {
+          ctx.addIssue({ code: 'custom', path: ['export_overrides'], message: line });
+        }
+      });
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -88,6 +102,7 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
       llm_mode: 'health',
       no_cache: false,
       filters: '',
+      export_overrides: '',
     }),
     [config, urlRepo],
   );
@@ -105,6 +120,18 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
   }, [defaults, form]);
 
   const onSubmit = form.handleSubmit((values) => {
+    // An unknown key is ignored by the exporter, so the form names it here
+    // rather than letting the setting disappear without a trace.
+    const problem = checkExportOverrides(values.export_overrides, options?.export_keys);
+    if (problem) {
+      form.setError('export_overrides', {
+        message:
+          problem.kind === 'unknown_key'
+            ? `${t('analyze.exportOverridesUnknown')} ${problem.token}`
+            : `${t('analyze.exportOverridesInvalid')} ${problem.token}`,
+      });
+      return;
+    }
     // job.start owns the request lifecycle: it reports submission failures
     // through job.error, so a separate mutation would only duplicate the same
     // message in a second place.
@@ -262,6 +289,23 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
                 />
               </Field>
 
+              <Controller
+                control={form.control}
+                name="export_overrides"
+                render={({ field }) => (
+                  <ExportOverrides
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={
+                      errors.export_overrides?.message
+                        ? `${t('analyze.exportOverridesInvalid')} ${errors.export_overrides.message}`
+                        : undefined
+                    }
+                    keys={options?.export_keys}
+                  />
+                )}
+              />
+
               <label className="flex items-center gap-2 text-sm text-ink-soft">
                 <input
                   type="checkbox"
@@ -333,6 +377,14 @@ function toRequest(values: FormValues): AnalyzeRequest {
     .map((entry) => entry.trim())
     .filter(Boolean);
   if (filters.length > 0) body.filters = filters;
+
+  // The CLI's repeatable `--export key=value`; the server accepts the same
+  // pairs and applies them to this run's rendering only.
+  const overrides = values.export_overrides
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (overrides.length > 0) body.export = overrides;
 
   return body;
 }

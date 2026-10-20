@@ -24,6 +24,30 @@ gs serve                  # → http://127.0.0.1:8787
 | **Settings** | Every `gs config --set` key, including the 33 export options |
 | **Shell completion** | The embedded bash/zsh/fish scripts |
 
+## Per-run options
+
+Every page that starts a job carries the same flags the CLI accepts, so a run
+started in the browser is configured the same way a shell command would be.
+Blank means "keep what the config says", exactly like an unset flag.
+
+| Flag | Where |
+|---|---|
+| `--since` / `--from` / `--to` | Analyze, Batch |
+| `--platform` `--branch` `--lang` | Analyze, Compare, Batch |
+| `--max-pages` `--api-base` `--proxy` `--token` | Analyze, Compare, Batch |
+| `--llm` `--llm-mode` | Analyze, Compare, Batch, Subscriptions |
+| `--filter` | Analyze, Compare, Batch |
+| `--no-cache` | Analyze, Compare, Batch, Subscriptions |
+| `--export key=value` | Analyze, Compare, Batch |
+| `--parallel` | Batch, Subscriptions |
+
+`--export` is the interesting one: it overrides the exporter settings for that
+run only, without touching the config file. The console writes the same
+`key=value` pairs the CLI takes, one per line, and the daemon lists the keys its
+exporter table holds (`GET /api/meta/options` → `export_keys`) so an unknown
+name is reported instead of being silently ignored. Clicking a key in the form
+appends `key=` for you.
+
 ## What the console adds
 
 Two things the console can do that a one-shot CLI call cannot:

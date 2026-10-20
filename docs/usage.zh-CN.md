@@ -322,5 +322,23 @@ GET    /api/completion/:shell         bash | zsh | fish
 GET    /*                             构建后的控制台（前端路由回退）
 ```
 
+### 任务请求体
+
+`POST /api/jobs/analyze` 与 `POST /api/jobs/compare` 接受同一组单次运行选项，
+每一项只对该任务生效，会覆盖配置文件里的值：
+
+| 字段 | 含义 |
+|------|------|
+| `since_days`、`from`、`to` | 时间窗 |
+| `platform`、`branch`、`lang` | 读哪个平台、哪个分支，用什么语言输出 |
+| `max_pages`、`api_base`、`proxy`、`token` | 传输层 |
+| `llm`、`llm_mode`、`no_cache` | 分析本身 |
+| `filters` | `["author:alice", "label:bug"]` |
+| `export` | `["show_commits=false", "pdf.margin=40"]`——本次运行的导出设置 |
+
+`export` 也接受对象写法 `{"show_commits": false, "pdf": {"margin": 40}}`。
+导出器接受的键名由 `GET /api/meta/options` 的 `export_keys` 给出；
+不认识的键会被忽略，因此发送前最好先查这份清单。
+
 密钥永远不会离开进程：配置里的令牌与提供商的 API key 只以
 `{"set": true, "masked": "…3f2a"}` 形式返回；写入空字符串表示清除。

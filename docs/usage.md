@@ -406,5 +406,23 @@ GET    /api/completion/:shell         bash | zsh | fish
 GET    /*                             the built console (SPA fallback)
 ```
 
+### Job request body
+
+`POST /api/jobs/analyze` and `POST /api/jobs/compare` take the same per-run
+options, and each one overrides the config file for that job only:
+
+| Field | Meaning |
+|---|---|
+| `since_days`, `from`, `to` | the window |
+| `platform`, `branch`, `lang` | what to read, and the language to write in |
+| `max_pages`, `api_base`, `proxy`, `token` | transport |
+| `llm`, `llm_mode`, `no_cache` | the analysis itself |
+| `filters` | `["author:alice", "label:bug"]` |
+| `export` | `["show_commits=false", "pdf.margin=40"]` — exporter settings for this run |
+
+`export` also accepts the object form `{"show_commits": false, "pdf": {"margin": 40}}`.
+The names the exporter accepts are listed by `GET /api/meta/options` under
+`export_keys`; an unknown name is ignored, so read the list before sending one.
+
 Secrets never leave the process: config tokens and provider keys are returned as
 `{"set": true, "masked": "…3f2a"}`, and writing an empty string clears one.

@@ -407,6 +407,36 @@ static void apply_export_override(Config *cfg, const char *kv) {
     }
 }
 
+int config_export_override_count(void) {
+    return (int)N_EXPORT_FIELDS;
+}
+
+const char *config_export_override_name(int index) {
+    static char name[160];
+    if (index < 0 || index >= (int)N_EXPORT_FIELDS) return NULL;
+    const ExportField *f = &EXPORT_FIELDS[index];
+    if (f->section) snprintf(name, sizeof(name), "%s.%s", f->section, f->key);
+    else snprintf(name, sizeof(name), "%s", f->key);
+    return name;
+}
+
+/* Applies the `key=value` pairs collected in cfg->export_extra to the fields
+ * they name. The pairs are newline-separated, which is what both the CLI's
+ * repeatable --export and the server's request body produce. */
+void config_apply_export_overrides(Config *cfg) {
+    if (!cfg || !cfg->export_extra[0]) return;
+    char buf[1024];
+    snprintf(buf, sizeof(buf), "%s", cfg->export_extra);
+    char *line = buf;
+    while (line && *line) {
+        char *nl = strchr(line, '\n');
+        if (nl) *nl = '\0';
+        while (*line == ' ') line++;
+        if (*line) apply_export_override(cfg, line);
+        line = nl ? nl + 1 : NULL;
+    }
+}
+
 void config_merge(Config *cfg,
                    int since_days, int max_pages, const char *format,
                    const char *output, const char *proxy,
@@ -518,18 +548,7 @@ void config_merge(Config *cfg,
     }
 
     /* Parse --export overrides */
-    if (cfg->export_extra[0]) {
-        char buf[1024];
-        snprintf(buf, sizeof(buf), "%s", cfg->export_extra);
-        char *line = buf;
-        while (line && *line) {
-            char *nl = strchr(line, '\n');
-            if (nl) *nl = '\0';
-            while (*line == ' ') line++;
-            if (*line) apply_export_override(cfg, line);
-            line = nl ? nl + 1 : NULL;
-        }
-    }
+    config_apply_export_overrides(cfg);
 }
 
 const LLMConfig *config_get_active_llm(const Config *cfg) {

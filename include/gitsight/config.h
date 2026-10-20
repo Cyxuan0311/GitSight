@@ -134,6 +134,18 @@ ErrorCode   config_set(const char *path, const char *key, const char *value);
 ErrorCode   config_set_llm(const char *path, const LLMConfig *llm);
 void        config_list_llms(const Config *cfg);
 
+/* The keys `gs --export key=value` accepts, as "key" or "section.key". The
+ * table is the single source of truth for the exporter settings, so the
+ * console lists these instead of guessing which names exist. */
+int         config_export_override_count(void);
+const char *config_export_override_name(int index);
+
+/* Applies the `key=value` pairs held in cfg->export_extra to the settings they
+ * name. Callers that set export_extra after the config was loaded -- the CLI's
+ * --export, the daemon's per-run overrides -- have to call this themselves,
+ * because the fields it changes are read when the report is rendered. */
+void        config_apply_export_overrides(Config *cfg);
+
 /* Subscriptions: ref matches either "owner/repo" or an alias. Returns index or -1. */
 int         config_find_subscription(const Config *cfg, const char *ref);
 ErrorCode   config_add_subscription(const char *path, const Subscription *sub);

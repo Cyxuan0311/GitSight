@@ -2,6 +2,7 @@
 #include "jobs.h"
 
 #include "gitsight/i18n.h"
+#include "gitsight/config.h"
 #include "gitsight/llm/client.h"
 #include "gitsight/models.h"
 #include "gitsight/platform/http.h"
@@ -127,6 +128,16 @@ static void handle_options(Request *req, Response *res, void *user) {
         cJSON_AddItemToArray(nca, o);
     }
     cJSON_AddItemToObject(root, "named_colors", nca);
+
+    /* The `--export key=value` names the CLI accepts. The table in config.c is
+     * the same one the CLI validates against, so the console can list exactly
+     * the keys that exist instead of guessing. */
+    cJSON *eka = cJSON_CreateArray();
+    for (int i = 0; i < config_export_override_count(); i++) {
+        const char *name = config_export_override_name(i);
+        if (name) cJSON_AddItemToArray(eka, cJSON_CreateString(name));
+    }
+    cJSON_AddItemToObject(root, "export_keys", eka);
 
     cJSON_AddNumberToObject(root, "batch_max_threads", GS_BATCH_MAX_THREADS);
     cJSON_AddNumberToObject(root, "max_repos", 16);

@@ -31,6 +31,9 @@ export function SubscriptionBatchPanel() {
   const maxThreads = options?.batch_max_threads ?? 8;
   const [parallel, setParallel] = useState(4);
   const [llm, setLlm] = useState('');
+  const [llmMode, setLlmMode] = useState('');
+  const [lang, setLang] = useState('');
+  const [noCache, setNoCache] = useState(false);
 
   const count = subscriptions?.subscriptions.length ?? 0;
   const busy = job.phase === 'submitting' || job.phase === 'running';
@@ -44,7 +47,7 @@ export function SubscriptionBatchPanel() {
         </span>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid items-end gap-4 sm:grid-cols-[10rem_1fr_auto]">
+        <div className="grid items-end gap-4 sm:grid-cols-[10rem_1fr_1fr_auto]">
           <Field label={t('batch.parallel')} hint={t('batch.parallelHint', { max: maxThreads })}>
             <Input
               type="number"
@@ -68,6 +71,17 @@ export function SubscriptionBatchPanel() {
             </Select>
           </Field>
 
+          <Field label={t('analyze.llmMode')}>
+            <Select value={llmMode} onChange={(event) => setLlmMode(event.target.value)}>
+              <option value="">{t('analyze.llmAuto')}</option>
+              {(options?.llm_modes ?? []).map((mode) => (
+                <option key={mode.id} value={mode.id}>
+                  {mode.id}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
           <Button
             variant="primary"
             disabled={busy || count === 0}
@@ -76,6 +90,9 @@ export function SubscriptionBatchPanel() {
                 api.analyzeSubscriptions({
                   parallel,
                   llm: llm || undefined,
+                  llm_mode: llmMode || undefined,
+                  lang: lang || undefined,
+                  no_cache: noCache || undefined,
                 }),
               )
             }
@@ -83,6 +100,29 @@ export function SubscriptionBatchPanel() {
             <Play />
             {busy ? t('subs.analyzingAll') : t('subs.analyzeAll')}
           </Button>
+        </div>
+
+        <div className="grid items-end gap-4 sm:grid-cols-[1fr_auto]">
+          <Field label={t('analyze.lang')}>
+            <Select value={lang} onChange={(event) => setLang(event.target.value)}>
+              <option value="">{t('analyze.llmAuto')}</option>
+              {(options?.languages ?? []).map((language) => (
+                <option key={language.id} value={language.id}>
+                  {language.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <label className="flex items-center gap-2 pb-2 text-sm text-ink-soft">
+            <input
+              type="checkbox"
+              className="size-4 accent-[var(--color-accent)]"
+              checked={noCache}
+              onChange={(event) => setNoCache(event.target.checked)}
+            />
+            {t('analyze.noCache')}
+          </label>
         </div>
 
         {job.error ? <InlineError message={job.error} /> : null}

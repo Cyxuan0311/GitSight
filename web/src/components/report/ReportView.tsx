@@ -16,6 +16,7 @@ import {
   WeekdayChart,
 } from './ReportParts';
 import { ReportPreview } from './ReportPreview';
+import { ReportSectionIcon, type ReportIcon } from './ReportSection';
 
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,12 +60,12 @@ export function ReportView({
   const options = useQuery({ queryKey: ['meta-options'], queryFn: api.options });
 
   const tabs = [
-    showSections.show_prs && { key: 'prs', label: t('report.pullRequests'), count: report.pull_requests.total },
-    showSections.show_commits && { key: 'commits', label: t('report.commits'), count: report.commits.total },
-    showSections.show_issues && { key: 'issues', label: t('report.issues'), count: report.issues.total },
-    showSections.show_releases && { key: 'releases', label: t('report.releases'), count: report.releases.total },
-    showSections.show_contributors && { key: 'contributors', label: t('report.contributors'), count: report.contributors.total },
-  ].filter(Boolean) as { key: string; label: string; count: number }[];
+    showSections.show_prs && { key: 'prs', label: t('report.pullRequests'), count: report.pull_requests.total, icon: 'pullRequests' as const },
+    showSections.show_commits && { key: 'commits', label: t('report.commits'), count: report.commits.total, icon: 'commits' as const },
+    showSections.show_issues && { key: 'issues', label: t('report.issues'), count: report.issues.total, icon: 'issues' as const },
+    showSections.show_releases && { key: 'releases', label: t('report.releases'), count: report.releases.total, icon: 'releases' as const },
+    showSections.show_contributors && { key: 'contributors', label: t('report.contributors'), count: report.contributors.total, icon: 'contributors' as const },
+  ].filter(Boolean) as { key: string; label: string; count: number; icon: ReportIcon }[];
 
   return (
     <div className="space-y-4">
@@ -138,7 +139,10 @@ export function ReportView({
             {report.warnings && report.warnings.length > 0 ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-warn">{t('report.warnings')}</CardTitle>
+                  <CardTitle className="flex items-center gap-2 text-warn">
+                    <ReportSectionIcon name="warnings" className="text-warn" />
+                    {t('report.warnings')}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <WarningList warnings={report.warnings} />
@@ -150,6 +154,7 @@ export function ReportView({
               <TabsList>
                 {tabs.map((tab) => (
                   <Tab key={tab.key} value={tab.key}>
+                    <ReportSectionIcon name={tab.icon} className="size-3.5" />
                     {tab.label}
                     <span className="nums text-[10px] text-muted">{tab.count}</span>
                   </Tab>
@@ -180,7 +185,10 @@ export function ReportView({
                 <TabsPanel value="contributors">
                   <Card>
                     <CardHeader>
-                      <CardTitle>{t('report.contributors')}</CardTitle>
+                      <CardTitle className="flex items-center gap-2">
+                        <ReportSectionIcon name="contributors" />
+                        {t('report.contributors')}
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <ContributorList report={report} />
@@ -201,7 +209,10 @@ function ReportSummary({ report, llmProvider }: { report: Report; llmProvider?: 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{t('report.summary')}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <ReportSectionIcon name="summary" />
+          {t('report.summary')}
+        </CardTitle>
         <CopyButton text={report.summary} label={t('report.copySummary')} />
       </CardHeader>
       <CardContent>
@@ -226,7 +237,10 @@ function ChartsRow({
     <div className="grid gap-3 lg:grid-cols-3">
       <Card>
         <CardHeader>
-          <CardTitle>{t('report.activity')}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ReportSectionIcon name="activity" />
+            {t('report.activity')}
+          </CardTitle>
           <span className="text-xs text-muted">
             {report.commits.total} {t('report.commitsLabel')}
           </span>
@@ -242,7 +256,10 @@ function ChartsRow({
 
       <Card>
         <CardHeader>
-          <CardTitle>{t('report.weekday')}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ReportSectionIcon name="weekday" />
+            {t('report.weekday')}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {showActivity ? <WeekdayChart report={report} /> : null}
@@ -252,7 +269,10 @@ function ChartsRow({
       {showLanguages ? (
         <Card>
           <CardHeader>
-            <CardTitle>{t('report.languages')}</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ReportSectionIcon name="languages" />
+              {t('report.languages')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <LanguageChart report={report} />
@@ -261,7 +281,10 @@ function ChartsRow({
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>{t('report.languages')}</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ReportSectionIcon name="languages" />
+              {t('report.languages')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="py-8 text-center text-xs text-muted">{t('app.none')}</p>

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { ReportSectionIcon } from './ReportSection';
+
 import { Badge, StateBadge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/field';
@@ -34,6 +36,7 @@ export function ReportOverview({ report }: { report: Report }) {
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
         label={t('report.pullRequests')}
+        icon={<ReportSectionIcon name="pullRequests" />}
         value={formatNumber(report.pull_requests.total)}
         hint={`${report.pull_requests.open} ${t('report.open')} · ${closedOnly(report)} ${t(
           'report.closed',
@@ -42,6 +45,7 @@ export function ReportOverview({ report }: { report: Report }) {
       />
       <StatCard
         label={t('report.commits')}
+        icon={<ReportSectionIcon name="commits" />}
         value={formatNumber(report.commits.total)}
         hint={
           topAuthor.count !== null
@@ -51,21 +55,25 @@ export function ReportOverview({ report }: { report: Report }) {
       />
       <StatCard
         label={t('report.issues')}
+        icon={<ReportSectionIcon name="issues" />}
         value={formatNumber(report.issues.total)}
         hint={`${report.issues.open} ${t('report.open')} · ${report.issues.closed} ${t('report.closed')}`}
       />
       <StatCard
         label={t('report.releases')}
+        icon={<ReportSectionIcon name="releases" />}
         value={formatNumber(report.releases.total)}
         hint={report.releases.latest || t('app.none')}
       />
       <StatCard
         label={t('report.contributors')}
+        icon={<ReportSectionIcon name="contributors" />}
         value={formatNumber(report.contributors.total)}
         hint={splitTop(report.contributors.top).name || t('app.none')}
       />
       <StatCard
         label={t('report.avgMerge')}
+        icon={<ReportSectionIcon name="merge" />}
         value={formatDuration(report.pull_requests.avg_merge_hours)}
         hint={
           report.pull_requests.merged_count
@@ -75,6 +83,7 @@ export function ReportOverview({ report }: { report: Report }) {
       />
       <StatCard
         label={t('report.avgClose')}
+        icon={<ReportSectionIcon name="close" />}
         value={formatDuration(report.issues.avg_close_hours)}
         hint={
           report.issues.closed_count
@@ -84,26 +93,53 @@ export function ReportOverview({ report }: { report: Report }) {
       />
       <StatCard
         label={t('report.busiestDay')}
+        icon={<ReportSectionIcon name="busiest" />}
         value={busiest?.day ?? '-'}
         hint={busiest ? `${formatNumber(busiest.commits)} ${t('report.commitsLabel')}` : undefined}
       />
 
       {meta ? (
         <>
-          <StatCard label={t('report.stars')} value={formatNumber(meta.stars)} />
-          <StatCard label={t('report.forks')} value={formatNumber(meta.forks)} />
+          <StatCard
+            label={t('report.stars')}
+            icon={<ReportSectionIcon name="stars" />}
+            value={formatNumber(meta.stars)}
+          />
+          <StatCard
+            label={t('report.forks')}
+            icon={<ReportSectionIcon name="forks" />}
+            value={formatNumber(meta.forks)}
+          />
           {meta.watchers > 0 ? (
-            <StatCard label={t('report.watchers')} value={formatNumber(meta.watchers)} />
+            <StatCard
+              label={t('report.watchers')}
+              icon={<ReportSectionIcon name="watchers" />}
+              value={formatNumber(meta.watchers)}
+            />
           ) : null}
-          <StatCard label={t('report.openIssues')} value={formatNumber(meta.open_issues)} />
-          <StatCard label={t('report.license')} value={meta.license || '-'} />
-          <StatCard label={t('report.language')} value={meta.language || '-'} />
+          <StatCard
+            label={t('report.openIssues')}
+            icon={<ReportSectionIcon name="issues" />}
+            value={formatNumber(meta.open_issues)}
+          />
+          <StatCard
+            label={t('report.license')}
+            icon={<ReportSectionIcon name="license" />}
+            value={meta.license || '-'}
+          />
+          <StatCard
+            label={t('report.language')}
+            icon={<ReportSectionIcon name="languages" />}
+            value={meta.language || '-'}
+          />
           <StatCard
             label={t('report.branch')}
+            icon={<ReportSectionIcon name="branch" />}
             value={meta.branch || meta.default_branch || '-'}
           />
           <StatCard
             label={t('report.pushed')}
+            icon={<ReportSectionIcon name="pushed" />}
             value={meta.pushed_at ? formatDateTime(meta.pushed_at) : '-'}
           />
           <div className="rounded-card border border-line bg-surface p-4 sm:col-span-2 xl:col-span-2">
@@ -302,7 +338,8 @@ export function PullRequestTable({
     <Card>
       <CardHeader>
         <div className="space-y-1">
-          <CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ReportSectionIcon name="pullRequests" />
             {t('report.pullRequests')} · {report.pull_requests.total}
           </CardTitle>
           <ItemLimitNotice
@@ -389,7 +426,8 @@ export function CommitTable({ report, itemLimit }: { report: Report; itemLimit: 
     <Card>
       <CardHeader>
         <div className="space-y-1">
-          <CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ReportSectionIcon name="commits" />
             {t('report.commits')} · {report.commits.total}
           </CardTitle>
           <ItemLimitNotice
@@ -472,7 +510,8 @@ export function IssueTable({ report, itemLimit }: { report: Report; itemLimit: n
     <Card>
       <CardHeader>
         <div className="space-y-1">
-          <CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ReportSectionIcon name="issues" />
             {t('report.issues')} · {report.issues.total}
           </CardTitle>
           <ItemLimitNotice
@@ -545,7 +584,8 @@ export function ReleaseTable({ report, itemLimit }: { report: Report; itemLimit:
     return (
       <Card>
         <CardHeader>
-          <CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ReportSectionIcon name="releases" />
             {t('report.releases')} · {report.releases.total}
           </CardTitle>
         </CardHeader>
@@ -559,7 +599,8 @@ export function ReleaseTable({ report, itemLimit }: { report: Report; itemLimit:
   return (
     <Card>
       <CardHeader>
-        <CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <ReportSectionIcon name="releases" />
           {t('report.releases')} · {report.releases.total}
         </CardTitle>
       </CardHeader>

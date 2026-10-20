@@ -377,6 +377,32 @@ assert_status "export unknown job" 404 "$BASE/api/jobs/nope/export?format=pdf"
 assert_status "export sends disposition" 200 \
   -o /dev/null -w '%{http_code}' "$BASE/api/jobs/$JOB/export?format=pdf"
 
+# --- per-run export overrides -----------------------------------------------
+#
+# The CLI's --export overrides the exporter settings for one run without
+# touching the config file; the request body carries the same pairs, and the
+# rendering of that job must honour them.
+EXPORTJOB=$(j -X POST -H 'Content-Type: application/json' \
+  -d '{"repo":"acme/gadget","export":["html.open_color=red"]}' "$BASE/api/jobs/analyze")
+EID=$(printf '%s' "$EXPORTJOB" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
+if [ -n "$EID" ]; then ok; else fail "could not read the export override job id"; fi
+ERESULT=""
+for _ in $(seq 1 100); do
+  ERESULT=$(j "$BASE/api/jobs/$EID/result")
+  case "$ERESULT" in *'"pull_requests"'*) break;; esac
+  sleep 0.1
+done
+curl -s -o "$WORK/override.html" "$BASE/api/jobs/$EID/export?format=html"
+grep -q '.b-open{color:#dc2629}' "$WORK/override.html" \
+  && ok || fail "per-run export override not applied"
+# The config file itself must be untouched by a per-run override.
+grep -q 'dc2629' "$WORK/config.json" 2>/dev/null \
+  && fail "per-run export override leaked into the config file" \
+  || ok
+# A malformed pair is rejected rather than silently dropped.
+assert_status "export override needs key=value" 400 -X POST -H 'Content-Type: application/json' \
+  -d '{"repo":"acme/gadget","export":["noequalsign"]}' "$BASE/api/jobs/analyze"
+
 # --- batch analysis (cross-repository parallelism) --------------------------
 
 BATCH=$(j -X POST -H 'Content-Type: application/json' \

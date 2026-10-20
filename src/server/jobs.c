@@ -5,6 +5,7 @@
 #include "gitsight/anim.h"
 #include "gitsight/color.h"
 #include "gitsight/cancel.h"
+#include "gitsight/config.h"
 #include "gitsight/i18n.h"
 #include "gitsight/platform/http.h"
 
@@ -630,6 +631,10 @@ static void *job_execute(void *arg) {
         snprintf(cfg.branch, sizeof(cfg.branch), "%s", j->opts.branch);
     if (j->opts.export_extra[0])
         snprintf(cfg.export_extra, sizeof(cfg.export_extra), "%s", j->opts.export_extra);
+    /* The overrides arrive after the config was loaded, so they have to be
+     * applied here: the exporter reads the fields they change when the report
+     * is rendered from the snapshot below. */
+    config_apply_export_overrides(&cfg);
 
     /* The stored snapshot drives rendering for this job only; the live config
      * above drives the fetch. */

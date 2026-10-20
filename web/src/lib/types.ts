@@ -235,6 +235,8 @@ export interface MetaOptions {
   color_modes: string[];
   llm_modes: { id: string; hint: string }[];
   named_colors: NamedColor[];
+  /** The `--export key=value` names the exporter accepts. */
+  export_keys: string[];
   batch_max_threads: number;
   max_repos: number;
   max_subscriptions: number;
@@ -492,6 +494,14 @@ export interface CompareRequest {
   llm?: string;
   llm_mode?: string;
   formats?: string[];
+  platform?: string;
+  branch?: string;
+  filters?: string[];
+  max_pages?: number;
+  api_base?: string;
+  proxy?: string;
+  token?: string;
+  export?: Record<string, unknown> | string[];
 }
 
 export interface SubscriptionBatchRequest {

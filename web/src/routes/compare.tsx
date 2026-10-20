@@ -5,6 +5,13 @@ import { useTranslation } from 'react-i18next';
 
 import { AppLayout } from '@/components/layout/AppLayout';
 import { InlineError } from '@/components/ErrorBoundary';
+import { AdvancedRunFields } from '@/components/run/RunFields';
+import {
+  checkExportOverrides,
+  emptyRunOptions,
+  runOptionsToRequest,
+  type RunOptionValues,
+} from '@/components/run/runOptions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,11 +32,15 @@ export function ComparePage() {
 
   const { data: config } = useQuery({ queryKey: ['config'], queryFn: api.getConfig });
   const { data: llms } = useQuery({ queryKey: ['llms'], queryFn: api.listLlms });
+  const { data: options } = useQuery({ queryKey: ['meta-options'], queryFn: api.options });
 
   const [repo, setRepo] = useState('');
   const [daysA, setDaysA] = useState(7);
   const [daysB, setDaysB] = useState(30);
   const [llm, setLlm] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advanced, setAdvanced] = useState<RunOptionValues>(emptyRunOptions);
+  const [formError, setFormError] = useState<string | undefined>();
 
   const result = job.result && isCompareResult(job.result) ? job.result : null;
   const llmProvider = llms?.llms.find((entry) => entry.active)?.name;
@@ -37,6 +48,17 @@ export function ComparePage() {
   const run = () => {
     const trimmed = repo.trim();
     if (!trimmed) return;
+    // A malformed or unknown override would be rejected or ignored by the
+    // server; catching it here names the offending line instead of failing
+    // the whole request.
+    const problem = checkExportOverrides(advanced.exportOverrides, options?.export_keys);
+    if (problem) {
+      setFormError(
+        `${t(problem.kind === 'unknown_key' ? 'analyze.exportOverridesUnknown' : 'analyze.exportOverridesInvalid')} ${problem.token}`,
+      );
+      return;
+    }
+    setFormError(undefined);
     void job.start(() =>
       api.submitCompare({
         repo: trimmed,
@@ -44,6 +66,7 @@ export function ComparePage() {
         days_b: daysB,
         llm: llm || undefined,
         no_cache: false,
+        ...runOptionsToRequest(advanced),
       }),
     );
   };
@@ -55,55 +78,74 @@ export function ComparePage() {
       <div className="space-y-4">
         <Card>
           <CardContent className="pt-4">
-            <div className="grid items-end gap-4 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-              <Field label={t('compare.repo')}>
-                <Input
-                  value={repo}
-                  onChange={(event) => setRepo(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') run();
-                  }}
-                  placeholder={t('analyze.repoPlaceholder')}
-                  autoComplete="off"
-                  spellCheck={false}
+            <div className="space-y-4">
+              <div className="grid items-end gap-4 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+                <Field label={t('compare.repo')}>
+                  <Input
+                    value={repo}
+                    onChange={(event) => setRepo(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') run();
+                    }}
+                    placeholder={t('analyze.repoPlaceholder')}
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </Field>
+
+                <Field label={t('compare.periodA')}>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={daysA}
+                    onChange={(event) => setDaysA(Math.max(1, Number(event.target.value) || 1))}
+                    disabled={daysA >= daysB}
+                    title={daysA >= daysB ? 'A must be shorter than B' : undefined}
+                  />
+                </Field>
+
+                <Field label={t('compare.periodB')}>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={daysB}
+                    onChange={(event) => setDaysB(Math.max(1, Number(event.target.value) || 1))}
+                  />
+                </Field>
+
+                <Field label={t('analyze.llm')}>
+                  <Select value={llm} onChange={(event) => setLlm(event.target.value)}>
+                    <option value="">{t('analyze.llmAuto')}</option>
+                    {(llms?.llms ?? []).map((provider) => (
+                      <option key={provider.name} value={provider.name} disabled={!provider.usable}>
+                        {provider.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+
+                <Button variant="primary" onClick={run} disabled={busy || !repo.trim()}>
+                  <GitCompareArrows />
+                  {busy ? t('analyze.running') : t('compare.run')}
+                </Button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((prev) => !prev)}
+                className="text-xs font-medium text-accent hover:underline"
+              >
+                {t('analyze.advanced')}
+              </button>
+
+              {showAdvanced ? (
+                <AdvancedRunFields
+                  value={advanced}
+                  onChange={setAdvanced}
+                  options={options}
+                  exportError={formError}
                 />
-              </Field>
-
-              <Field label={t('compare.periodA')}>
-                <Input
-                  type="number"
-                  min={1}
-                  value={daysA}
-                  onChange={(event) => setDaysA(Math.max(1, Number(event.target.value) || 1))}
-                  disabled={daysA >= daysB}
-                  title={daysA >= daysB ? 'A must be shorter than B' : undefined}
-                />
-              </Field>
-
-              <Field label={t('compare.periodB')}>
-                <Input
-                  type="number"
-                  min={1}
-                  value={daysB}
-                  onChange={(event) => setDaysB(Math.max(1, Number(event.target.value) || 1))}
-                />
-              </Field>
-
-              <Field label={t('analyze.llm')}>
-                <Select value={llm} onChange={(event) => setLlm(event.target.value)}>
-                  <option value="">{t('analyze.llmAuto')}</option>
-                  {(llms?.llms ?? []).map((provider) => (
-                    <option key={provider.name} value={provider.name} disabled={!provider.usable}>
-                      {provider.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-
-              <Button variant="primary" onClick={run} disabled={busy || !repo.trim()}>
-                <GitCompareArrows />
-                {busy ? t('analyze.running') : t('compare.run')}
-              </Button>
+              ) : null}
             </div>
           </CardContent>
         </Card>

@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { Activity, GitCompareArrows, Star } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +9,6 @@ import { ReportView } from '@/components/report/ReportView';
 import { useReportSettings } from '@/components/report/useReportSettings';
 import { Button } from '@/components/ui/button';
 import { ResizableSplit } from '@/components/ui/resizable';
-import { api } from '@/lib/api';
 import { isBatchResult, isCompareResult } from '@/lib/types';
 
 import { AnalyzeForm } from '@/features/analyze/AnalyzeForm';
@@ -30,8 +28,6 @@ export function AnalyzePage() {
   const search = useSearch({ strict: false }) as { job?: string; repo?: string };
   const job = useJob(typeof search.job === 'string' ? search.job : undefined);
 
-  const { data: llms } = useQuery({ queryKey: ['llms'], queryFn: api.listLlms });
-  const llmProvider = llms?.llms.find((entry) => entry.active)?.name;
 
   // A compare payload belongs on the compare page; a batch payload would need
   // a repo picker. Neither is reachable from this form, so anything else is a
@@ -67,7 +63,6 @@ export function AnalyzePage() {
               platform={settings.platform}
               itemLimit={settings.itemLimit}
               showSections={settings.showSections}
-              llmProvider={llmProvider}
               lang={settings.lang}
             />
           ) : job.phase === 'idle' ? (

@@ -302,7 +302,6 @@ export function BatchPage() {
                 itemLimit={settings.itemLimit}
                 showSections={settings.showSections}
                 lang={settings.lang}
-                llmProvider={settings.llmProvider}
               />
             ) : null}
           </>

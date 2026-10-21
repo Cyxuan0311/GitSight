@@ -43,7 +43,6 @@ export function ComparePage() {
   const [formError, setFormError] = useState<string | undefined>();
 
   const result = job.result && isCompareResult(job.result) ? job.result : null;
-  const llmProvider = llms?.llms.find((entry) => entry.active)?.name;
 
   const run = () => {
     const trimmed = repo.trim();
@@ -164,7 +163,6 @@ export function ComparePage() {
           <CompareResult
             result={result}
             jobId={job.id}
-            llmProvider={llmProvider}
             platform={config?.platform ?? 'github'}
           />
         ) : job.phase === 'idle' ? (
@@ -184,12 +182,10 @@ export function ComparePage() {
 function CompareResult({
   result,
   jobId,
-  llmProvider,
   platform,
 }: {
   result: import('@/lib/types').CompareResult;
   jobId: string;
-  llmProvider?: string;
   platform: string;
 }) {
   const { t } = useTranslation();
@@ -274,7 +270,7 @@ function CompareResult({
         </CardHeader>
         <CardContent>
           {result.trend_summary ? (
-            <SummaryPanel summary={result.trend_summary} llmProvider={llmProvider} />
+            <SummaryPanel summary={result.trend_summary} llmProvider={result.llm_provider} />
           ) : (
             <EmptyState className="py-6" title={t('compare.noTrend')} />
           )}

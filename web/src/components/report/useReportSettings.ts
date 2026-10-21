@@ -33,7 +33,6 @@ export function useReportSettings() {
     },
     platform: data?.platform ?? 'github',
     lang: data?.lang ?? 'en',
-    llmProvider: data?.active_llm || undefined,
     exportSettings,
   };
 }

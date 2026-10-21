@@ -135,6 +135,11 @@ export interface Report {
   /** Comma-and-space joined; may be absent. */
   top_labels?: string;
   summary: string;
+  /**
+   * The provider that wrote the summary. Empty or absent means the local
+   * summary was used, which is the only honest answer when the LLM failed.
+   */
+  llm_provider?: string;
 
   /** Added by the server, not the exporter. */
   warnings?: Warning[];
@@ -191,6 +196,8 @@ export interface CompareResult {
   period_a: ComparePeriod;
   period_b: ComparePeriod;
   trend_summary?: string;
+  /** The provider that wrote the trend summary; empty when there is none. */
+  llm_provider?: string;
   report_a: Report;
   report_b: Report;
 }

@@ -38,7 +38,6 @@ export function ReportView({
   platform,
   itemLimit,
   showSections,
-  llmProvider,
   lang,
   repoSelector,
 }: {
@@ -47,7 +46,6 @@ export function ReportView({
   platform: string;
   itemLimit: number;
   showSections: Record<string, boolean>;
-  llmProvider?: string;
   /** Report language; forwarded so the export preview follows it. */
   lang?: string;
   /** Set when the job produced several reports and an export target is needed. */
@@ -125,7 +123,7 @@ export function ReportView({
         report={
           <>
             {showSections.show_summary ? (
-              <ReportSummary report={report} llmProvider={llmProvider} />
+              <ReportSummary report={report} />
             ) : null}
 
             <ChartsRow
@@ -204,7 +202,7 @@ export function ReportView({
   );
 }
 
-function ReportSummary({ report, llmProvider }: { report: Report; llmProvider?: string }) {
+function ReportSummary({ report }: { report: Report }) {
   const { t } = useTranslation();
   return (
     <Card>
@@ -216,7 +214,7 @@ function ReportSummary({ report, llmProvider }: { report: Report; llmProvider?: 
         <CopyButton text={report.summary} label={t('report.copySummary')} />
       </CardHeader>
       <CardContent>
-        <SummaryPanel summary={report.summary} llmProvider={llmProvider} />
+        <SummaryPanel summary={report.summary} llmProvider={report.llm_provider} />
       </CardContent>
     </Card>
   );

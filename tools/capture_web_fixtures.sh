@@ -88,4 +88,9 @@ for _ in $(seq 1 100); do
 done
 printf '%s\n' "$CBODY" > "$OUT/compare.json"
 
-echo "wrote $OUT/report.json and $OUT/compare.json"
+# The report timestamps are relative to the moment of the capture, so the day
+# is recorded next to them: a test that measures a window has to pin the clock
+# to it, or it starts failing a week after the capture.
+printf '{"iso":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$OUT/captured-at.json"
+
+echo "wrote $OUT/report.json, $OUT/compare.json and $OUT/captured-at.json"

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input, Select } from '@/components/ui/field';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
+import { CompareDetails } from '@/components/report/CompareDetails';
 import { SummaryPanel } from '@/components/report/ReportParts';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -249,6 +250,8 @@ function CompareResult({
           </Table>
         </CardContent>
       </Card>
+
+      <CompareDetails result={result} />
 
       <div className="grid gap-3 lg:grid-cols-3">
         <NarrativeCard label={t('compare.topAuthor')} a={splitTop(a.top_author).name} b={splitTop(b.top_author).name} />

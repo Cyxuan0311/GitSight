@@ -38,6 +38,8 @@ export interface ServerFixture {
   batch: unknown;
   configRaw: string;
   completion: string;
+  /** When the fixtures were captured; the report timestamps are relative to it. */
+  capturedAt: string;
 }
 
 export function loadFixtures(): ServerFixture {
@@ -57,6 +59,7 @@ export function loadFixtures(): ServerFixture {
     batch: load('batch.json'),
     configRaw: loadText('config-raw.json'),
     completion: loadText('completion.txt'),
+    capturedAt: (load('captured-at.json') as { iso: string }).iso,
   };
 }
 

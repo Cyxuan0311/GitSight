@@ -123,6 +123,7 @@ describe('translation tables', () => {
     const identicalOnPurpose = new Set([
       'app.name',
       'report.title',
+      'report.colRank',
       'settings.md',
       'settings.pdf',
       'settings.html',

@@ -12,15 +12,20 @@ import {
   busiestWeekday,
   closedOnly,
   firstLine,
+  formatBytes,
   formatDateTime,
   formatDuration,
   formatNumber,
   splitTop,
+  splitTopList,
+  totalLanguages,
   weekdayLabels,
   weekdayName,
 } from '@/lib/format';
 import { cn } from '@/lib/cn';
-import type { Report } from '@/lib/types';
+import type { BatchReportEntry, Report } from '@/lib/types';
+
+import { Tooltip } from '@/components/ui/tooltip';
 
 import { LabelChips, StatCard } from '@/components/common';
 
@@ -225,6 +230,9 @@ export function WeekdayChart({ report }: { report: Report }) {
 export function LanguageChart({ report }: { report: Report }) {
   const { t } = useTranslation();
   const languages = report.languages ?? [];
+  // The percentages alone say how the repository is split; the byte count
+  // says how big it is.
+  const total = totalLanguages(report);
 
   if (languages.length === 0) {
     return <EmptyState className="py-6" title={t('app.empty')} />;
@@ -238,6 +246,11 @@ export function LanguageChart({ report }: { report: Report }) {
             <span className="truncate font-medium text-ink">{slice.name}</span>
             <span className="nums shrink-0 text-muted">
               {slice.percent.toFixed(1)}%
+              {slice.bytes > 0 ? (
+                <span className="ml-1.5 text-muted/80">
+                  {formatBytes(slice.bytes)}
+                </span>
+              ) : null}
             </span>
           </div>
           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-raised">
@@ -248,6 +261,11 @@ export function LanguageChart({ report }: { report: Report }) {
           </div>
         </div>
       ))}
+      {total > 0 ? (
+        <p className="pt-1 text-xs text-muted">
+          {t('report.total')} {formatBytes(total)}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -364,6 +382,7 @@ export function PullRequestTable({
                 <Th className="w-20">{t('report.colState')}</Th>
                 <Th className="w-28">{t('report.colAuthor')}</Th>
                 <Th className="w-36">{t('report.colCreated')}</Th>
+                <Th className="w-36">{t('report.colMerged')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -393,6 +412,9 @@ export function PullRequestTable({
                   <Td className="truncate">{pr.author || '-'}</Td>
                   <Td className="nums whitespace-nowrap text-xs">
                     {formatDateTime(pr.created_at)}
+                  </Td>
+                  <Td className="nums whitespace-nowrap text-xs">
+                    {pr.merged_at ? formatDateTime(pr.merged_at) : '-'}
                   </Td>
                 </tr>
               ))}
@@ -536,6 +558,7 @@ export function IssueTable({ report, itemLimit }: { report: Report; itemLimit: n
                 <Th className="w-20">{t('report.colState')}</Th>
                 <Th className="w-28">{t('report.colAuthor')}</Th>
                 <Th className="w-36">{t('report.colCreated')}</Th>
+                <Th className="w-36">{t('report.colClosed')}</Th>
               </tr>
             </thead>
             <tbody>
@@ -565,6 +588,9 @@ export function IssueTable({ report, itemLimit }: { report: Report; itemLimit: n
                   <Td className="truncate">{issue.author || '-'}</Td>
                   <Td className="nums whitespace-nowrap text-xs">
                     {formatDateTime(issue.created_at)}
+                  </Td>
+                  <Td className="nums whitespace-nowrap text-xs">
+                    {issue.closed_at ? formatDateTime(issue.closed_at) : '-'}
                   </Td>
                 </tr>
               ))}
@@ -631,7 +657,19 @@ export function ReleaseTable({ report, itemLimit }: { report: Report; itemLimit:
                     release.tag_name
                   )}
                 </Td>
-                <Td className="line-clamp-2 text-ink">{release.name || '-'}</Td>
+                <Td className="text-ink">
+                  <span className="line-clamp-2">{release.name || '-'}</span>
+                  {release.body ? (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-xs text-accent hover:underline">
+                        {t('report.releaseNotes')}
+                      </summary>
+                      <p className="mt-1 max-h-40 overflow-auto text-xs whitespace-pre-wrap text-ink-soft scrollbar-thin">
+                        {release.body}
+                      </p>
+                    </details>
+                  ) : null}
+                </Td>
                 <Td className="truncate">{release.author || '-'}</Td>
                 <Td className="nums whitespace-nowrap text-xs">
                   {formatDateTime(release.published_at)}
@@ -648,6 +686,9 @@ export function ReleaseTable({ report, itemLimit }: { report: Report; itemLimit:
 export function ContributorList({ report }: { report: Report }) {
   const { t } = useTranslation();
   const top = splitTop(report.contributors.top);
+  // The daemon sends the ranked list as well as the single top name; the list
+  // is what tells a reader who else carried the work.
+  const ranked = splitTopList(report.contributors.top_list);
 
   if (report.contributors.total === 0) {
     return <EmptyState className="py-6" title={t('report.noItems')} />;
@@ -661,6 +702,28 @@ export function ContributorList({ report }: { report: Report }) {
           {t('report.contributions', { count: top.count ?? report.contributors.total })}
         </span>
       </div>
+
+      {ranked.length > 1 ? (
+        <Table>
+          <thead>
+            <tr>
+              <Th className="w-12">{t('report.colRank')}</Th>
+              <Th>{t('report.colContributor')}</Th>
+              <Th className="w-28 text-right">{t('report.colContributions')}</Th>
+            </tr>
+          </thead>
+          <tbody>
+            {ranked.map((entry, index) => (
+              <tr key={entry.name} className="hover:bg-raised/60">
+                <Td className="nums text-muted">{index + 1}</Td>
+                <Td className="truncate text-ink">{entry.name}</Td>
+                <Td className="nums text-right">{formatNumber(entry.count)}</Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      ) : null}
+
       <p className="text-xs text-muted">
         {t('report.total')} {formatNumber(report.contributors.total)}
       </p>
@@ -766,6 +829,42 @@ function inline(text: string): React.ReactNode {
 }
 
 /* ------------------------------------------------------------- warnings --- */
+
+/**
+ * The status of one repository in a batch.
+ *
+ * A repository can be analysed and still have failed on a single resource, so
+ * the partial failure is named rather than hidden behind a green badge: the
+ * report is complete except for what the warning says it is missing.
+ */
+export function BatchStatus({ entry }: { entry: BatchReportEntry }) {
+  const { t } = useTranslation();
+  const warnings = entry.warnings ?? [];
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Badge tone={entry.status === 0 ? 'ok' : 'danger'}>
+        {entry.status === 0 ? t('batch.ok') : t('batch.failed')}
+      </Badge>
+      {warnings.length > 0 ? (
+        <Tooltip
+          content={
+            <ul className="space-y-1">
+              {warnings.map((warning) => (
+                <li key={`${warning.resource}-${warning.error}`}>
+                  <span className="font-medium">{warning.resource}</span>
+                  {': '}
+                  {warning.detail || warning.error}
+                </li>
+              ))}
+            </ul>
+          }
+        >
+          <Badge tone="warn">{t('report.warnings')}</Badge>
+        </Tooltip>
+      ) : null}
+    </div>
+  );
+}
 
 export function WarningList({ warnings }: { warnings: NonNullable<Report['warnings']> }) {
   const { t } = useTranslation();

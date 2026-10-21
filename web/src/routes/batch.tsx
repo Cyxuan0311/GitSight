@@ -23,6 +23,7 @@ import { isBatchResult, type BatchResult, type Report } from '@/lib/types';
 import { batchOkCount } from '@/lib/format';
 
 import { AnalysisProgress } from '@/features/analyze/AnalysisProgress';
+import { BatchStatus } from '@/components/report/ReportParts';
 import { ReportView } from '@/components/report/ReportView';
 import { useReportSettings } from '@/components/report/useReportSettings';
 import { useJob } from '@/hooks/useJob';
@@ -249,9 +250,7 @@ export function BatchPage() {
                           <Td className="nums text-muted">{index + 1}</Td>
                           <Td className="font-mono text-xs text-ink">{entry.repo}</Td>
                           <Td>
-                            <Badge tone={entry.status === 0 ? 'ok' : 'danger'}>
-                              {entry.status === 0 ? t('batch.ok') : t('batch.failed')}
-                            </Badge>
+                            <BatchStatus entry={entry} />
                           </Td>
                           <Td className="text-right">
                             <div className="flex justify-end gap-1">

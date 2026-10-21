@@ -340,6 +340,10 @@ assert_contains "result languages"      '"languages"'      "$RESULT"
 assert_contains "result activity"       '"activity"'       "$RESULT"
 assert_contains "result items present"  '"Fix the widget"' "$RESULT"
 assert_contains "state badge merged"    '"state":"merged"' "$RESULT"
+# The report names the provider that wrote the summary, empty when the local
+# summary was used. A client that credits the wrong provider is worse than one
+# that credits none.
+assert_contains "result llm provider" '"llm_provider"' "$RESULT"
 
 STATE=$(j "$BASE/api/jobs/$JOB")
 assert_contains "job done" '"state":"done"' "$STATE"

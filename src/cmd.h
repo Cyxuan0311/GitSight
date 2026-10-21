@@ -69,6 +69,9 @@ typedef struct {
     int    days_a, days_b;
     char   trend_summary[MAX_SUMMARY_LEN];
     int    has_trend;
+    /* The provider that wrote the trend summary, empty when there is none.
+     * The per-period reports have their own, since they are written locally. */
+    char   llm_provider[64];
 } CompareResult;
 
 int  run_compare(const Options *opts, Config cfg, const char *repo_arg, int d1, int d2);

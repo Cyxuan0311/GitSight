@@ -358,6 +358,7 @@ cJSON *job_result_json(const Job *j, const Config *cfg) {
 
         if (j->compare.has_trend)
             cJSON_AddStringToObject(root, "trend_summary", j->compare.trend_summary);
+        cJSON_AddStringToObject(root, "llm_provider", j->compare.llm_provider);
         cJSON_AddItemToObject(root, "report_a", analysis_to_cjson(&j->compare.period_a, snap));
         cJSON_AddItemToObject(root, "report_b", analysis_to_cjson(&j->compare.period_b, snap));
         return root;

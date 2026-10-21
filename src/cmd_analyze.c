@@ -581,8 +581,11 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
             color_printf_color(CLR_YELLOW, "\nLLM analysis failed (%s), using local summary.\n",
                                gs_error_string(err));
         }
-        else if (out) {
-            out->used_llm = 1;
+        else {
+            /* The provider that wrote this summary, so a client credits the
+             * one that ran rather than the one that happens to be active. */
+            snprintf(report.llm_provider, sizeof(report.llm_provider), "%s", active_llm->name);
+            if (out) out->used_llm = 1;
         }
         anim_stop(&sp, 1);
     } else {
@@ -854,6 +857,7 @@ static void compare_write_json(FILE *fp, const CompareResult *cr) {
 
     if (cr->has_trend)
         cJSON_AddStringToObject(root, "trend_summary", cr->trend_summary);
+    cJSON_AddStringToObject(root, "llm_provider", cr->llm_provider);
 
     char *str = cJSON_Print(root);
     fprintf(fp, "%s\n", str);

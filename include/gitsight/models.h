@@ -121,6 +121,10 @@ typedef struct {
     char   lang_names[REPORT_LANGS_MAX][64];
     long long lang_bytes[REPORT_LANGS_MAX];
     char   summary[MAX_SUMMARY_LEN];
+    /* The provider that wrote the summary, empty when the local summary was
+     * used. Travels with the report so a client can credit the right one:
+     * the run may have used a different provider than the active one. */
+    char   llm_provider[64];
 } Report;
 
 PR       *pr_create(void);

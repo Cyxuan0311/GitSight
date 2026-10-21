@@ -64,6 +64,9 @@ static ErrorCode json_write_report(FILE *fp, const Report *report,
     /* Both are numeric so a client can relabel the window and the weekdays in
      * the reader's own language; the strings above stay for the exporters. */
     cJSON_AddNumberToObject(root, "period_days", report->period_days);
+    /* Empty when the summary was written locally, which is the only way for a
+     * client to know the summary came from no provider at all. */
+    cJSON_AddStringToObject(root, "llm_provider", report->llm_provider);
 
     if (report->meta.has_meta) {
         cJSON *meta = cJSON_CreateObject();

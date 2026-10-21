@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDown, ArrowRight, ArrowUp, GitCompareArrows, Minus } from 'lucide-react';
+import { ArrowRight, GitCompareArrows } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -16,12 +16,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input, Select } from '@/components/ui/field';
-import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
+import { EmptyState } from '@/components/ui/feedback';
 import { CompareDetails } from '@/components/report/CompareDetails';
+import { CompareMetricsTable } from '@/components/report/CompareParts';
 import { SummaryPanel } from '@/components/report/ReportParts';
 import { api } from '@/lib/api';
-import { cn } from '@/lib/cn';
-import { compareRows, splitTop } from '@/lib/format';
+import { splitTop } from '@/lib/format';
 import { isCompareResult } from '@/lib/types';
 
 import { AnalysisProgress } from '@/features/analyze/AnalysisProgress';
@@ -190,7 +190,6 @@ function CompareResult({
   platform: string;
 }) {
   const { t } = useTranslation();
-  const { rows, hours } = compareRows(result);
   const a = result.period_a;
   const b = result.period_b;
 
@@ -212,42 +211,12 @@ function CompareResult({
           </div>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          <Table>
-            <thead>
-              <tr>
-                <Th>{t('compare.metric')}</Th>
-                <Th className="w-24 text-right">
-                  {t('compare.periodA')} ({result.period_days_a}d)
-                </Th>
-                <Th className="w-24 text-right">
-                  {t('compare.periodB')} ({result.period_days_b}d)
-                </Th>
-                <Th className="w-24 text-right">{t('compare.delta')}</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.key} className="hover:bg-raised/60">
-                  <Td className="text-ink">{t(row.labelKey)}</Td>
-                  <Td className="nums text-right">{row.a}</Td>
-                  <Td className="nums text-right">{row.b}</Td>
-                  <Td className="text-right">
-                    <DeltaCell delta={row.delta} />
-                  </Td>
-                </tr>
-              ))}
-              {hours.map((row) => (
-                <tr key={row.key} className="hover:bg-raised/60">
-                  <Td className="text-ink">{t(row.labelKey)}</Td>
-                  <Td className="nums text-right">{row.format(row.a)}</Td>
-                  <Td className="nums text-right">{row.format(row.b)}</Td>
-                  <Td className="text-right">
-                    <DeltaCell delta={row.delta} />
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <CompareMetricsTable
+            a={a}
+            b={b}
+            labelA={`${t('compare.periodA')} (${result.period_days_a}d)`}
+            labelB={`${t('compare.periodB')} (${result.period_days_b}d)`}
+          />
         </CardContent>
       </Card>
 
@@ -282,25 +251,6 @@ function CompareResult({
 
       <CompareExports jobId={jobId} repo={`${result.owner}/${result.repo}`} platform={platform} />
     </div>
-  );
-}
-
-function DeltaCell({ delta }: { delta: import('@/lib/format').Delta }) {
-  const Icon =
-    delta.direction === 'up' ? ArrowUp : delta.direction === 'down' ? ArrowDown : Minus;
-  return (
-    <span
-      className={cn(
-        'nums inline-flex items-center gap-1 text-xs font-medium',
-        delta.direction === 'up' && 'text-open',
-        delta.direction === 'down' && 'text-closed',
-        delta.direction === 'flat' && 'text-muted',
-        delta.direction === 'unknown' && 'text-muted',
-      )}
-    >
-      <Icon className="size-3" />
-      {delta.label}
-    </span>
   );
 }
 

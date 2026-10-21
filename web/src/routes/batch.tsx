@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Layers, ListChecks, Play } from 'lucide-react';
+import { GitCompareArrows, Layers, ListChecks, Play } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
+import { Modal } from '@/components/ui/modal';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
 import { ExportBar } from '@/components/common';
 import { api } from '@/lib/api';
@@ -24,6 +25,7 @@ import { batchOkCount } from '@/lib/format';
 
 import { AnalysisProgress } from '@/features/analyze/AnalysisProgress';
 import { BatchStatus } from '@/components/report/ReportParts';
+import { CompareRepos, NoReposChosen } from '@/components/report/CompareRepos';
 import { ReportView } from '@/components/report/ReportView';
 import { useReportSettings } from '@/components/report/useReportSettings';
 import { useJob } from '@/hooks/useJob';
@@ -63,6 +65,10 @@ export function BatchPage() {
   const busy = job.phase === 'submitting' || job.phase === 'running';
 
   const [selected, setSelected] = useState<string | null>(null);
+  // Two repositories can be picked out of the batch to be compared; a batch
+  // already holds a full report for each of them.
+  const [picked, setPicked] = useState<string[]>([]);
+  const [comparing, setComparing] = useState(false);
   const active: Report | null =
     result?.reports.find((entry) => entry.repo === selected)?.report ??
     (result?.reports.length === 1 ? result.reports[0]!.report : null);
@@ -235,7 +241,8 @@ export function BatchPage() {
                   <Table>
                     <thead>
                       <tr>
-                        <Th className="w-16">#</Th>
+                        <Th className="w-10" />
+                      <Th className="w-16">#</Th>
                         <Th>{t('batch.repos')}</Th>
                         <Th className="w-24">{t('batch.results')}</Th>
                         <Th className="w-32 text-right">{t('report.export')}</Th>
@@ -247,6 +254,22 @@ export function BatchPage() {
                           key={entry.repo}
                           className={`hover:bg-raised/60 ${selected === entry.repo ? 'bg-accent-soft/40' : ''}`}
                         >
+                          <Td className="w-10">
+                            <input
+                              type="checkbox"
+                              aria-label={t('batch.compareRepo', { repo: entry.repo })}
+                              className="size-4 accent-[var(--color-accent)]"
+                              checked={picked.includes(entry.repo)}
+                              disabled={entry.status !== 0}
+                              onChange={(event) => {
+                                setPicked((prev) =>
+                                  event.target.checked
+                                    ? [...prev, entry.repo].slice(-2)
+                                    : prev.filter((repo) => repo !== entry.repo),
+                                );
+                              }}
+                            />
+                          </Td>
                           <Td className="nums text-muted">{index + 1}</Td>
                           <Td className="font-mono text-xs text-ink">{entry.repo}</Td>
                           <Td>
@@ -287,11 +310,38 @@ export function BatchPage() {
             </Card>
 
             {result.reports.length > 1 ? (
-              <p className="flex items-center gap-1.5 text-xs text-muted">
-                <Layers className="size-3.5" />
-                {t('batch.pickRepo')}
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="flex items-center gap-1.5 text-xs text-muted">
+                  <Layers className="size-3.5" />
+                  {t('batch.pickRepo')}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={picked.length !== 2}
+                  onClick={() => setComparing(true)}
+                >
+                  <GitCompareArrows />
+                  {t('batch.compareRepos')}
+                </Button>
+              </div>
             ) : null}
+
+            <Modal
+              open={comparing}
+              onClose={() => setComparing(false)}
+              title={t('batch.compareRepos')}
+              className="w-[min(94vw,64rem)]"
+            >
+              {picked.length === 2 ? (
+                <CompareRepos
+                  left={result.reports.find((entry) => entry.repo === picked[0])!.report}
+                  right={result.reports.find((entry) => entry.repo === picked[1])!.report}
+                />
+              ) : (
+                <NoReposChosen />
+              )}
+            </Modal>
 
             {active && selected !== null || (active && result.reports.length === 1) ? (
               <ReportView

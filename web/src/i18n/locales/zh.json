@@ -233,7 +233,10 @@
     "download": "下载",
     "pickRepo": "该批量任务包含多份报告 — 请选择一个用于导出。",
     "summary": "{{total}} 个中 {{ok}} 个成功",
-    "duplicate": "重复的条目会被忽略。"
+    "duplicate": "重复的条目会被忽略。",
+    "compareRepos": "对比仓库",
+    "compareRepo": "对比 {{repo}}",
+    "pickTwoRepos": "选择两个仓库进行对比"
   },
   "subs": {
     "title": "订阅",

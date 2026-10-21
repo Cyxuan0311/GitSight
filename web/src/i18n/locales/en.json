@@ -233,7 +233,10 @@
     "download": "Download",
     "pickRepo": "A batch job has several reports — pick one to export.",
     "summary": "{{ok}} of {{total}} succeeded",
-    "duplicate": "Repeated entries are ignored."
+    "duplicate": "Repeated entries are ignored.",
+    "compareRepos": "Compare repositories",
+    "compareRepo": "Compare {{repo}}",
+    "pickTwoRepos": "Pick two repositories to compare"
   },
   "subs": {
     "title": "Subscriptions",

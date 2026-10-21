@@ -1,4 +1,4 @@
-import type { Issue, PullRequest, Release, Report } from '@/lib/types';
+import type { ComparePeriod, Issue, PullRequest, Release, Report } from '@/lib/types';
 
 /**
  * Comparing two windows item by item.
@@ -124,5 +124,30 @@ export function compareWindows(
     onlyShort: { prs: prs.onlyFirst, issues: issues.onlyFirst, releases: releases.onlyFirst },
     onlyLong: { prs: prs.onlySecond, issues: issues.onlySecond, releases: releases.onlySecond },
     truncated: prs.onlyFirst.length > 0 || issues.onlyFirst.length > 0 || releases.onlyFirst.length > 0,
+  };
+}
+
+/**
+ * The aggregate numbers of one report, in the shape the comparison table
+ * reads. A repository and a window are the same kind of thing to compare:
+ * both answer "how busy was it".
+ */
+export function periodOf(report: Report): ComparePeriod {
+  return {
+    pr_total: report.pull_requests.total,
+    pr_merged: report.pull_requests.merged ?? 0,
+    commit_total: report.commits.total,
+    author_total: report.commits.authors ?? 0,
+    issue_total: report.issues.total,
+    release_total: report.releases.total,
+    contributor_total: report.contributors.total,
+    pr_avg_merge_hours: report.pull_requests.avg_merge_hours ?? 0,
+    issue_avg_close_hours: report.issues.avg_close_hours ?? 0,
+    activity_count: report.commits.activity.length,
+    top_author: report.commits.top_author,
+    top_contributor: report.contributors.top,
+    period: report.period,
+    period_days: report.period_days,
+    activity: {},
   };
 }

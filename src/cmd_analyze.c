@@ -789,6 +789,17 @@ int compare_analyze(const Options *opts, Config cfg, const char *repo_arg,
     }
 
     const LLMConfig *llm = config_get_active_llm(&cfg);
+    /* A per-run --llm names the provider to use; the config's active one is
+     * only the fallback. Without this the choice made on the console (or on
+     * the command line) would silently not reach the trend summary. */
+    if (opts->llm_name[0]) {
+        for (int i = 0; i < cfg.llm_count; i++) {
+            if (strcmp(cfg.llms[i].name, opts->llm_name) == 0) {
+                llm = &cfg.llms[i];
+                break;
+            }
+        }
+    }
     if (llm && llm->api_key[0] && llm->api_base[0]) {
         Anim sp;
         anim_start(&sp, ANIM_DOTS, 0, 0, "Summarizing trend with LLM");
@@ -800,6 +811,7 @@ int compare_analyze(const Options *opts, Config cfg, const char *repo_arg,
             anim_stop(&sp, 0);
             color_printf_color(CLR_YELLOW, "\nLLM trend summary failed, skipping.\n");
         } else {
+            snprintf(out->llm_provider, sizeof(out->llm_provider), "%s", llm->name);
             anim_stop(&sp, 1);
         }
     }

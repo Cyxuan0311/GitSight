@@ -93,7 +93,7 @@ export function ComparePage() {
                   />
                 </Field>
 
-                <Field label={t('compare.periodA')}>
+                <Field label={t('compare.periodA')} hint={t('compare.days', { count: daysA })}>
                   <Input
                     type="number"
                     min={1}
@@ -104,7 +104,7 @@ export function ComparePage() {
                   />
                 </Field>
 
-                <Field label={t('compare.periodB')}>
+                <Field label={t('compare.periodB')} hint={t('compare.days', { count: daysB })}>
                   <Input
                     type="number"
                     min={1}

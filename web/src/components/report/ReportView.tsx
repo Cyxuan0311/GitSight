@@ -75,11 +75,11 @@ export function ReportView({
                 {t('report.title', { owner: report.owner, repo: report.repo })}
               </span>
               <Badge tone="neutral" className="nums font-normal">
-                {formatPeriod(report.period, report.period_days, t)}
+                {t('report.period')}: {formatPeriod(report.period, report.period_days, t)}
               </Badge>
               {report.repository?.branch ? (
                 <Badge tone="accent" className="font-mono font-normal">
-                  {report.repository.branch}
+                  {t('report.branch')}: {report.repository.branch}
                 </Badge>
               ) : null}
             </CardTitle>
@@ -132,7 +132,12 @@ export function ReportView({
               showLanguages={Boolean(showSections.show_languages)}
             />
 
-            <ReportOverview report={report} />
+            <section>
+              <h2 className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">
+                {t('report.overview')}
+              </h2>
+              <ReportOverview report={report} />
+            </section>
 
             {report.warnings && report.warnings.length > 0 ? (
               <Card>

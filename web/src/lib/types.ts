@@ -517,6 +517,8 @@ export interface SubscriptionBatchRequest {
   llm?: string;
   llm_mode?: string;
   lang?: string;
+  /** Run without an LLM at all, so the local summary is used. */
+  suppress_llm?: boolean;
   /** Per-repository overrides, matched on repo. */
   repos?: { repo: string; since_days?: number; branch?: string }[];
 }

@@ -34,6 +34,7 @@ const schema = z.object({
   max_tokens: z.coerce.number().int().min(0).max(1_000_000),
   temperature: z.coerce.number().min(0).max(2),
   system_prompt: z.string(),
+  system_prompt_file: z.string(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -99,11 +100,15 @@ export function LlmPage() {
                                 {t('llm.active')}
                               </Badge>
                             ) : null}
-                            {!provider.usable ? (
-                              <Badge tone="warn" className="font-normal">
-                                !
+                            {provider.usable ? (
+                              <Badge tone="ok" className="font-normal">
+                                {t('llm.usable')}
                               </Badge>
-                            ) : null}
+                            ) : (
+                              <Badge tone="warn" className="font-normal" title={t('llm.unusable')}>
+                                {t('llm.unusable')}
+                              </Badge>
+                            )}
                           </span>
                         </Td>
                         <Td>
@@ -136,6 +141,7 @@ export function LlmPage() {
         <LlmForm
           open={creating || editing !== null}
           provider={editing}
+          existing={list.data?.llms ?? []}
           onClose={() => {
             setCreating(false);
             setEditing(null);
@@ -240,6 +246,7 @@ function RowActions({
           size="sm"
           disabled={activate.isPending}
           onClick={() => activate.mutate()}
+          title={t('llm.setActive')}
         >
           {t('llm.activate')}
         </Button>
@@ -264,10 +271,13 @@ function RowActions({
 function LlmForm({
   open,
   provider,
+  existing,
   onClose,
 }: {
   open: boolean;
   provider: LlmProvider | null;
+  /** The other providers, so a name that would replace one can be named. */
+  existing: LlmProvider[];
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -285,6 +295,7 @@ function LlmForm({
       max_tokens: 1024,
       temperature: 0.3,
       system_prompt: '',
+      system_prompt_file: '',
     },
   });
 
@@ -307,6 +318,7 @@ function LlmForm({
       max_tokens: provider?.max_tokens || 1024,
       temperature: provider?.temperature || 0.3,
       system_prompt: '',
+      system_prompt_file: '',
     });
   }
   if (!open && seeded !== null) setSeeded(null);
@@ -325,6 +337,9 @@ function LlmForm({
       // absent key as "leave alone" and an explicit empty string as "clear".
       if (values.api_key !== '') payload.api_key = values.api_key;
       if (values.system_prompt !== '') payload.system_prompt = values.system_prompt;
+      if (values.system_prompt_file !== '') {
+        payload.system_prompt_file = values.system_prompt_file;
+      }
 
       if (provider) {
         return api.patchLlm(provider.name, payload);
@@ -343,6 +358,13 @@ function LlmForm({
 
   const errors = form.formState.errors;
   const watching = form.watch('api_key');
+
+  // Saving under a name that is already taken replaces that provider, so the
+  // form says so rather than letting it happen quietly.
+  const name = form.watch('name');
+  const replaces = existing.find(
+    (entry) => entry.name === name.trim() && entry.name !== provider?.name,
+  );
 
   return (
     <Modal
@@ -368,7 +390,11 @@ function LlmForm({
     >
       <form className="space-y-4" onSubmit={form.handleSubmit((values) => mutation.mutate(values))}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('llm.name')} hint={t('llm.nameHint')} error={errors.name?.message}>
+          <Field
+            label={t('llm.name')}
+            hint={replaces ? t('llm.nameTaken') : t('llm.nameHint')}
+            error={errors.name?.message}
+          >
             <Input
               autoComplete="off"
               spellCheck={false}
@@ -446,6 +472,18 @@ function LlmForm({
           hint={`${t('llm.systemPromptChars', { count: (form.watch('system_prompt') ?? '').length })} · ${t('llm.apiKeyKeep')}`}
         >
           <Textarea rows={4} className="font-mono text-xs" {...form.register('system_prompt')} />
+        </Field>
+
+        <Field
+          label={t('llm.systemPromptFile')}
+          hint={t('llm.systemPromptFileHint')}
+        >
+          <Input
+            placeholder="health.md"
+            autoComplete="off"
+            spellCheck={false}
+            {...form.register('system_prompt_file')}
+          />
         </Field>
 
         {mutation.isError ? (

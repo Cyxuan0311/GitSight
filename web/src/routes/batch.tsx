@@ -151,7 +151,7 @@ export function BatchPage() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <Field label={t('analyze.window')}>
+                <Field label={t('analyze.days', { count: sinceDays })}>
                   <Input
                     type="number"
                     min={1}

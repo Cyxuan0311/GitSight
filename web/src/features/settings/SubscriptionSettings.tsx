@@ -270,11 +270,13 @@ function SubscriptionDialog({
         await api.updateSubscription(initial.alias || initial.repo, form);
         return { repo, created: false };
       }
-      const clash = existing.some(
-        (sub) => sub.repo === repo || (alias !== '' && sub.alias === alias),
-      );
-      if (clash) {
-        throw new Error(t('subs.duplicate', { repo }));
+      // The two clashes are different mistakes: one repository subscribed
+      // twice, and one alias used for two of them.
+      if (existing.some((sub) => sub.repo === repo)) {
+        throw new Error(t('subs.existingRepo'));
+      }
+      if (alias !== '' && existing.some((sub) => sub.alias === alias)) {
+        throw new Error(t('subs.duplicateAlias'));
       }
       await api.addSubscription(form);
       return { repo, created: true };
@@ -367,7 +369,7 @@ function SubscriptionDialog({
         <Field label={t('analyze.branch')} hint={t('settings.branchHint')}>
           <Input
             value={form.branch ?? ''}
-            placeholder="main"
+            placeholder={t('ui.branchPlaceholder')}
             onChange={(e) => setForm((f) => ({ ...f, branch: e.target.value }))}
           />
         </Field>

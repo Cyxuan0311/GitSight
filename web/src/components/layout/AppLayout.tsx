@@ -104,7 +104,7 @@ export function AppLayout({
               )}
             >
               <div className="flex h-14 items-center justify-between border-b border-line px-4">
-                <span className="text-sm font-semibold">GitSight</span>
+                <span className="text-sm font-semibold">{t('app.name')}</span>
                 <button
                   type="button"
                   onClick={() => setDrawerOpen(false)}

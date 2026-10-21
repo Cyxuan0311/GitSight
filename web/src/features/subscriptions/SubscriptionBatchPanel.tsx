@@ -63,6 +63,7 @@ export function SubscriptionBatchPanel() {
           <Field label={t('analyze.llm')}>
             <Select value={llm} onChange={(event) => setLlm(event.target.value)}>
               <option value="">{t('analyze.llmAuto')}</option>
+              <option value="__none__">{t('subs.noLlm')}</option>
               {(llms?.llms ?? []).map((provider) => (
                 <option key={provider.name} value={provider.name} disabled={!provider.usable}>
                   {provider.name}
@@ -89,7 +90,8 @@ export function SubscriptionBatchPanel() {
               void job.start(() =>
                 api.analyzeSubscriptions({
                   parallel,
-                  llm: llm || undefined,
+                  llm: llm === '__none__' ? undefined : llm || undefined,
+                  suppress_llm: llm === '__none__' || undefined,
                   llm_mode: llmMode || undefined,
                   lang: lang || undefined,
                   no_cache: noCache || undefined,

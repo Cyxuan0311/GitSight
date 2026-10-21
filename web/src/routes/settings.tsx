@@ -183,7 +183,7 @@ export function SettingsPage() {
                   <Input
                     value={String(draft.branch ?? value('branch') ?? '')}
                     onChange={(event) => set('branch', event.target.value)}
-                    placeholder="main"
+                    placeholder={t('ui.branchPlaceholder')}
                     spellCheck={false}
                   />
                 </Field>
@@ -240,7 +240,7 @@ export function SettingsPage() {
               <CardHeader>
                 <div>
                   <CardTitle>{t('settings.reportSections')}</CardTitle>
-                  <p className="text-xs text-muted">{t('settings.reportSectionsHint')}</p>
+                  <p className="text-xs text-muted">{t('settings.webOnly')}</p>
                 </div>
                 <Badge tone="accent">{t('settings.scope_web')}</Badge>
               </CardHeader>
@@ -299,7 +299,7 @@ export function SettingsPage() {
               <span className="flex-1" />
               <Button type="button" variant="outline" onClick={() => setRawOpen(true)}>
                 <FileJson />
-                {t('settings.raw')}
+                {t('settings.rawEdit')}
               </Button>
               <Button
                 type="button"
@@ -491,7 +491,7 @@ function AdvancedExport({
     return keys.map((key) => (
       <ColorField
         key={`${section}.${key}`}
-        label={key.replace('_color', '')}
+        label={`${t('settings.colorValue')} · ${key.replace('_color', '')}`}
         value={String(draft[`export.${section}.${key}`] ?? (settings as never)?.[section]?.[key] ?? '')}
         onChange={(next) => set(`export.${section}.${key}`, next)}
         names={options?.named_colors ?? []}
@@ -503,7 +503,9 @@ function AdvancedExport({
     <Card>
       <CardHeader>
         <div>
-          <CardTitle>{t('settings.advancedExport')}</CardTitle>
+          <CardTitle>
+            {t('settings.export')} · {t('settings.advancedExport')}
+          </CardTitle>
           <p className="text-xs text-muted">{t('settings.downloadOnly')}</p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => setOpen((prev) => !prev)}>

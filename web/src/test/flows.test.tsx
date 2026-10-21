@@ -111,7 +111,7 @@ describe('raw config editor', () => {
     renderAt('/settings');
     await settled();
 
-    await user.click(screen.getByRole('button', { name: /raw file/i }));
+    await user.click(screen.getByRole('button', { name: /edit raw/i }));
 
     const textarea = await waitFor(() => {
       const node = document.querySelector('textarea');
@@ -130,7 +130,7 @@ describe('raw config editor', () => {
     renderAt('/settings');
     await settled();
 
-    await user.click(screen.getByRole('button', { name: /raw file/i }));
+    await user.click(screen.getByRole('button', { name: /edit raw/i }));
     const textarea = await waitFor(() => {
       const node = document.querySelector('textarea');
       if (!node) throw new Error('the raw editor never opened');
@@ -160,7 +160,7 @@ describe('raw config editor', () => {
     renderAt('/settings');
     await settled();
 
-    await user.click(screen.getByRole('button', { name: /raw file/i }));
+    await user.click(screen.getByRole('button', { name: /edit raw/i }));
 
     expect(await screen.findByText(/config file does not exist yet/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /save raw/i })).toBeDisabled();

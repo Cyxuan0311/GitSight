@@ -134,4 +134,36 @@ describe('translation tables', () => {
       .map(([key]) => key);
     expect(same).toEqual([]);
   });
+
+  /**
+   * A key nobody reads is a promise the console does not keep, and it is how a
+   * table grows a second name for the same thing.
+   *
+   * The scan is textual, so it looks for every dotted string literal rather
+   * than only the ones inside a `t()` call: a table of label keys, a map of
+   * stage names and a lookup chosen by a ternary all read keys that never
+   * appear as a literal argument.
+   */
+  it('has no key that nothing reads', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const files = sourceFiles(join(here, '..'));
+    const read = new Set<string>();
+    const prefixes = new Set<string>();
+
+    for (const file of files) {
+      const source = readFileSync(file, 'utf8');
+      for (const m of source.matchAll(/'([a-z][\w]*(?:\.[\w]+)+)'/g)) read.add(m[1]!);
+      // A lookup whose key is built at runtime, e.g. `t(`state.${state}`)`.
+      for (const m of source.matchAll(/`([a-z][\w]*(?:\.[\w]+)*)\.\$\{/g)) {
+        prefixes.add(`${m[1]}.`);
+      }
+    }
+
+    const unread = [...enFlat.keys()].filter(
+      (key) =>
+        !read.has(key) && ![...prefixes].some((prefix) => key.startsWith(prefix)),
+    );
+
+    expect(unread).toEqual([]);
+  });
 });

@@ -78,7 +78,8 @@ describe('SubscriptionSettings', () => {
     await user.type(screen.getByLabelText(/repo/i), 'acme/gadget');
     await user.click(screen.getByRole('button', { name: /^Save$/ }));
 
-    expect(await screen.findByText(/already in the list/i)).toBeInTheDocument();
+    // The two clashes are different mistakes, so they are named differently.
+    expect(await screen.findByText(/already subscribed/i)).toBeInTheDocument();
     expect(server.calls.some(requestTo('POST'))).toBe(false);
   });
 

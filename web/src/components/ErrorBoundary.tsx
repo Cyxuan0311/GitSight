@@ -46,7 +46,7 @@ export function QueryState({
     }
     return (
       <ErrorState
-        title={error instanceof Error ? error.message : t('errors.generic')}
+        title={error instanceof Error ? error.message : t('errors.loadFailed')}
         hint={error instanceof ApiError && error.status === 404 ? t('errors.notFound') : undefined}
         onRetry={() => void query.refetch()}
       />

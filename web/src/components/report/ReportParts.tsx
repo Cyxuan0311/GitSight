@@ -68,7 +68,7 @@ export function ReportOverview({ report }: { report: Report }) {
         label={t('report.releases')}
         icon={<ReportSectionIcon name="releases" />}
         value={formatNumber(report.releases.total)}
-        hint={report.releases.latest || t('app.none')}
+        hint={`${t('report.latest')}: ${report.releases.latest || t('app.none')}`}
       />
       <StatCard
         label={t('report.contributors')}
@@ -141,6 +141,9 @@ export function ReportOverview({ report }: { report: Report }) {
             label={t('report.branch')}
             icon={<ReportSectionIcon name="branch" />}
             value={meta.branch || meta.default_branch || '-'}
+            hint={meta.branch && meta.default_branch && meta.branch !== meta.default_branch
+              ? `${t('report.defaultBranch')}: ${meta.default_branch}`
+              : undefined}
           />
           <StatCard
             label={t('report.pushed')}
@@ -372,7 +375,10 @@ export function PullRequestTable({
       </CardHeader>
       <CardContent className="px-0 pb-0">
         {shown.length === 0 ? (
-          <EmptyState className="py-8" title={t('report.noItems')} />
+          <EmptyState
+            className="py-8"
+            title={needle ? t('report.noRows') : t('report.noItems')}
+          />
         ) : (
           <Table>
             <thead>
@@ -464,7 +470,10 @@ export function CommitTable({ report, itemLimit }: { report: Report; itemLimit: 
       </CardHeader>
       <CardContent className="px-0 pb-0">
         {shown.length === 0 ? (
-          <EmptyState className="py-8" title={t('report.noItems')} />
+          <EmptyState
+            className="py-8"
+            title={needle ? t('report.noRows') : t('report.noItems')}
+          />
         ) : (
           <Table>
             <thead>
@@ -548,7 +557,10 @@ export function IssueTable({ report, itemLimit }: { report: Report; itemLimit: n
       </CardHeader>
       <CardContent className="px-0 pb-0">
         {shown.length === 0 ? (
-          <EmptyState className="py-8" title={t('report.noItems')} />
+          <EmptyState
+            className="py-8"
+            title={needle ? t('report.noRows') : t('report.noItems')}
+          />
         ) : (
           <Table>
             <thead>

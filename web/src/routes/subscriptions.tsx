@@ -106,11 +106,10 @@ export function SubscriptionsPage() {
                           <Override value={entry.format} over={entry.overrides_format} />
                         </Td>
                         <Td className="font-mono text-xs">
-                          {entry.branch ? (
-                            entry.branch
-                          ) : (
-                            <span className="text-muted">-</span>
-                          )}
+                          <Override
+                            value={entry.branch || '-'}
+                            over={entry.overrides_branch}
+                          />
                         </Td>
                         <Td>
                           <div className="flex justify-end gap-1">
@@ -184,7 +183,7 @@ function Override({ value, over }: { value: string; over: boolean }) {
     return <span className="text-xs text-muted" title={t('subs.inherited')}>{value}</span>;
   }
   return (
-    <Badge tone="neutral" className="font-normal" >
+    <Badge tone="accent" className="font-normal" title={t('subs.overridden')}>
       {value}
     </Badge>
   );
@@ -382,7 +381,7 @@ function SubscriptionForm({
           </Field>
 
           <Field label={t('subs.branch')} hint={t('subs.inherit')}>
-            <Input placeholder="main" autoComplete="off" spellCheck={false} {...form.register('branch')} />
+            <Input placeholder={t('ui.branchPlaceholder')} autoComplete="off" spellCheck={false} {...form.register('branch')} />
           </Field>
         </div>
 

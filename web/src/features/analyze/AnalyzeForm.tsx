@@ -152,7 +152,12 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
       </CardHeader>
       <CardContent>
         <form onSubmit={onSubmit} className="space-y-4">
-          <Field label={t('analyze.repo')} error={errors.repo?.message} htmlFor="repo">
+          <Field
+            label={t('analyze.repo')}
+            hint={t('analyze.repoHint')}
+            error={errors.repo?.message}
+            htmlFor="repo"
+          >
             <Input
               id="repo"
               placeholder={t('analyze.repoPlaceholder')}
@@ -164,7 +169,7 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t('analyze.window')}>
+            <Field label={t('analyze.days', { count: form.watch('since_days') })}>
               <Controller
                 control={form.control}
                 name="since_days"
@@ -182,13 +187,18 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
               />
             </Field>
 
-            <div className="grid grid-cols-2 gap-2">
-              <Field label={t('analyze.from')} error={errors.from?.message}>
-                <Input type="date" {...form.register('from')} invalid={Boolean(errors.from)} />
-              </Field>
-              <Field label={t('analyze.to')} error={errors.to?.message}>
-                <Input type="date" {...form.register('to')} invalid={Boolean(errors.to)} />
-              </Field>
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-ink-soft">
+                {t('analyze.customRange')}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label={t('analyze.from')} error={errors.from?.message}>
+                  <Input type="date" {...form.register('from')} invalid={Boolean(errors.from)} />
+                </Field>
+                <Field label={t('analyze.to')} error={errors.to?.message}>
+                  <Input type="date" {...form.register('to')} invalid={Boolean(errors.to)} />
+                </Field>
+              </div>
             </div>
           </div>
 
@@ -214,7 +224,7 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
 
             <Field label={t('analyze.branch')}>
               <Input
-                placeholder="main"
+                placeholder={t('ui.branchPlaceholder')}
                 autoComplete="off"
                 spellCheck={false}
                 {...form.register('branch')}

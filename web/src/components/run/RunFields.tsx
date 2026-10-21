@@ -90,7 +90,7 @@ export function AdvancedRunFields({
 
         <Field label={t('analyze.branch')} hint={t('subs.inherit')}>
           <Input
-            placeholder="main"
+            placeholder={t('ui.branchPlaceholder')}
             autoComplete="off"
             spellCheck={false}
             value={value.branch}

@@ -51,7 +51,7 @@ export function Header({
           <span className="grid size-7 place-items-center rounded-md bg-accent text-white">
             <Github className="size-4" />
           </span>
-          <span className="hidden sm:inline">GitSight</span>
+          <span className="hidden sm:inline">{t('app.name')}</span>
         </a>
 
         <div className="min-w-0 flex-1">

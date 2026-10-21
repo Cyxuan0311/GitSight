@@ -60,6 +60,7 @@ export function OverviewPage() {
                 ? `${t('overview.resetsIn')} ${formatSeconds(quota.data.resets_in_seconds ?? 0)}`
                 : t('overview.quotaUnknown')
             }
+            title={quota.data?.known ? t('overview.quotaKnown') : undefined}
             tone={quota.data?.known && (quota.data.remaining ?? 0) < 100 ? 'merged' : 'default'}
           />
 
@@ -180,6 +181,9 @@ export function OverviewPage() {
                 <dl className="space-y-2 text-xs">
                   <Row label={t('overview.configPath')}>
                     <span className="font-mono break-all">{config.data?.path}</span>
+                  </Row>
+                  <Row label={t('overview.usagePath')}>
+                    <span className="font-mono break-all">{health.data?.usage_path ?? '-'}</span>
                   </Row>
                   <Row label={t('overview.platformDefault')}>
                     <Badge tone="neutral">{config.data?.platform}</Badge>

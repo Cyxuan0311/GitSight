@@ -38,7 +38,7 @@ export function ColorField({
         <Input
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="red"
+          placeholder={t('ui.colorPlaceholder')}
           spellCheck={false}
           className="h-8 font-mono text-xs"
         />

@@ -144,12 +144,15 @@ export function StatCard({
   hint,
   tone,
   icon,
+  title,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
   tone?: 'default' | 'open' | 'closed' | 'merged' | 'accent';
   icon?: React.ReactNode;
+  /** A longer explanation, for the details a hint cannot carry. */
+  title?: string;
 }) {
   const toneClass =
     tone === 'open'
@@ -163,7 +166,7 @@ export function StatCard({
             : 'text-ink';
 
   return (
-    <div className="rounded-card border border-line bg-surface p-4">
+    <div className="rounded-card border border-line bg-surface p-4" title={title}>
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs text-muted">{label}</p>
         {icon ? <span className="text-muted [&_svg]:size-4">{icon}</span> : null}

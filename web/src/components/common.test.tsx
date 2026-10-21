@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders as render, screen } from '@/test/setup';
 import { ExportBar, LabelChips, StatCard } from '@/components/common';
 import { StateBadge } from '@/components/ui/badge';
+import i18n, { setLanguage } from '@/i18n';
 import type { MetaOptions, Report } from '@/lib/types';
 
 /** Renders a component with a stubbed /api/meta/options response. */
@@ -36,10 +37,11 @@ describe('StateBadge', () => {
       </div>,
     );
     // These tones track the exporter's open/closed/merged colors so a
-    // downloaded report and the console agree.
-    expect(screen.getByText('open').className).toContain('text-open');
-    expect(screen.getByText('closed').className).toContain('text-closed');
-    expect(screen.getByText('merged').className).toContain('text-merged');
+    // downloaded report and the console agree. The labels are translated, so
+    // the state word the platform sends is not what the reader sees.
+    expect(screen.getByText(i18n.t('state.open')).className).toContain('text-open');
+    expect(screen.getByText(i18n.t('state.closed')).className).toContain('text-closed');
+    expect(screen.getByText(i18n.t('state.merged')).className).toContain('text-merged');
   });
 
   it('falls back to a neutral tone for an unknown state', () => {
@@ -47,6 +49,18 @@ describe('StateBadge', () => {
     const className = screen.getByText('draft').className;
     expect(className).toContain('text-ink-soft');
     expect(className).not.toMatch(/text-(open|closed|merged)/);
+  });
+
+  it('shows the state in the console language', async () => {
+    await setLanguage('zh');
+    try {
+      render(<StateBadge state="merged" />);
+      // The platform's own word is English; a Chinese console must not show it.
+      expect(screen.getByText('已合并')).toBeInTheDocument();
+      expect(screen.queryByText('merged')).not.toBeInTheDocument();
+    } finally {
+      await setLanguage('en');
+    }
   });
 });
 

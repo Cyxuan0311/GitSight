@@ -86,7 +86,11 @@ static void handle_usage(Request *req, Response *res, void *user) {
     res_json_obj(res, 200, root);
 }
 
-/* GET /api/usage/records?limit=200 -- newest first, for a data table. */
+/* GET /api/usage/records?limit=200&days=N -- newest first, for a data table.
+ *
+ * The window is optional and uses the same day-granularity rule as the daily
+ * chart, so the log below the charts shows the same period the charts do
+ * rather than every record ever written. */
 static void handle_usage_records(Request *req, Response *res, void *user) {
     (void)user;
     char buf[64];
@@ -96,17 +100,36 @@ static void handle_usage_records(Request *req, Response *res, void *user) {
         if (limit < 1) limit = 1;
         if (limit > 2000) limit = 2000;
     }
+    int days = 0;
+    if (req_query(req, "days", buf, sizeof(buf)) && buf[0]) {
+        days = atoi(buf);
+        if (days < 1) days = 1;
+        if (days > 365) days = 365;
+    }
 
     UsageRecord *recs = NULL;
     long n = usage_load(NULL, &recs);
     if (n < 0) n = 0;
 
+    /* Records are stored oldest first; the window is counted from today. */
+    long long today = (long long)time(NULL) / 86400;
+    long in_window = 0;
+    for (long i = 0; i < n; i++) {
+        long long offset = today - recs[i].timestamp / 86400;
+        if (days > 0 && (offset < 0 || offset >= days)) continue;
+        in_window++;
+    }
+    long returned = in_window < limit ? in_window : limit;
+
     cJSON *root = cJSON_CreateObject();
-    cJSON_AddNumberToObject(root, "total", (double)n);
-    cJSON_AddNumberToObject(root, "returned",
-                            (double)(n < limit ? n : limit));
+    cJSON_AddNumberToObject(root, "total", (double)in_window);
+    cJSON_AddNumberToObject(root, "returned", (double)returned);
+    cJSON_AddNumberToObject(root, "days", days);
     cJSON *arr = cJSON_AddArrayToObject(root, "records");
-    for (long i = n - 1; i >= 0 && n - i <= limit; i--) {
+    long shown = 0;
+    for (long i = n - 1; i >= 0 && shown < limit; i--) {
+        long long offset = today - recs[i].timestamp / 86400;
+        if (days > 0 && (offset < 0 || offset >= days)) continue;
         cJSON *o = cJSON_CreateObject();
         cJSON_AddNumberToObject(o, "timestamp", (double)recs[i].timestamp);
         char iso[32];
@@ -121,6 +144,7 @@ static void handle_usage_records(Request *req, Response *res, void *user) {
         cJSON_AddNumberToObject(o, "completion_tokens", (double)recs[i].completion_tokens);
         cJSON_AddNumberToObject(o, "total_tokens", (double)recs[i].total_tokens);
         cJSON_AddItemToArray(arr, o);
+        shown++;
     }
     usage_free(recs);
     res_json_obj(res, 200, root);

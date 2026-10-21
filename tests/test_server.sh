@@ -304,6 +304,12 @@ assert_contains "usage totals" '"total_tokens"' "$U"
 assert_contains "usage by_day" '"by_day"' "$U"
 assert_contains "usage by_llm" '"by_llm"' "$U"
 assert_status "usage records" 200 "$BASE/api/usage/records?limit=10"
+# The record log can be narrowed to the same window the charts use, so the
+# table below them and the charts above them describe the same period.
+R=$(j "$BASE/api/usage/records?limit=10&days=14")
+assert_contains "usage records window" '"days":14' "$R"
+R1=$(j "$BASE/api/usage/records?limit=10&days=1")
+assert_contains "usage records one day" '"days":1' "$R1"
 assert_status "usage clear" 204 -X DELETE "$BASE/api/usage"
 
 # --- analysis jobs ----------------------------------------------------------

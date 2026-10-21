@@ -265,9 +265,9 @@ export const api = {
 
   /* usage */
   usage: (days = 14) => request<UsageResponse>(`/api/usage?days=${days}`),
-  usageRecords: (limit = 200) =>
-    request<{ total: number; returned: number; records: UsageRecordRow[] }>(
-      `/api/usage/records?limit=${limit}`,
+  usageRecords: (limit = 200, days = 0) =>
+    request<{ total: number; returned: number; days: number; records: UsageRecordRow[] }>(
+      `/api/usage/records?limit=${limit}${days > 0 ? `&days=${days}` : ''}`,
     ),
   clearUsage: () => request<void>('/api/usage', { method: 'DELETE' }),
 };

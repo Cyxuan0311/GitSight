@@ -33,7 +33,12 @@ export function UsagePage() {
 
   const queryClient = useQueryClient();
   const usage = useQuery({ queryKey: ['usage', days], queryFn: () => api.usage(days) });
-  const records = useQuery({ queryKey: ['usage-records'], queryFn: () => api.usageRecords(200) });
+  // The log below the charts follows the same window, so the two agree about
+  // which period is being looked at.
+  const records = useQuery({
+    queryKey: ['usage-records', days],
+    queryFn: () => api.usageRecords(200, days),
+  });
 
   const clear = useMutation({
     mutationFn: api.clearUsage,
@@ -226,7 +231,7 @@ export function UsagePage() {
             </CardTitle>
             {records.data && records.data.total > 0 ? (
               <Badge tone="neutral" className="nums font-normal">
-                {t('usage.windowDays', { count: 14 })}
+                {t('usage.windowDays', { count: days })}
               </Badge>
             ) : null}
           </CardHeader>

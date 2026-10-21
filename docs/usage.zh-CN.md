@@ -317,6 +317,7 @@ GET    /api/llms                      POST 新建 · PATCH/DELETE /:name
 POST   /api/llms/:name/activate · /test
 
 GET    /api/usage?days= · /records    DELETE /api/usage
+                                  /records 支持 days=，让日志与图表同窗口
 GET    /api/completion/:shell         bash | zsh | fish
 
 GET    /*                             构建后的控制台（前端路由回退）
@@ -335,6 +336,9 @@ GET    /*                             构建后的控制台（前端路由回退
 | `llm`、`llm_mode`、`no_cache` | 分析本身 |
 | `filters` | `["author:alice", "label:bug"]` |
 | `export` | `["show_commits=false", "pdf.margin=40"]`——本次运行的导出设置 |
+
+结果里的 `llm_provider` 是真正写出摘要的提供商；用本地摘要时它为空，
+这在 LLM 失败时是唯一诚实的说法。对比结果的 trend summary 也带同一个字段。
 
 `export` 也接受对象写法 `{"show_commits": false, "pdf": {"margin": 40}}`。
 导出器接受的键名由 `GET /api/meta/options` 的 `export_keys` 给出；

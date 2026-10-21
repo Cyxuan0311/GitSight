@@ -401,6 +401,7 @@ GET    /api/llms                      POST create · PATCH/DELETE /:name
 POST   /api/llms/:name/activate · /test
 
 GET    /api/usage?days= · /records    DELETE /api/usage
+                                  /records takes days=, so the log matches the charts
 GET    /api/completion/:shell         bash | zsh | fish
 
 GET    /*                             the built console (SPA fallback)
@@ -419,6 +420,10 @@ options, and each one overrides the config file for that job only:
 | `llm`, `llm_mode`, `no_cache` | the analysis itself |
 | `filters` | `["author:alice", "label:bug"]` |
 | `export` | `["show_commits=false", "pdf.margin=40"]` — exporter settings for this run |
+
+The result carries the provider that wrote the summary as `llm_provider`; it is
+empty when the local summary was used, which is the only honest answer when the
+LLM failed. A comparison carries the same field for its trend summary.
 
 `export` also accepts the object form `{"show_commits": false, "pdf": {"margin": 40}}`.
 The names the exporter accepts are listed by `GET /api/meta/options` under

@@ -16,8 +16,8 @@ gs serve                  # → http://127.0.0.1:8787
 |---|---|
 | **Overview** | Server status, API quota, response cache, recent jobs |
 | **Analyze** | Every `gs analyze` option, live progress, interactive report, all 7 downloads |
-| **Compare** | Two windows side by side, with per-metric deltas and a trend summary |
-| **Batch** | Up to 16 repositories at once, 8 in parallel |
+| **Compare** | Two windows side by side, per-metric deltas, a trend summary, and what changed item by item |
+| **Batch** | Up to 16 repositories at once, 8 in parallel, and any two of them side by side |
 | **Subscriptions** | `gs watch` CRUD, plus one-click and batch analysis |
 | **LLM usage** | Token spend per day and per provider, raw record log |
 | **LLM providers** | Provider CRUD, protocol selection, connectivity test |
@@ -50,13 +50,16 @@ appends `key=` for you.
 
 ## What the console adds
 
-Two things the console can do that a one-shot CLI call cannot:
+Three things the console can do that a one-shot CLI call cannot:
 
 - **Live progress.** A run streams to the browser over SSE and can be cancelled
   mid-flight.
 - **Re-render, not refetch.** A finished analysis stays in memory, so switching
   export format re-renders the stored result instead of contacting the platform
   again.
+- **Item-level comparison.** Two windows are compared entry by entry -- the
+  pull requests opened, merged and closed inside the recent one -- and any two
+  repositories of a batch can be set side by side without a second run.
 
 ## Getting started
 

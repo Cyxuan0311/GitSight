@@ -11,6 +11,7 @@ import { Field, Input, Select } from '@/components/ui/field';
 import { ConfirmDialog, Modal } from '@/components/ui/modal';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
+import { toast } from '@/stores/toast';
 import type { MetaOptions, Subscription, SubscriptionInput } from '@/lib/types';
 
 /**
@@ -72,13 +73,14 @@ export function SubscriptionSettings() {
   const remove = useMutation({
     mutationFn: (sub: Subscription) =>
       api.removeSubscription(sub.alias || sub.repo),
-    onSuccess: () => {
+    onSuccess: (_result, sub) => {
+      toast.success(t('subs.removed', { repo: sub.repo }));
       setRemoving(null);
       setError(null);
       refresh();
     },
     onError: (cause) =>
-      setError(cause instanceof Error ? cause.message : t('errors.generic')),
+      toast.error(cause instanceof Error ? cause.message : t('errors.generic')),
   });
 
   const rows = list.data?.subscriptions ?? [];
@@ -204,7 +206,8 @@ export function SubscriptionSettings() {
           setAdding(false);
           setEditing(null);
         }}
-        onSaved={() => {
+        onSaved={(repo, created) => {
+          toast.success(created ? t('subs.added', { repo }) : t('subs.updated'));
           setAdding(false);
           setEditing(null);
           setError(null);
@@ -240,7 +243,7 @@ function SubscriptionDialog({
   options: MetaOptions | undefined;
   existing: Subscription[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (repo: string, created: boolean) => void;
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState<Draft>(initial);
@@ -265,7 +268,7 @@ function SubscriptionDialog({
         (initial.repo === repo || (alias !== '' && initial.alias === alias));
       if (replacing) {
         await api.updateSubscription(initial.alias || initial.repo, form);
-        return;
+        return { repo, created: false };
       }
       const clash = existing.some(
         (sub) => sub.repo === repo || (alias !== '' && sub.alias === alias),
@@ -274,8 +277,9 @@ function SubscriptionDialog({
         throw new Error(t('subs.duplicate', { repo }));
       }
       await api.addSubscription(form);
+      return { repo, created: true };
     },
-    onSuccess: onSaved,
+    onSuccess: (result) => onSaved(result.repo, result.created),
     onError: (cause) =>
       setError(cause instanceof Error ? cause.message : t('errors.generic')),
   });

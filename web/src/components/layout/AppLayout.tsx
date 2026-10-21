@@ -16,6 +16,8 @@ import { Header } from './Header';
 import { Sidebar, type NavGroup } from './Sidebar';
 import { X } from 'lucide-react';
 
+import { ToastViewport } from '@/components/ui/toast';
+
 import { cn } from '@/lib/cn';
 
 /**
@@ -126,6 +128,8 @@ export function AppLayout({
           <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6">{children}</div>
         </main>
       </div>
+
+      <ToastViewport />
     </div>
   );
 }

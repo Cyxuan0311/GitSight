@@ -16,6 +16,7 @@ import { Field, Input, Select } from '@/components/ui/field';
 import { ConfirmDialog, Modal } from '@/components/ui/modal';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
+import { toast } from '@/stores/toast';
 import type { Subscription } from '@/lib/types';
 
 import { SubscriptionBatchPanel } from '@/features/subscriptions/SubscriptionBatchPanel';
@@ -162,7 +163,12 @@ export function SubscriptionsPage() {
             const target = removing;
             setRemoving(null);
             if (target) {
-              void api.removeSubscription(target.alias || target.repo).catch(() => undefined);
+              void api
+                .removeSubscription(target.alias || target.repo)
+                .then(() => toast.success(t('subs.removed', { repo: target.repo })))
+                .catch((cause: unknown) =>
+                  toast.error(cause instanceof Error ? cause.message : t('errors.generic')),
+                );
             }
           }}
         />

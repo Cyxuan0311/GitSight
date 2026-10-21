@@ -24,6 +24,7 @@ import { ConfirmDialog } from '@/components/ui/modal';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
 import { StatCard } from '@/components/common';
 import { api } from '@/lib/api';
+import { toast } from '@/stores/toast';
 import { formatCompact, formatNumber } from '@/lib/format';
 
 export function UsagePage() {
@@ -43,9 +44,12 @@ export function UsagePage() {
   const clear = useMutation({
     mutationFn: api.clearUsage,
     onSuccess: () => {
+      toast.success(t('usage.cleared'));
       void queryClient.invalidateQueries({ queryKey: ['usage'] });
       void queryClient.invalidateQueries({ queryKey: ['usage-records'] });
     },
+    onError: (cause) =>
+      toast.error(cause instanceof Error ? cause.message : t('errors.generic')),
   });
 
   const total = usage.data?.total;

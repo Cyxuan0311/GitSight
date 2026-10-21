@@ -13,6 +13,18 @@ export interface ProgressEvent {
 
 export type JobPhase = 'idle' | 'submitting' | 'running' | 'done' | 'failed' | 'cancelled';
 
+/**
+ * The message a failed job shows.
+ *
+ * A job the daemon no longer knows about is not an error the reader can do
+ * anything about: the daemon keeps a bounded number of them and drops the
+ * oldest, so a link from an earlier session stops resolving.
+ */
+function describe(cause: unknown, t: (key: string) => string): string {
+  if (cause instanceof ApiError && cause.status === 404) return t('errors.jobGone');
+  return cause instanceof Error ? cause.message : t('errors.generic');
+}
+
 interface JobRun {
   id: string;
   phase: JobPhase;
@@ -131,9 +143,7 @@ export function useJob(initialId?: string) {
             if (job.state === 'cancelled') return finish('cancelled');
             // Still running server-side: let EventSource retry on its own.
           })
-          .catch((cause: unknown) =>
-            finish('failed', cause instanceof Error ? cause.message : t('errors.generic')),
-          );
+          .catch((cause: unknown) => finish('failed', describe(cause, t)));
       };
     },
     [closeStream, fetchResult, t],

@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { ConfirmDialog, Modal } from '@/components/ui/modal';
 import { ColorField } from '@/features/settings/ColorField';
+import { toast } from '@/stores/toast';
 import { SubscriptionSettings } from '@/features/settings/SubscriptionSettings';
 import { api } from '@/lib/api';
 import { syncLanguage } from '@/lib/language';
@@ -48,16 +49,24 @@ export function SettingsPage() {
   const save = useMutation({
     mutationFn: (sets: Draft) => api.patchConfig(sets),
     onSuccess: () => {
+      toast.success(t('settings.saved'));
       void queryClient.invalidateQueries({ queryKey: ['config'] });
       void queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
       setDraft({});
       setTokens({});
     },
+    onError: (cause) =>
+      toast.error(cause instanceof Error ? cause.message : t('errors.generic')),
   });
 
   const reset = useMutation({
     mutationFn: api.resetConfig,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['config'] }),
+    onSuccess: () => {
+      toast.success(t('settings.resetDone'));
+      void queryClient.invalidateQueries({ queryKey: ['config'] });
+    },
+    onError: (cause) =>
+      toast.error(cause instanceof Error ? cause.message : t('errors.generic')),
   });
 
   const set = (key: string, value: string | number | boolean) =>
@@ -618,9 +627,12 @@ function RawConfig({
   const save = useMutation({
     mutationFn: api.putRawConfig,
     onSuccess: () => {
+      toast.success(t('settings.rawSaved'));
       void queryClient.invalidateQueries({ queryKey: ['config'] });
       onClose();
     },
+    onError: (cause) =>
+      toast.error(cause instanceof Error ? cause.message : t('errors.generic')),
   });
 
   const submit = () => {

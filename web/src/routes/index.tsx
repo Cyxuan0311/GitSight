@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/field';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
 import { StatCard } from '@/components/common';
 import { api } from '@/lib/api';
+import { toast } from '@/stores/toast';
 import { formatNumber, formatRelative } from '@/lib/format';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
@@ -245,7 +246,12 @@ function ClearCacheButton() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: api.clearCache,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['cache'] }),
+    onSuccess: () => {
+      toast.success(t('overview.cacheCleared'));
+      void queryClient.invalidateQueries({ queryKey: ['cache'] });
+    },
+    onError: (cause) =>
+      toast.error(cause instanceof Error ? cause.message : t('errors.generic')),
   });
 
   return (

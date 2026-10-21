@@ -15,6 +15,7 @@ import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { ConfirmDialog, Modal } from '@/components/ui/modal';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
 import { api } from '@/lib/api';
+import { toast } from '@/stores/toast';
 import type { LlmProvider } from '@/lib/types';
 
 const PROTOCOLS = ['openai', 'anthropic', 'gemini'] as const;
@@ -39,6 +40,7 @@ type FormValues = z.infer<typeof schema>;
 
 export function LlmPage() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const list = useQuery({ queryKey: ['llms'], queryFn: api.listLlms });
 
   const [creating, setCreating] = useState(false);
@@ -150,7 +152,19 @@ export function LlmPage() {
           onConfirm={() => {
             const target = removing;
             setRemoving(null);
-            if (target) void api.deleteLlm(target.name).catch(() => undefined);
+            if (target) {
+              void api
+                .deleteLlm(target.name)
+                .then(() => {
+                  toast.success(t('llm.removed'));
+                  void queryClient.invalidateQueries({ queryKey: ['llms'] });
+                })
+                .catch((cause: unknown) => {
+                  toast.error(
+                    cause instanceof Error ? cause.message : t('errors.generic'),
+                  );
+                });
+            }
           }}
         />
       </div>
@@ -174,7 +188,12 @@ function RowActions({
 
   const activate = useMutation({
     mutationFn: () => api.activateLlm(provider.name),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['llms'] }),
+    onSuccess: () => {
+      toast.success(t('llm.activated', { name: provider.name }));
+      void queryClient.invalidateQueries({ queryKey: ['llms'] });
+    },
+    onError: (cause) =>
+      toast.error(cause instanceof Error ? cause.message : t('errors.generic')),
   });
 
   const test = async () => {
@@ -184,9 +203,11 @@ function RowActions({
       const result = await api.testLlm(provider.name);
       setTestState(result.ok ? 'ok' : 'fail');
       setDetail(result.ok ? (result.reply ?? '') : (result.error ?? ''));
+      if (result.ok) toast.success(t('llm.testOk'));
     } catch (cause) {
       setTestState('fail');
       setDetail(cause instanceof Error ? cause.message : '');
+      toast.error(cause instanceof Error ? cause.message : t('errors.generic'));
     }
   };
 
@@ -311,10 +332,13 @@ function LlmForm({
       return api.upsertLlm({ ...payload, name: values.name });
     },
     onSuccess: () => {
+      toast.success(t(provider ? 'llm.updated' : 'llm.created'));
       void queryClient.invalidateQueries({ queryKey: ['llms'] });
       void queryClient.invalidateQueries({ queryKey: ['config'] });
       onClose();
     },
+    onError: (cause) =>
+      toast.error(cause instanceof Error ? cause.message : t('errors.generic')),
   });
 
   const errors = form.formState.errors;

@@ -15,6 +15,7 @@
  * cannot retroactively alter the artifact a user downloaded for that job. */
 
 #define GS_JOBS_MAX          128   /* retained jobs, oldest evicted first */
+#define GS_JOBS_MAX_BYTES    (256u * 1024u * 1024u) /* and this much memory */
 #define GS_JOBS_MAX_WORKERS  8
 #define GS_PROG_MAX          256   /* progress log entries per job */
 

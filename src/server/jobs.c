@@ -199,16 +199,58 @@ Job *job_create(JobKind kind, const char *title) {
     return j;
 }
 
-/* Keeps the retained list bounded by dropping finished jobs from the tail. */
+/* How much a job holds.
+ *
+ * The item vectors are what grow: a repository with a long history keeps
+ * thousands of fixed-size items, and a job that has been asked for its result
+ * also holds the rendered bytes. */
+static size_t job_bytes(const Job *j) {
+    size_t n = sizeof(Job);
+    if (j->result_json) n += j->result_json_len;
+    for (int i = 0; i < j->report_count && j->reports; i++) {
+        const AnalysisResult *r = &j->reports[i];
+        n += vector_len(&r->prs) * sizeof(PR)
+           + vector_len(&r->commits) * sizeof(Commit)
+           + vector_len(&r->issues) * sizeof(Issue)
+           + vector_len(&r->releases) * sizeof(Release)
+           + vector_len(&r->contributors) * sizeof(Contributor)
+           + vector_len(&r->langs) * sizeof(LangEntry);
+    }
+    return n;
+}
+
+/* Drops one finished job from the tail. Returns 0 when the tail is still
+ * running, which means nothing further can be released. */
+static int job_drop_tail_locked(void) {
+    Job *victim = g_jobs.tail;
+    if (!victim) return 0;
+    if (victim->state == JOB_RUNNING || victim->state == JOB_QUEUED) return 0;
+    g_jobs.tail = victim->prev;
+    if (g_jobs.tail) g_jobs.tail->next = NULL;
+    else g_jobs.head = NULL;
+    g_jobs.count--;
+    job_destroy(victim);
+    return 1;
+}
+
+/* Keeps the retained list bounded.
+ *
+ * The count alone is not a bound: a hundred small jobs are cheap and one
+ * enormous one is not, so the list is also kept under a memory budget and
+ * the oldest finished job goes whenever it is exceeded. */
 static void job_evict_locked(void) {
-    while (g_jobs.count > GS_JOBS_MAX && g_jobs.tail) {
-        Job *victim = g_jobs.tail;
-        if (victim->state == JOB_RUNNING || victim->state == JOB_QUEUED) break;
-        g_jobs.tail = victim->prev;
-        if (g_jobs.tail) g_jobs.tail->next = NULL;
-        else g_jobs.head = NULL;
-        g_jobs.count--;
-        job_destroy(victim);
+    while (g_jobs.count > GS_JOBS_MAX) {
+        if (!job_drop_tail_locked()) break;
+    }
+
+    size_t total = 0;
+    for (Job *j = g_jobs.head; j; j = j->next) total += job_bytes(j);
+    while (total > GS_JOBS_MAX_BYTES) {
+        size_t before = total;
+        if (!job_drop_tail_locked()) break;
+        total = 0;
+        for (Job *j = g_jobs.head; j; j = j->next) total += job_bytes(j);
+        if (total >= before) break;
     }
 }
 
@@ -629,6 +671,10 @@ static void job_finish(Job *j, JobState state, ErrorCode err, const char *detail
     j->error = err;
     if (detail) snprintf(j->error_text, sizeof(j->error_text), "%s", detail);
     j->finished_at = (long)time(NULL);
+    /* A finished job is the one that can be released, so the budget is
+     * checked here too: a daemon that is asked to render results but not to
+     * start new analyses would otherwise keep every one of them. */
+    job_evict_locked();
     pthread_mutex_unlock(&g_jobs_lock);
     /* Watchers learn the outcome from the SSE handler, which polls this state.
      * Broadcasting here as well would emit the terminal frame twice for a

@@ -69,6 +69,25 @@ WARM2=$(count_prs "$WORK/warm2.json")
 ENTRIES=$(find "$GS_CACHE_DIR" -name '*.json' 2>/dev/null | wc -l)
 [ "$ENTRIES" -gt 0 ] || fail "nothing was cached"
 
+# --- a run inside the cache lifetime should reach the network not at all ---
+#
+# The contributors list has no date in its URL, so the whole history is one
+# stable key: fetched once, then replayed from disk however many pages it
+# takes. Before the cache kept the pagination, the second run stopped after
+# the first page and reported a fraction of the contributors.
+BEFORE_FULL=$(curl -s "$BASE/__stats" | python3 -c 'import json,sys; print(json.load(sys.stdin)["requests"])')
+"$GS" analyze acme/gadget --api-base "$BASE" -q -d 7 --max-pages 5 \
+    -f json -o "$WORK/replay.json" >/dev/null 2>&1 || fail "the replay run failed"
+AFTER_FULL=$(curl -s "$BASE/__stats" | python3 -c 'import json,sys; print(json.load(sys.stdin)["requests"])')
+[ "$AFTER_FULL" -eq "$BEFORE_FULL" ] \
+    || fail "a cached run still made $((AFTER_FULL - BEFORE_FULL)) requests"
+REPLAY=$(python3 -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+print(d['contributors']['total'])
+" "$WORK/replay.json")
+[ "$REPLAY" = "200" ] || fail "the replayed run saw $REPLAY contributors, expected 200"
+
 # --- the cache key must not change with every second -----------------------
 #
 # The request URL carried the window's start as a timestamp, and the URL is
@@ -159,4 +178,4 @@ ENTRIES_AFTER=$(find "$GS_CACHE_DIR" -name '*.json' 2>/dev/null | wc -l)
 [ "$ENTRIES_AFTER" -le 64 ] \
     || fail "the cache holds $ENTRIES_AFTER entries after 40 runs"
 
-echo "cache tests: 11 passed, 0 failed"
+echo "cache tests: 13 passed, 0 failed"

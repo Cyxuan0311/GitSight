@@ -367,8 +367,19 @@ npm --prefix web run dev            # Vite on :5173, proxying /api → :8787
 
 ### Environment
 
-`GS_FIXTURE_DIR` works with the daemon too, which is how `tests/test_server.sh`
-exercises the entire API offline.
+| Variable | What it does |
+|---|---|
+| `GS_FIXTURE_DIR` | Serves canned platform responses from a directory instead of the network. The daemon honours it too, which is how `tests/test_server.sh` exercises the entire API offline. |
+| `GS_CACHE_DIR` | Where the response cache lives. Defaults to `$XDG_CACHE_HOME/gitsight`. Point it at a directory to measure or clear the cache without touching the real one. |
+| `GS_PERF` | Prints a breakdown of the run — fetch, analysis, export — to stderr. |
+
+```bash
+GS_PERF=1 gs analyze owner/repo
+```
+
+```bash
+GS_PERF=1 gs serve      # every job prints its own breakdown
+```
 
 ## HTTP API
 
@@ -379,6 +390,7 @@ against.
 GET    /api/health                    version, paths, uptime, active jobs
 GET    /api/meta/options              formats, platforms, colours, limits
 GET    /api/meta/i18n                 the report body's EN/ZH table
+GET    /api/meta/stats                requests, cache hits, retries, bytes
 GET    /api/quota · /api/cache        rate-limit snapshot; cache location
 
 POST   /api/jobs/analyze              → 202 {job_id}

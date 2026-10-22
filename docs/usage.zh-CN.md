@@ -284,8 +284,19 @@ npm --prefix web run dev            # Vite 在 :5173，把 /api 代理到 :8787
 
 ### 环境变量
 
-`GS_FIXTURE_DIR` 对守护进程同样有效，`tests/test_server.sh` 正是靠它离线
-跑通整个 API。
+| 变量 | 作用 |
+|------|------|
+| `GS_FIXTURE_DIR` | 用目录里的固定响应代替网络请求。守护进程同样有效，`tests/test_server.sh` 正是靠它离线跑通整个 API。 |
+| `GS_CACHE_DIR` | 响应缓存的存放目录，默认 `$XDG_CACHE_HOME/gitsight`。指到别处即可在不打扰真实缓存的前提下测量或清理它。 |
+| `GS_PERF` | 把一次运行的分阶段耗时（抓取、分析、导出）打印到 stderr。 |
+
+```bash
+GS_PERF=1 gs analyze owner/repo
+```
+
+```bash
+GS_PERF=1 gs serve      # 每个任务各自打印自己的耗时
+```
 
 ## HTTP 接口
 
@@ -295,6 +306,7 @@ npm --prefix web run dev            # Vite 在 :5173，把 /api 代理到 :8787
 GET    /api/health                    版本、路径、运行时长、进行中任务
 GET    /api/meta/options              格式、平台、颜色、各项上限
 GET    /api/meta/i18n                 报告正文的 EN/ZH 对照表
+GET    /api/meta/stats                请求数、缓存命中、重试、字节数
 GET    /api/quota · /api/cache        配额快照；缓存位置
 
 POST   /api/jobs/analyze              → 202 {job_id}

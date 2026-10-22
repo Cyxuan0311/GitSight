@@ -127,8 +127,37 @@ static void mkdir_p(const char *path) {
     mkdir(tmp, 0700);
 }
 
-/* Returns 1 on cache hit (fills result + sets http_code=200). */
-static int cache_read(const HttpClient *hc, const char *url, HttpBuffer *result) {
+/* The cache directory, created once.
+ *
+ * Creating it on every write cost four or five syscalls per cached page, and
+ * a run caches dozens of them. */
+static int cache_dir_ready(const char *dir) {
+    static _Thread_local char known[512] = "";
+    if (known[0] && strcmp(known, dir) == 0) return 1;
+
+    struct stat st;
+    if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode)) {
+        mkdir_p(dir);
+        if (stat(dir, &st) != 0) return 0;
+    }
+    snprintf(known, sizeof(known), "%s", dir);
+    return 1;
+}
+
+/* The header every cached page carries.
+ *
+ * The pagination lives in the response headers, not in the body, so a cache
+ * that kept only the body lost it -- and a run that hit the cache stopped
+ * after the first page and reported a fraction of the repository. The header
+ * keeps the body verbatim and stores the rest beside it.
+ *
+ * "GSC1" marks the format; a file without it was written by an older version
+ * and is treated as a miss, so the cache heals itself. */
+#define CACHE_MAGIC "GSC1"
+
+/* Returns 1 on cache hit (fills result and the pagination it came with). */
+static int cache_read(const HttpClient *hc, const char *url, HttpBuffer *result,
+                      HttpResult *out) {
     if (!gs_cache_enabled || !hc->use_cache) return 0;
 
     char path[768];
@@ -141,29 +170,58 @@ static int cache_read(const HttpClient *hc, const char *url, HttpBuffer *result)
     FILE *fp = fopen(path, "rb");
     if (!fp) return 0;
 
-    char *data = malloc((size_t)st.st_size + 1);
+    /* The header is a single line: the magic, the status, the next page
+     * number and the next page URL, separated by pipes. */
+    char header[2048];
+    if (!fgets(header, sizeof(header), fp)) { fclose(fp); return 0; }
+    if (strncmp(header, CACHE_MAGIC "|", strlen(CACHE_MAGIC) + 1) != 0) {
+        fclose(fp);
+        return 0;
+    }
+
+    long code = 0, page_num = 0;
+    char next_page[1024] = "";
+    int fields = sscanf(header + strlen(CACHE_MAGIC) + 1, "%ld|%ld|%1023[^|\n]",
+                        &code, &page_num, next_page);
+    if (fields < 2) { fclose(fp); return 0; }
+
+    size_t body_len = (size_t)st.st_size - (size_t)(ftell(fp));
+    if (ftell(fp) < 0 || body_len > (size_t)st.st_size) { fclose(fp); return 0; }
+
+    char *data = malloc(body_len + 1);
     if (!data) { fclose(fp); return 0; }
-    size_t rd = fread(data, 1, (size_t)st.st_size, fp);
+    size_t rd = fread(data, 1, body_len, fp);
     fclose(fp);
-    if (rd != (size_t)st.st_size) { free(data); return 0; }
+    if (rd != body_len) { free(data); return 0; }
 
     data[rd] = '\0';
     result->data = data;
     result->size = rd;
+
+    if (out) {
+        out->http_code = code ? code : 200;
+        out->next_page_num = page_num;
+        snprintf(out->next_page, sizeof(out->next_page), "%s", next_page);
+    }
     return 1;
 }
 
-static void cache_write(const HttpClient *hc, const char *url, const HttpBuffer *buf) {
+static void cache_write(const HttpClient *hc, const char *url, const HttpBuffer *buf,
+                        const HttpResult *res) {
     if (!gs_cache_enabled || !hc->use_cache) return;
 
     char path[768];
     cache_path_for(hc, url, path, sizeof(path));
-    mkdir_p(hc->cache_dir);
+    if (!cache_dir_ready(hc->cache_dir)) return;
 
     char tmp[832];
     snprintf(tmp, sizeof(tmp), "%s.tmp", path);
     FILE *fp = fopen(tmp, "wb");
     if (!fp) return;
+    fprintf(fp, "%s|%ld|%ld|%s\n", CACHE_MAGIC,
+            res && res->http_code ? res->http_code : 200,
+            res ? res->next_page_num : 0,
+            (res && res->next_page[0]) ? res->next_page : "");
     fwrite(buf->data, 1, buf->size, fp);
     fclose(fp);
     rename(tmp, path);
@@ -424,9 +482,8 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
         return GS_OK;
     }
 
-    if (cache_read(hc, url, &buf)) {
+    if (cache_read(hc, url, &buf, out)) {
         atomic_fetch_add(&g_stat_cache_hits, 1);
-        out->http_code = 200;
         *result = buf;
         return GS_OK;
     }
@@ -482,7 +539,7 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
 
         if (http_code == 200) {
             *result = buf;
-            cache_write(hc, url, &buf);
+            cache_write(hc, url, &buf, out);
             return GS_OK;
         }
 

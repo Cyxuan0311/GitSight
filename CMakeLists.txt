@@ -144,6 +144,7 @@ if(BUILD_TESTING)
     add_test(NAME smoke COMMAND bash ${CMAKE_SOURCE_DIR}/tests/run_smoke.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
     add_test(NAME completions COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_completions.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
     add_test(NAME server COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_server.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
+    add_test(NAME cache COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_cache.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
     # Static serving of the built console; both skip when web/dist is absent.
     add_test(NAME web COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_web.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})
     add_test(NAME console COMMAND bash ${CMAKE_SOURCE_DIR}/tests/test_console.sh $<TARGET_FILE:gs> ${CMAKE_SOURCE_DIR})

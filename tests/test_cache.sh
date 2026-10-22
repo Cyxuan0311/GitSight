@@ -69,6 +69,21 @@ WARM2=$(count_prs "$WORK/warm2.json")
 ENTRIES=$(find "$GS_CACHE_DIR" -name '*.json' 2>/dev/null | wc -l)
 [ "$ENTRIES" -gt 0 ] || fail "nothing was cached"
 
+# --- the cache key must not change with every second -----------------------
+#
+# The request URL carried the window's start as a timestamp, and the URL is
+# the cache key -- so every run wrote a fresh set of files that nothing would
+# ever read, and the directory grew without bound.
+BEFORE_KEYS=$(find "$GS_CACHE_DIR" -name '*.json' 2>/dev/null | wc -l)
+sleep 2
+"$GS" analyze acme/gadget --api-base "$BASE" -q -d 7 --max-pages 5 \
+    -f json -o "$WORK/later.json" >/dev/null 2>&1 || fail "the later run failed"
+AFTER_KEYS=$(find "$GS_CACHE_DIR" -name '*.json' 2>/dev/null | wc -l)
+[ "$AFTER_KEYS" -eq "$BEFORE_KEYS" ] \
+    || fail "the cache grew from $BEFORE_KEYS to $AFTER_KEYS entries in two seconds"
+LATER=$(count_prs "$WORK/later.json")
+[ "$LATER" = "$COLD" ] || fail "the later run saw $LATER pull requests, expected $COLD"
+
 # --- a run that asks to bypass the cache must go to the network ------------
 #
 # The daemon never set the cache flag, so the option the console offers was
@@ -132,4 +147,4 @@ AFTER=$(curl -s "$BASE/__stats" | python3 -c 'import json,sys; print(json.load(s
 
 kill "$DAEMON_PID" 2>/dev/null
 
-echo "cache tests: 8 passed, 0 failed"
+echo "cache tests: 10 passed, 0 failed"

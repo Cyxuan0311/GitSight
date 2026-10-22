@@ -50,6 +50,7 @@ static ErrorCode gl_get(const GitLabContext *gl, const char *url,
 static void init_since_ctx(PageCtx *pctx, Vector *vec, int since_days) {
     pctx->vec = vec;
     gs_build_since_date(since_days, pctx->since_str, sizeof(pctx->since_str));
+    gs_build_since_day(since_days, pctx->since_day, sizeof(pctx->since_day));
 }
 
 /* ---- Merge Requests ---- */

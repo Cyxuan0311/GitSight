@@ -11,6 +11,13 @@ void gs_build_since_date(int since_days, char *buf, size_t len) {
     strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", tm);
 }
 
+void gs_build_since_day(int since_days, char *buf, size_t len) {
+    time_t now = time(NULL);
+    time_t since_ts = now - (time_t)since_days * 86400;
+    struct tm *tm = gmtime(&since_ts);
+    strftime(buf, len, "%Y-%m-%d", tm);
+}
+
 int gs_date_in_range(const char *date_str, const char *since_str) {
     if (!date_str || date_str[0] == '\0') return 0;
     return strcmp(date_str, since_str) >= 0;

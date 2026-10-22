@@ -14,7 +14,13 @@
 
 typedef struct {
     Vector *vec;
+    /* The exact start of the window, used to filter the items. */
     char since_str[MAX_DATE_LEN];
+    /* The same start as a plain date, used in the request URL. A timestamp
+     * there would change the URL every second, and the URL is the cache
+     * key -- so the cache would never answer and every run would leave a
+     * trail of files nobody reads. */
+    char since_day[MAX_DATE_LEN];
 } PageCtx;
 
 /* Identity + HTTP settings of the calling driver, filled per fetch call. */
@@ -41,6 +47,7 @@ typedef struct {
 } DriverBase;
 
 void gs_build_since_date(int since_days, char *buf, size_t len);
+void gs_build_since_day(int since_days, char *buf, size_t len);
 int  gs_date_in_range(const char *date_str, const char *since_str);
 
 /* Copy src into dst[0..max), collapsing runs of newlines into one space. */

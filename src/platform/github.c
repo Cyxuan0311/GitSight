@@ -45,6 +45,7 @@ static ErrorCode gh_get(const GitHubContext *gh, const char *url,
 static void init_since_ctx(PageCtx *pctx, Vector *vec, int since_days) {
     pctx->vec = vec;
     gs_build_since_date(since_days, pctx->since_str, sizeof(pctx->since_str));
+    gs_build_since_day(since_days, pctx->since_day, sizeof(pctx->since_day));
 }
 
 /* ---- Pull Requests ---- */
@@ -174,7 +175,7 @@ static ErrorCode fetch_commits_impl(void *ctx, Vector *commits, int since_days) 
 
     char url[1152];
     snprintf(url, sizeof(url), "%s/repos/%s/%s/commits?since=%s&per_page=100",
-             gh->api_base, gh->owner, gh->repo, pctx.since_str);
+             gh->api_base, gh->owner, gh->repo, pctx.since_day);
     if (gh->branch[0]) {
         char enc[128];
         url_encode(gh->branch, enc, sizeof(enc));

@@ -58,10 +58,14 @@ static void find_top_labels(const Vector *prs, const Vector *issues,
 
             char tmp[512];
             snprintf(tmp, sizeof(tmp), "%s", labels_str);
-            char *token = strtok(tmp, ",");
+            /* strtok_r, not strtok: the analyzer runs on one thread per
+             * repository, and strtok keeps its state in a buffer that is
+             * shared by every thread. */
+            char *save = NULL;
+            char *token = strtok_r(tmp, ",", &save);
             while (token) {
                 while (*token == ' ') token++;
-                if (*token == '\0') { token = strtok(NULL, ","); continue; }
+                if (*token == '\0') { token = strtok_r(NULL, ",", &save); continue; }
 
                 int found = 0;
                 for (int j = 0; j < label_count; j++) {
@@ -77,7 +81,7 @@ static void find_top_labels(const Vector *prs, const Vector *issues,
                     labels[label_count].count = 1;
                     label_count++;
                 }
-                token = strtok(NULL, ",");
+                token = strtok_r(NULL, ",", &save);
             }
         }
     }

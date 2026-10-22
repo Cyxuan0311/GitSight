@@ -640,15 +640,18 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
         if (strchr(cfg.format, ',')) {
             char fmt_copy[256];
             snprintf(fmt_copy, sizeof(fmt_copy), "%s", cfg.format);
-            char *token = strtok(fmt_copy, ",");
+            /* strtok_r, not strtok: a batch writes several formats on one
+             * thread per repository, and strtok's state is shared. */
+            char *fmt_save = NULL;
+            char *token = strtok_r(fmt_copy, ",", &fmt_save);
             while (token) {
                 while (*token == ' ') token++;
-                if (*token == '\0') { token = strtok(NULL, ","); continue; }
+                if (*token == '\0') { token = strtok_r(NULL, ",", &fmt_save); continue; }
 
                 Exporter e;
                 if (exporter_init(&e, token) != GS_OK) {
                     color_printf_color(CLR_RED, "  -> Unsupported format: %s\n", token);
-                    token = strtok(NULL, ",");
+                    token = strtok_r(NULL, ",", &fmt_save);
                     continue;
                 }
 
@@ -676,7 +679,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
                     if (!opts->quiet)
                         fprintf(stderr, "  -> Written to %s\n", filename);
                 }
-                token = strtok(NULL, ",");
+                token = strtok_r(NULL, ",", &fmt_save);
             }
         } else {
             Exporter exporter;

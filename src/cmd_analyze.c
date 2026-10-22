@@ -11,6 +11,7 @@
 #include "gitsight/cancel.h"
 #include "gitsight/usage.h"
 #include "gitsight/models.h"
+#include "gitsight/perf.h"
 #include "gitsight/container.h"
 #include "gitsight/platform/client.h"
 #include "gitsight/platform/http.h"
@@ -501,6 +502,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
 
     Anim sp;
     anim_start(&sp, ANIM_BAR, 0, 7, "Fetching repository data");
+    perf_mark("fetch");
     if (opts->serial_fetch) {
         /* Bounded-thread mode: the caller already runs repos in parallel, so
          * fetch one resource at a time on this thread. */
@@ -523,6 +525,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
             anim_update(&sp, ++done, 7);
         }
     }
+    perf_mark("fetched");
     anim_stop(&sp, 1);
 
     if (gs_cancel_requested()) {
@@ -564,6 +567,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
     if (use_llm) {
         anim_start(&sp, ANIM_DOTS, 0, 0, "Analyzing with LLM");
         analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors, &langs);
+        perf_mark("analyze");
         report.meta = meta;
         if (cfg.branch[0])
             snprintf(report.branch, sizeof(report.branch), "%s", cfg.branch);
@@ -587,10 +591,12 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
             snprintf(report.llm_provider, sizeof(report.llm_provider), "%s", active_llm->name);
             if (out) out->used_llm = 1;
         }
+        perf_mark("llm");
         anim_stop(&sp, 1);
     } else {
         anim_start(&sp, ANIM_BRAILLE, 0, 0, "Analyzing repository");
         analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors, &langs);
+        perf_mark("analyze");
         report.meta = meta;
         if (cfg.branch[0])
             snprintf(report.branch, sizeof(report.branch), "%s", cfg.branch);
@@ -723,8 +729,10 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
 
             FormatOptions fopts;
             build_fopts(&fopts, &cfg, close_fp, cfg.format);
+            perf_mark("prepare");
             exporter.write_report(fp, &report, &prs, &commits, &issues, &releases, &fopts);
             free_fopts(&fopts);
+            perf_mark("export");
 
             if (close_fp) {
                 fclose(fp);

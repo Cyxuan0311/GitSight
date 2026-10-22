@@ -43,6 +43,7 @@ set(SOURCES
     src/tui.c
     src/models.c
     src/container.c
+    src/perf.c
     src/platform/client.c
     src/platform/driver.c
     src/platform/http.c

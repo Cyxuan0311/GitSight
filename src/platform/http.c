@@ -22,6 +22,25 @@ static int gs_cache_enabled = 1;
 static atomic_long g_quota_remaining = -1;
 static atomic_long g_quota_reset = 0;
 
+/* What the process has spent on the network. Counted rather than timed, so
+ * the numbers can be read without a profiler attached. */
+static atomic_long g_stat_requests = 0;
+static atomic_long g_stat_pages = 0;
+static atomic_long g_stat_cache_hits = 0;
+static atomic_long g_stat_cache_misses = 0;
+static atomic_long g_stat_retries = 0;
+static atomic_long g_stat_bytes = 0;
+
+void http_stats(HttpStats *out) {
+    if (!out) return;
+    out->requests     = atomic_load(&g_stat_requests);
+    out->pages        = atomic_load(&g_stat_pages);
+    out->cache_hits   = atomic_load(&g_stat_cache_hits);
+    out->cache_misses = atomic_load(&g_stat_cache_misses);
+    out->retries      = atomic_load(&g_stat_retries);
+    out->bytes        = atomic_load(&g_stat_bytes);
+}
+
 void http_quota(long *remaining, long *reset_at) {
     if (remaining) *remaining = atomic_load(&g_quota_remaining);
     if (reset_at)  *reset_at  = atomic_load(&g_quota_reset);
@@ -60,6 +79,13 @@ int url_encode(const char *src, char *dst, size_t dst_len) {
 }
 
 static void http_default_cache_dir(char *out, size_t len) {
+    /* An explicit override, so a benchmark or a test can point the cache at a
+     * throwaway directory instead of the user's real one. */
+    const char *override = getenv("GS_CACHE_DIR");
+    if (override && override[0]) {
+        snprintf(out, len, "%s", override);
+        return;
+    }
     const char *base = getenv("XDG_CACHE_HOME");
     if (base && base[0]) {
         snprintf(out, len, "%s/gitsight", base);
@@ -399,10 +425,12 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
     }
 
     if (cache_read(hc, url, &buf)) {
+        atomic_fetch_add(&g_stat_cache_hits, 1);
         out->http_code = 200;
         *result = buf;
         return GS_OK;
     }
+    atomic_fetch_add(&g_stat_cache_misses, 1);
 
     /* Proactive throttle: we already know the quota is spent — wait for the
      * window to reopen instead of firing requests that can only 403. */
@@ -432,6 +460,8 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
         curl_easy_cleanup(curl);
         curl_slist_free_all(headers);
+        atomic_fetch_add(&g_stat_requests, 1);
+        atomic_fetch_add(&g_stat_bytes, (long)buf.size);
 
         if (res != CURLE_OK) {
             if (res == CURLE_ABORTED_BY_CALLBACK || gs_cancel_requested()) {
@@ -440,6 +470,7 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
             }
             if (is_transient_curl(res) && attempt < HTTP_MAX_RETRIES) {
                 attempt++;
+                atomic_fetch_add(&g_stat_retries, 1);
                 sleep_secs(1L << (attempt - 1));
                 continue;
             }
@@ -469,6 +500,7 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
                 sleep_secs(wait);
             }
             attempt++;
+            atomic_fetch_add(&g_stat_retries, 1);
             continue;
         }
         if (http_code == 429 && out->has_retry_after &&
@@ -476,6 +508,7 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
         {
             sleep_secs(out->retry_after);
             attempt++;
+            atomic_fetch_add(&g_stat_retries, 1);
             continue;
         }
 
@@ -534,6 +567,7 @@ ErrorCode http_get_paginated(const HttpClient *hc, const char *url,
 
         int stop = cb(userdata, buf.data, &res);
         http_buffer_free(&buf);
+        atomic_fetch_add(&g_stat_pages, 1);
 
         if (stop || (res.next_page[0] == '\0' && res.next_page_num == 0)) return GS_OK;
         if (res.next_page[0])

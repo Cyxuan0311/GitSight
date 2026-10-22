@@ -197,6 +197,25 @@ static void handle_cache_get(Request *req, Response *res, void *user) {
     res_json_obj(res, 200, root);
 }
 
+/* GET /api/meta/stats
+ *
+ * What the daemon has spent on the network since it started. A run that
+ * feels slow is either waiting on the network or working through the items,
+ * and these numbers say which. */
+static void handle_stats(Request *req, Response *res, void *user) {
+    (void)req; (void)user;
+    HttpStats st;
+    http_stats(&st);
+    cJSON *root = cJSON_CreateObject();
+    cJSON_AddNumberToObject(root, "requests", (double)st.requests);
+    cJSON_AddNumberToObject(root, "pages", (double)st.pages);
+    cJSON_AddNumberToObject(root, "cache_hits", (double)st.cache_hits);
+    cJSON_AddNumberToObject(root, "cache_misses", (double)st.cache_misses);
+    cJSON_AddNumberToObject(root, "retries", (double)st.retries);
+    cJSON_AddNumberToObject(root, "bytes", (double)st.bytes);
+    res_json_obj(res, 200, root);
+}
+
 /* DELETE /api/cache */
 static void handle_cache_clear(Request *req, Response *res, void *user) {
     (void)req; (void)user;
@@ -216,6 +235,7 @@ static void handle_cache_clear(Request *req, Response *res, void *user) {
 void api_register_meta(Router *r) {
     router_add(r, "GET",  "/api/health", handle_health, NULL);
     router_add(r, "GET",  "/api/meta/options", handle_options, NULL);
+    router_add(r, "GET",  "/api/meta/stats", handle_stats, NULL);
     router_add(r, "GET",  "/api/meta/i18n", handle_i18n, NULL);
     router_add(r, "GET",  "/api/quota", handle_quota, NULL);
     router_add(r, "GET",  "/api/cache", handle_cache_get, NULL);

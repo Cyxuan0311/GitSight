@@ -49,6 +49,26 @@ void http_cache_info(char *dir, size_t len, long *ttl, int *enabled);
    remaining = -1 when not yet known; reset_at is an epoch value. */
 void http_quota(long *remaining, long *reset_at);
 
+/**
+ * What the process has spent on the network since it started.
+ *
+ * A run that feels slow is either waiting on the network or working through
+ * the items, and the two need very different fixes. These counters say which:
+ * how many requests went out, how many the cache answered, how often a
+ * request had to be retried, and how many bytes came back.
+ */
+typedef struct {
+    long requests;      /* Responses fetched from the network. */
+    long pages;         /* Pages parsed, cache hits included. */
+    long cache_hits;    /* Pages answered from the disk cache. */
+    long cache_misses;  /* Pages that had to be fetched. */
+    long retries;       /* Extra attempts after a transient failure. */
+    long bytes;         /* Bytes received over the network. */
+} HttpStats;
+
+/* The counters, read as one consistent snapshot. */
+void http_stats(HttpStats *out);
+
 /* GET a single URL. Retries transient failures and rate limits internally.
    Returns GS_OK on HTTP 200 (result/data + out filled).
    Returns ERR_HTTP_STATUS on a final non-success HTTP code (out->http_code set).

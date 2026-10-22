@@ -2,6 +2,8 @@
 
 #include "jobs.h"
 
+#include "export/json.h"
+
 #include "gitsight/anim.h"
 #include "gitsight/color.h"
 #include "gitsight/cancel.h"
@@ -159,6 +161,9 @@ static void job_release_locked(Job *j) {
     free(j->opts_list);
     j->opts_list = NULL;
     j->repo_count = 0;
+    free(j->result_json);
+    j->result_json = NULL;
+    j->result_json_len = 0;
 
     if (j->has_compare) {
         compare_result_free(&j->compare);
@@ -275,14 +280,16 @@ void job_set_compare(Job *j, int days_a, int days_b) {
 
 /* ---- serialization ---- */
 
+/* The analysis as a tree.
+ *
+ * It used to be rendered to text, parsed back and printed again -- three
+ * passes over a document that can be megabytes, for a result that does not
+ * change. The tree is built once and handed to the response. */
 static cJSON *analysis_to_cjson(const AnalysisResult *r, const Config *cfg) {
-    char *buf = NULL;
-    size_t len = 0;
-    if (analysis_render(r, cfg, "json", &buf, &len) != GS_OK || !buf)
-        return cJSON_CreateObject();
-    cJSON *parsed = cJSON_Parse(buf);
-    free(buf);
-    return parsed ? parsed : cJSON_CreateObject();
+    (void)cfg;
+    cJSON *tree = json_build_tree(&r->report, &r->prs, &r->commits,
+                                  &r->issues, &r->releases);
+    return tree ? tree : cJSON_CreateObject();
 }
 
 /* Fetch failures are warnings: a repository with no releases still produces a
@@ -307,6 +314,35 @@ static void add_warnings(cJSON *parent, const AnalysisResult *r) {
                                 "Fell back to the locally generated summary");
         cJSON_AddItemToArray(arr, w);
     }
+}
+
+/* The rendered result as text, kept for the next request.
+ *
+ * A finished analysis does not change, and the console asks for the result
+ * again every time it re-renders. Rendering it once turns every later
+ * request into a copy -- for a full report the rendering is the expensive
+ * part. The caller owns the returned text. */
+char *job_result_text(Job *j, const Config *cfg) {
+    if (!j) return NULL;
+
+    pthread_mutex_lock(&g_jobs_lock);
+    char *cached = j->result_json ? strdup(j->result_json) : NULL;
+    pthread_mutex_unlock(&g_jobs_lock);
+    if (cached) return cached;
+
+    cJSON *root = job_result_json(j, cfg);
+    if (!root) return NULL;
+    char *text = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!text) return NULL;
+
+    pthread_mutex_lock(&g_jobs_lock);
+    if (!j->result_json) {
+        j->result_json = strdup(text);
+        j->result_json_len = strlen(text);
+    }
+    pthread_mutex_unlock(&g_jobs_lock);
+    return text;
 }
 
 cJSON *job_result_json(const Job *j, const Config *cfg) {

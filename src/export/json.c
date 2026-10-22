@@ -50,12 +50,13 @@ static void add_release(cJSON *arr, const Release *rel) {
     cJSON_AddItemToArray(arr, o);
 }
 
-static ErrorCode json_write_report(FILE *fp, const Report *report,
-                                   const Vector *prs, const Vector *commits,
-                                   const Vector *issues, const Vector *releases,
-                                   const FormatOptions *opts) {
-    (void)opts;
-
+/* Builds the report as a tree.
+ *
+ * The daemon answers a request for the result by handing this tree straight
+ * to the response, so the report is built once instead of being written out
+ * as text and read back in. */
+cJSON *json_build_tree(const Report *report, const Vector *prs, const Vector *commits,
+                       const Vector *issues, const Vector *releases) {
     cJSON *root = cJSON_CreateObject();
 
     cJSON_AddStringToObject(root, "owner", report->owner);
@@ -179,6 +180,17 @@ for (int i = 0; i < 7; i++) {
 
     cJSON_AddStringToObject(root, "top_labels", report->top_labels);
     cJSON_AddStringToObject(root, "summary", report->summary);
+    return root;
+}
+
+static ErrorCode json_write_report(FILE *fp, const Report *report,
+                                   const Vector *prs, const Vector *commits,
+                                   const Vector *issues, const Vector *releases,
+                                   const FormatOptions *opts) {
+    (void)opts;
+
+    cJSON *root = json_build_tree(report, prs, commits, issues, releases);
+    if (!root) return ERR_MEMORY;
 
     char *str = cJSON_Print(root);
     if (!str) { cJSON_Delete(root); return ERR_MEMORY; }

@@ -66,6 +66,13 @@ typedef struct Job {
     int    repo_count;
     int    compare_days_a, compare_days_b;
 
+    /* The rendered result, kept as text once it has been asked for. A
+     * finished analysis does not change, and the console asks for the result
+     * repeatedly, so rendering it once turns every later request into a
+     * copy. */
+    char  *result_json;
+    size_t result_json_len;
+
     /* Outputs, owned once the job reaches a terminal state. */
     AnalysisResult *reports;
     int    report_count;
@@ -107,6 +114,10 @@ cJSON *job_to_json(const Job *j);
 cJSON *job_list_json(int limit);
 /* Serializes the finished result payload from the job's stored analyses. */
 cJSON *job_result_json(const Job *j, const Config *cfg);
+
+/* The rendered result as text, kept so a repeated request does not render it
+ * again. The caller owns the returned text. */
+char *job_result_text(Job *j, const Config *cfg);
 
 /* Copies progress entries with index >= *since into a fresh array while holding
  * the registry lock, then advances the cursor and reports the job's current

@@ -4,6 +4,7 @@
 #include "jobs.h"
 
 #include "gitsight/anim.h"
+#include "gitsight/i18n.h"
 
 #include <cJSON.h>
 #include <errno.h>
@@ -243,12 +244,13 @@ static void handle_result(Request *req, Response *res, void *user) {
     Config cfg = job->export_cfg;
     apply_lang_override(req, &cfg);
 
-    cJSON *result = job_result_json(job, &cfg);
-    if (!result) {
+    char *text = job_result_text(job, &cfg);
+    if (!text) {
         res_error(res, 500, "internal", "no result available");
         return;
     }
-    res_json_obj(res, 200, result);
+    res_json(res, 200, text);
+    free(text);
 }
 
 /* Locates the report a download refers to.

@@ -263,6 +263,16 @@ export interface Health {
   active_jobs: number;
 }
 
+/** What the daemon has spent on the network since it started. */
+export interface HttpStats {
+  requests: number;
+  pages: number;
+  cache_hits: number;
+  cache_misses: number;
+  retries: number;
+  bytes: number;
+}
+
 export interface Quota {
   known: boolean;
   remaining?: number;

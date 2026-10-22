@@ -1,5 +1,6 @@
 import type {
   AnalyzeRequest,
+  HttpStats,
   BatchResult,
   CacheInfo,
   CompareRequest,
@@ -214,6 +215,7 @@ export const api = {
   options: () => request<MetaOptions>('/api/meta/options'),
   quota: () => request<Quota>('/api/quota'),
   cache: () => request<CacheInfo>('/api/cache'),
+  stats: () => request<HttpStats>('/api/meta/stats'),
   clearCache: () => request<void>('/api/cache', { method: 'DELETE' }),
   completion: (shell: 'bash' | 'zsh' | 'fish') =>
     requestText(`/api/completion/${shell}`),

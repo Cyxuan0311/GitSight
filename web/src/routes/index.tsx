@@ -14,7 +14,7 @@ import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
 import { StatCard } from '@/components/common';
 import { api } from '@/lib/api';
 import { toast } from '@/stores/toast';
-import { formatNumber, formatRelative } from '@/lib/format';
+import { formatBytes, formatNumber, formatRelative } from '@/lib/format';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export function OverviewPage() {
@@ -23,6 +23,7 @@ export function OverviewPage() {
   const health = useQuery({ queryKey: ['health'], queryFn: api.health });
   const quota = useQuery({ queryKey: ['quota'], queryFn: api.quota });
   const cache = useQuery({ queryKey: ['cache'], queryFn: api.cache });
+  const stats = useQuery({ queryKey: ['meta-stats'], queryFn: api.stats });
   const config = useQuery({ queryKey: ['config'], queryFn: api.getConfig });
   const jobs = useQuery({ queryKey: ['jobs'], queryFn: () => api.listJobs(8) });
   const llms = useQuery({ queryKey: ['llms'], queryFn: api.listLlms });
@@ -105,6 +106,26 @@ export function OverviewPage() {
                   </Row>
                 </dl>
                 <ClearCacheButton />
+                <p className="border-t border-line pt-2.5 text-xs text-muted">
+                  {t('overview.network')}
+                </p>
+                <dl className="space-y-2 text-xs">
+                  <Row label={t('overview.requests')}>
+                    <span className="nums">{formatNumber(stats.data?.requests ?? 0)}</span>
+                  </Row>
+                  <Row label={t('overview.cacheHits')}>
+                    <span className="nums">
+                      {formatNumber(stats.data?.cache_hits ?? 0)} /{' '}
+                      {formatNumber((stats.data?.cache_hits ?? 0) + (stats.data?.cache_misses ?? 0))}
+                    </span>
+                  </Row>
+                  <Row label={t('overview.retries')}>
+                    <span className="nums">{formatNumber(stats.data?.retries ?? 0)}</span>
+                  </Row>
+                  <Row label={t('overview.bytes')}>
+                    <span className="nums">{formatBytes(stats.data?.bytes ?? 0)}</span>
+                  </Row>
+                </dl>
               </QueryState>
             </CardContent>
           </Card>

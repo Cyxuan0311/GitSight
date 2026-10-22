@@ -56,6 +56,18 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(url.query)
         page = int(query.get("page", ["1"])[0])
         path = url.path
+
+        # How many requests this mock has served, so a test can tell a run
+        # that went to the network from one the cache answered.
+        if path == "/__stats":
+            body = json.dumps(STATE).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         STATE["requests"] += 1
 
         kind = None

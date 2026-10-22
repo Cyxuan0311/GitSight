@@ -34,8 +34,8 @@ done
 export XDG_CONFIG_HOME="$WORK/xdg"
 export GS_CACHE_DIR="$WORK/cache"
 export NO_COLOR=1
-mkdir -p "$XDG_CONFIG_HOME/gitsight"
-cat > "$XDG_CONFIG_HOME/gitsight/config.json" <<'EOF'
+mkdir -p "$XDG_CONFIG_HOME/.config/gitsight"
+cat > "$XDG_CONFIG_HOME/.config/gitsight/config.json" <<'EOF'
 {"default_days":7,"platform":"github","lang":"en","export":{"item_limit":10}}
 EOF
 
@@ -69,4 +69,67 @@ WARM2=$(count_prs "$WORK/warm2.json")
 ENTRIES=$(find "$GS_CACHE_DIR" -name '*.json' 2>/dev/null | wc -l)
 [ "$ENTRIES" -gt 0 ] || fail "nothing was cached"
 
-echo "cache tests: 4 passed, 0 failed"
+# --- a run that asks to bypass the cache must go to the network ------------
+#
+# The daemon never set the cache flag, so the option the console offers was
+# silently ignored and every run was answered from the cache.
+BEFORE=$(curl -s "$BASE/__stats" | python3 -c 'import json,sys; print(json.load(sys.stdin)["requests"])')
+"$GS" analyze acme/gadget --api-base "$BASE" --no-cache -q -d 7 --max-pages 5 \
+    -f json -o "$WORK/nocache.json" >/dev/null 2>&1 || fail "the no-cache run failed"
+AFTER=$(curl -s "$BASE/__stats" | python3 -c 'import json,sys; print(json.load(sys.stdin)["requests"])')
+[ "$AFTER" -gt "$BEFORE" ] || fail "--no-cache still read from the cache (before=$BEFORE after=$AFTER)"
+NOCACHE=$(count_prs "$WORK/nocache.json")
+[ "$NOCACHE" = "$COLD" ] || fail "the no-cache run saw $NOCACHE pull requests, expected $COLD"
+
+# --- and the daemon must honour it too -------------------------------------
+#
+# The daemon never set the cache flag, so the option the console offers was
+# silently ignored there.
+PORT2=$((19800 + RANDOM % 100))
+BASE2="http://127.0.0.1:$PORT2"
+XDG_CONFIG_HOME="$WORK/xdg2"
+mkdir -p "$XDG_CONFIG_HOME/.config/gitsight"
+cat > "$XDG_CONFIG_HOME/.config/gitsight/config.json" <<EOF
+{"default_days":7,"platform":"github","lang":"en","api_base":"$BASE","export":{"item_limit":10}}
+EOF
+export XDG_CONFIG_HOME
+"$GS" serve --port "$PORT2" --config "$XDG_CONFIG_HOME/.config/gitsight/config.json" \
+    >"$WORK/daemon.log" 2>&1 &
+DAEMON_PID=$!
+for _ in $(seq 1 50); do
+    curl -sf "$BASE2/api/health" >/dev/null 2>&1 && break
+    sleep 0.1
+done
+
+daemon_prs() {
+    local job
+    job=$(curl -s -X POST -H 'Content-Type: application/json' \
+        -d "{\"repo\":\"acme/gadget\",\"since_days\":7,\"no_cache\":$1}" \
+        "$BASE2/api/jobs/analyze" | sed -n 's/.*"id":"\([^"]*\)".*/\1/p')
+    for _ in $(seq 1 100); do
+        local body
+        body=$(curl -s "$BASE2/api/jobs/$job/result")
+        case "$body" in *'"pull_requests"'*) break;; esac
+        sleep 0.1
+    done
+    printf '%s' "$body" | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print(len(d['pull_requests']['items']))
+"
+}
+
+DAEMON_COLD=$(daemon_prs false)
+[ "$DAEMON_COLD" = "200" ] || fail "the daemon saw $DAEMON_COLD pull requests, expected 200"
+DAEMON_WARM=$(daemon_prs false)
+[ "$DAEMON_WARM" = "200" ] || fail "the cached daemon run saw $DAEMON_WARM pull requests, expected 200"
+
+BEFORE=$(curl -s "$BASE/__stats" | python3 -c 'import json,sys; print(json.load(sys.stdin)["requests"])')
+DAEMON_NOCACHE=$(daemon_prs true)
+AFTER=$(curl -s "$BASE/__stats" | python3 -c 'import json,sys; print(json.load(sys.stdin)["requests"])')
+[ "$AFTER" -gt "$BEFORE" ] || fail "the daemon ignored no_cache (before=$BEFORE after=$AFTER)"
+[ "$DAEMON_NOCACHE" = "200" ] || fail "the no-cache daemon run saw $DAEMON_NOCACHE pull requests"
+
+kill "$DAEMON_PID" 2>/dev/null
+
+echo "cache tests: 8 passed, 0 failed"

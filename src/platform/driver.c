@@ -95,6 +95,7 @@ ErrorCode gs_fetch_paginated(const DriverBase *base, const char *auth_header,
     HttpClient hc;
     http_client_init(&hc, auth_header, base->proxy, base->accept,
                      base->timeout_secs, base->max_pages);
+    hc.use_cache = base->use_cache;
 
     long last_http = 0;
     ErrorCode err = http_get_paginated(&hc, url, cb, userdata, &last_http);
@@ -113,6 +114,7 @@ ErrorCode gs_fetch_json(const DriverBase *base, const char *auth_header,
     HttpClient hc;
     http_client_init(&hc, auth_header, base->proxy, base->accept,
                      base->timeout_secs, base->max_pages);
+    hc.use_cache = base->use_cache;
 
     HttpBuffer buf;
     HttpResult res;

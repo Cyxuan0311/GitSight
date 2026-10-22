@@ -23,6 +23,7 @@ static void fill_base(const GitHubContext *gh, DriverBase *base) {
     base->accept = GITHUB_ACCEPT;
     base->timeout_secs = gh->timeout_secs;
     base->max_pages = gh->max_pages;
+    base->use_cache = gh->use_cache;
     base->owner = gh->owner;
     base->repo = gh->repo;
     base->error_buf = gh->error_buf;
@@ -426,7 +427,8 @@ static void github_destroy(void *ctx) {
 }
 
 ErrorCode github_client_init(PlatformClient *client, const Config *cfg,
-                             const char *owner, const char *repo)
+                             const char *owner, const char *repo,
+                             int use_cache)
 {
     GitHubContext *ctx = calloc(1, sizeof(GitHubContext));
     if (!ctx) return ERR_MEMORY;
@@ -448,6 +450,7 @@ ErrorCode github_client_init(PlatformClient *client, const Config *cfg,
     snprintf(ctx->branch, sizeof(ctx->branch), "%s", cfg->branch);
     ctx->timeout_secs = 30;
     ctx->max_pages = cfg->max_pages;
+    ctx->use_cache = use_cache;
     ctx->error_buf = client->last_error;
     ctx->error_len = sizeof(client->last_error);
     client->last_error[0] = '\0';

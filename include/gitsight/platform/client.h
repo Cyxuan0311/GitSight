@@ -25,7 +25,11 @@ typedef struct PlatformClient {
     void      (*destroy)(void *ctx);
 } PlatformClient;
 
+/* use_cache says whether this client's requests may be answered from the
+   disk cache. It is per client rather than process-wide, so one run asking
+   to bypass the cache does not turn it off for the runs beside it. */
 ErrorCode platform_client_init(PlatformClient *client, const Config *cfg,
-                               const char *owner, const char *repo);
+                               const char *owner, const char *repo,
+                               int use_cache);
 
 #endif

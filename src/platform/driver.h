@@ -24,6 +24,11 @@ typedef struct {
     const char *accept;
     long timeout_secs;
     int  max_pages;
+    /* Whether this fetch may use the disk cache. A run that asked to bypass
+     * the cache has to bypass it for its own requests only, so the flag
+     * travels with the client rather than switching the cache off for the
+     * whole process. */
+    int  use_cache;
     const char *owner;
     const char *repo;
     char *error_buf;

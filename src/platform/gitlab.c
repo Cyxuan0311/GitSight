@@ -28,6 +28,7 @@ static void fill_base(const GitLabContext *gl, DriverBase *base) {
     base->accept = GITLAB_ACCEPT;
     base->timeout_secs = gl->timeout_secs;
     base->max_pages = gl->max_pages;
+    base->use_cache = gl->use_cache;
     base->owner = gl->owner;
     base->repo = gl->repo;
     base->error_buf = gl->error_buf;
@@ -415,7 +416,8 @@ static void gitlab_destroy(void *ctx) {
 }
 
 ErrorCode gitlab_client_init(PlatformClient *client, const Config *cfg,
-                             const char *owner, const char *repo)
+                             const char *owner, const char *repo,
+                             int use_cache)
 {
     GitLabContext *ctx = calloc(1, sizeof(GitLabContext));
     if (!ctx) return ERR_MEMORY;
@@ -428,6 +430,7 @@ ErrorCode gitlab_client_init(PlatformClient *client, const Config *cfg,
     snprintf(ctx->branch, sizeof(ctx->branch), "%s", cfg->branch);
     ctx->timeout_secs = 30;
     ctx->max_pages = cfg->max_pages;
+    ctx->use_cache = use_cache;
     ctx->error_buf = client->last_error;
     ctx->error_len = sizeof(client->last_error);
     client->last_error[0] = '\0';

@@ -184,6 +184,7 @@ typedef struct {
     char owner[128];
     char repo[128];
     int  since_days;
+    int  use_cache;         /* whether this run may read the disk cache */
     int  kind;              /* 0=prs 1=commits 2=issues 3=releases 4=meta 5=contributors 6=languages */
     Vector *vec;
     RepoMeta *meta;
@@ -223,7 +224,8 @@ void analysis_result_free(AnalysisResult *r) {
 
 static void *fetch_worker(void *arg) {
     FetchJob *j = (FetchJob *)arg;
-    ErrorCode e = platform_client_init(&j->pclient, j->cfg, j->owner, j->repo);
+    ErrorCode e = platform_client_init(&j->pclient, j->cfg, j->owner, j->repo,
+                                       j->use_cache);
     if (e != GS_OK) { j->err = e; return NULL; }
     j->client_ready = 1;
     switch (j->kind) {
@@ -498,6 +500,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
         snprintf(jobs[i].owner, sizeof(jobs[i].owner), "%s", owner);
         snprintf(jobs[i].repo, sizeof(jobs[i].repo), "%s", repo);
         jobs[i].since_days = cfg.default_days;
+        jobs[i].use_cache = opts->no_cache ? 0 : 1;
     }
 
     Anim sp;

@@ -106,6 +106,7 @@ ErrorCode gs_fetch_paginated(const DriverBase *base, const char *auth_header,
 
     long last_http = 0;
     ErrorCode err = http_get_paginated(&hc, url, cb, userdata, &last_http);
+    http_client_free(&hc);
     if (err != GS_OK) {
         if (err == ERR_HTTP_STATUS) {
             if (tolerate_404 && last_http == 404) return GS_OK;
@@ -127,6 +128,7 @@ ErrorCode gs_fetch_json(const DriverBase *base, const char *auth_header,
     HttpResult res;
     http_buffer_init(&buf);
     ErrorCode err = http_get(&hc, url, &buf, &res);
+    http_client_free(&hc);
     if (err != GS_OK) {
         if (err == ERR_HTTP_STATUS) set_http_error(base, res.http_code);
         http_buffer_free(&buf);

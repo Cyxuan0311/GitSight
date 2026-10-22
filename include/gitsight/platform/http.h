@@ -32,10 +32,17 @@ typedef struct {
     int  use_cache;
     char cache_dir[512];
     long cache_ttl;
+    /* The connection handle, kept between requests so a page that follows
+     * another reuses the connection instead of paying for a new TLS
+     * handshake. It is opaque here so this header does not need curl. */
+    void *handle;
 } HttpClient;
 
 void http_client_init(HttpClient *hc, const char *auth_header, const char *proxy,
                       const char *accept, long timeout_secs, int max_pages);
+
+/* Releases what the client holds. Call it when the client is done. */
+void http_client_free(HttpClient *hc);
 
 /* Enable/disable the disk response cache process-wide (off via --no-cache).
    Defaults to enabled. Must be called before any fetch begins. */

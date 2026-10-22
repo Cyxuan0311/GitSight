@@ -10,13 +10,15 @@ Usage: python3 tools/mock_api.py <port> [pages]
 """
 import json
 import sys
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 PAGES = 2
 PER_PAGE = 100
 D = "2026-10-20T00:00:00Z"
-STATE = {"requests": 0}
+STATE = {"requests": 0, "connections": 0}
+DELAY = 0.0
 
 
 def items(kind, page):
@@ -48,8 +50,18 @@ def items(kind, page):
 
 
 class Handler(BaseHTTPRequestHandler):
+    # HTTP/1.1 with a Content-Length, so the connection survives the response
+    # and a client that reuses its handle really does reuse the connection.
+    protocol_version = "HTTP/1.1"
+
     def log_message(self, *args):
         pass
+
+    def setup(self):
+        # A new connection shows up here, so the count says how many times
+        # the client had to open one.
+        STATE["connections"] += 1
+        BaseHTTPRequestHandler.setup(self)
 
     def do_GET(self):
         url = urlparse(self.path)
@@ -69,6 +81,10 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         STATE["requests"] += 1
+        if DELAY:
+            # A real API takes time; without it every request answers
+            # instantly and the parallelism cannot be seen.
+            time.sleep(DELAY)
 
         kind = None
         for candidate in ("pulls", "issues", "commits", "releases", "contributors"):
@@ -102,5 +118,10 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 18999
     pages = int(sys.argv[2]) if len(sys.argv) > 2 else PAGES
+    # At module level the assignment is already global.
+    DELAY = float(sys.argv[3]) if len(sys.argv) > 3 else 0.0
     PAGES = pages
-    HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    # Threaded, so a client that fetches several resources at once really
+    # does have them answered at once -- a single-threaded server would
+    # serialise the requests and hide the difference.
+    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()

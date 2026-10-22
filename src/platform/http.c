@@ -422,8 +422,17 @@ void http_client_init(HttpClient *hc, const char *auth_header, const char *proxy
     hc->timeout_secs = timeout_secs > 0 ? timeout_secs : 30;
     hc->max_pages = max_pages > 0 ? max_pages : 20;
     hc->use_cache = 1;
+    hc->handle = NULL;
     hc->cache_ttl = GS_CACHE_TTL_DEFAULT;
     http_default_cache_dir(hc->cache_dir, sizeof(hc->cache_dir));
+}
+
+void http_client_free(HttpClient *hc) {
+    if (!hc) return;
+    if (hc->handle) {
+        curl_easy_cleanup((CURL *)hc->handle);
+        hc->handle = NULL;
+    }
 }
 
 static void sleep_secs(long secs) {
@@ -493,12 +502,24 @@ static void reset_result(HttpResult *r) {
     r->has_retry_after = 0;
 }
 
+/* Prepares the client's handle for one request.
+ *
+ * The handle is reused between the pages of a resource, so the connection --
+ * and the TLS handshake behind it -- is established once instead of once per
+ * page. curl_easy_reset clears the options but keeps the connection cache,
+ * which is exactly what is wanted here. */
 static CURL *setup_curl(const HttpClient *hc, const char *url,
                         HttpBuffer *buf, HttpResult *res,
                         struct curl_slist **headers)
 {
-    CURL *curl = curl_easy_init();
-    if (!curl) return NULL;
+    CURL *curl = (CURL *)hc->handle;
+    if (curl) {
+        curl_easy_reset(curl);
+    } else {
+        curl = curl_easy_init();
+        if (!curl) return NULL;
+        ((HttpClient *)hc)->handle = curl;
+    }
 
     gs_cancel_attach(curl);
     curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -589,7 +610,6 @@ ErrorCode http_get(const HttpClient *hc, const char *url,
         CURLcode res = curl_easy_perform(curl);
         long http_code = 0;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
-        curl_easy_cleanup(curl);
         curl_slist_free_all(headers);
         atomic_fetch_add(&g_stat_requests, 1);
         atomic_fetch_add(&g_stat_bytes, (long)buf.size);

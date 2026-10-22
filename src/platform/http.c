@@ -1,6 +1,7 @@
 #include "gitsight/platform/http.h"
 #include "gitsight/cancel.h"
 #include <curl/curl.h>
+#include <dirent.h>
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -144,6 +145,73 @@ static int cache_dir_ready(const char *dir) {
     return 1;
 }
 
+/* How many cached pages the directory may hold.
+ *
+ * The cache only ever holds what is still usable -- an entry past its
+ * lifetime is dead weight -- but nothing removed the dead ones, so the
+ * directory grew for as long as the daemon ran. */
+#define CACHE_MAX_ENTRIES 2048
+
+/* How often the directory is swept, in writes. Scanning it on every write
+ * would cost more than the write does. */
+#define CACHE_PRUNE_EVERY 64
+
+/* Removes the entries that can no longer be used: the ones past their
+ * lifetime, and -- if there are still too many -- the oldest ones. */
+static void cache_prune(const HttpClient *hc) {
+    DIR *dir = opendir(hc->cache_dir);
+    if (!dir) return;
+
+    /* The entries, oldest first. A run caches a few dozen pages, so the list
+     * is small enough to sort in place. */
+    struct CacheEntry { char name[256]; time_t mtime; } entries[CACHE_MAX_ENTRIES];
+    int count = 0;
+
+    struct dirent *ent;
+    while ((ent = readdir(dir)) != NULL && count < CACHE_MAX_ENTRIES) {
+        if (ent->d_name[0] == '.') continue;
+        size_t len = strlen(ent->d_name);
+        if (len < 5 || len >= sizeof(entries[0].name)) continue;
+        if (strcmp(ent->d_name + len - 5, ".json") != 0) continue;
+
+        char path[768];
+        snprintf(path, sizeof(path), "%s/%s", hc->cache_dir, ent->d_name);
+        struct stat st;
+        if (stat(path, &st) != 0) continue;
+        snprintf(entries[count].name, sizeof(entries[0].name), "%.*s",
+                 (int)(sizeof(entries[0].name) - 1), ent->d_name);
+        entries[count].mtime = st.st_mtime;
+        count++;
+    }
+    closedir(dir);
+
+    if (count == 0) return;
+
+    /* Oldest first. */
+    for (int i = 1; i < count; i++) {
+        struct CacheEntry key = entries[i];
+        int j = i - 1;
+        while (j >= 0 && entries[j].mtime > key.mtime) {
+            entries[j + 1] = entries[j];
+            j--;
+        }
+        entries[j + 1] = key;
+    }
+
+    time_t now = time(NULL);
+    int keep = count;
+    for (int i = 0; i < count; i++) {
+        int expired = hc->cache_ttl > 0 && (now - entries[i].mtime) > hc->cache_ttl;
+        int over_cap = keep > CACHE_MAX_ENTRIES;
+        if (!expired && !over_cap) continue;
+
+        char path[1024];
+        snprintf(path, sizeof(path), "%.400s/%.256s", hc->cache_dir, entries[i].name);
+        unlink(path);
+        keep--;
+    }
+}
+
 /* The header every cached page carries.
  *
  * The pagination lives in the response headers, not in the body, so a cache
@@ -213,6 +281,12 @@ static void cache_write(const HttpClient *hc, const char *url, const HttpBuffer 
     char path[768];
     cache_path_for(hc, url, path, sizeof(path));
     if (!cache_dir_ready(hc->cache_dir)) return;
+
+    /* Sweep the directory every so often, so the entries that can no longer
+     * be used do not pile up for as long as the daemon runs. */
+    static atomic_long writes = 0;
+    if (atomic_fetch_add(&writes, 1) % CACHE_PRUNE_EVERY == 0)
+        cache_prune(hc);
 
     char tmp[832];
     snprintf(tmp, sizeof(tmp), "%s.tmp", path);

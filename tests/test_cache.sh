@@ -147,4 +147,16 @@ AFTER=$(curl -s "$BASE/__stats" | python3 -c 'import json,sys; print(json.load(s
 
 kill "$DAEMON_PID" 2>/dev/null
 
-echo "cache tests: 10 passed, 0 failed"
+# --- the cache must not grow without bound ----------------------------------
+#
+# Nothing removed the entries that had expired, so the directory grew for as
+# long as the daemon ran.
+for i in $(seq 1 40); do
+    "$GS" analyze acme/gadget --api-base "$BASE" --no-cache -q -d 7 --max-pages 5 \
+        -f json -o "$WORK/prune.json" >/dev/null 2>&1
+done
+ENTRIES_AFTER=$(find "$GS_CACHE_DIR" -name '*.json' 2>/dev/null | wc -l)
+[ "$ENTRIES_AFTER" -le 64 ] \
+    || fail "the cache holds $ENTRIES_AFTER entries after 40 runs"
+
+echo "cache tests: 11 passed, 0 failed"

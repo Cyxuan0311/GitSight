@@ -9,6 +9,7 @@
 #include "gitsight/cancel.h"
 #include "gitsight/config.h"
 #include "gitsight/i18n.h"
+#include "gitsight/perf.h"
 #include "gitsight/platform/http.h"
 
 #include <cJSON.h>
@@ -685,6 +686,10 @@ static void job_finish(Job *j, JobState state, ErrorCode err, const char *detail
 static void *job_execute(void *arg) {
     Job *j = (Job *)arg;
 
+    /* The breakdown is per job, so the clock starts here rather than when
+     * the daemon did. */
+    perf_start();
+
     pthread_mutex_lock(&g_jobs_lock);
     if (j->state == JOB_CANCELLED) {
         pthread_mutex_unlock(&g_jobs_lock);
@@ -748,6 +753,10 @@ static void *job_execute(void *arg) {
     tls_job = NULL;
     tls_repo = NULL;
     anim_set_listener(NULL, NULL);
+
+    /* The breakdown belongs to this thread, so a daemon running several
+     * analyses at once reports each one on its own. */
+    perf_report();
 
     if (cancelled) {
         job_finish(j, JOB_CANCELLED, ERR_CANCELLED, "Cancelled by request");

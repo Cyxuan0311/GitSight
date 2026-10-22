@@ -15,5 +15,10 @@ void    *vector_get(const Vector *v, size_t index);
 size_t   vector_len(const Vector *v);
 void     vector_free(Vector *v, void (*free_item)(void *));
 void     vector_remove_at(Vector *v, size_t index, void (*free_item)(void *));
+/* Removes every item for which keep() is false, in one pass. Removing the
+ * items one at a time costs a memmove of the tail per removal, which is
+ * quadratic in the number of removals. */
+size_t   vector_retain(Vector *v, int (*keep)(const void *item, void *user),
+                       void *user, void (*free_item)(void *));
 
 #endif

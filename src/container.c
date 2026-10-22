@@ -40,6 +40,22 @@ void vector_remove_at(Vector *v, size_t index, void (*free_item)(void *)) {
     v->count--;
 }
 
+size_t vector_retain(Vector *v, int (*keep)(const void *item, void *user),
+                     void *user, void (*free_item)(void *)) {
+    if (!v) return 0;
+    size_t write = 0, removed = 0;
+    for (size_t i = 0; i < v->count; i++) {
+        if (keep(v->items[i], user)) {
+            v->items[write++] = v->items[i];
+        } else {
+            if (free_item) free_item(v->items[i]);
+            removed++;
+        }
+    }
+    v->count = write;
+    return removed;
+}
+
 void vector_free(Vector *v, void (*free_item)(void *)) {
     if (free_item) {
         for (size_t i = 0; i < v->count; i++) {

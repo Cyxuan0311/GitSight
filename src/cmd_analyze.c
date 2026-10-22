@@ -140,43 +140,63 @@ static int filters_active(const FilterSet *fs, const char *to_iso) {
     return to_iso[0] || fs->n_author || fs->n_label || fs->n_word;
 }
 
+/* The text an item is matched against, for one kind of item. */
+typedef struct {
+    const char *to_iso;
+    const FilterSet *fs;
+    char text[1024];
+} FilterCtx;
+
+static int keep_pr(const void *item, void *user) {
+    FilterCtx *c = (FilterCtx *)user;
+    const PR *it = (const PR *)item;
+    snprintf(c->text, sizeof(c->text), "%s", it->title);
+    return date_le(it->created_at, c->to_iso) &&
+           item_kept(c->fs, it->author, it->labels, c->text);
+}
+
+static int keep_commit(const void *item, void *user) {
+    FilterCtx *c = (FilterCtx *)user;
+    const Commit *it = (const Commit *)item;
+    snprintf(c->text, sizeof(c->text), "%s", it->message);
+    return date_le(it->date, c->to_iso) &&
+           item_kept(c->fs, it->author, NULL, c->text);
+}
+
+static int keep_issue(const void *item, void *user) {
+    FilterCtx *c = (FilterCtx *)user;
+    const Issue *it = (const Issue *)item;
+    snprintf(c->text, sizeof(c->text), "%s", it->title);
+    return date_le(it->created_at, c->to_iso) &&
+           item_kept(c->fs, it->author, it->labels, c->text);
+}
+
+static int keep_release(const void *item, void *user) {
+    FilterCtx *c = (FilterCtx *)user;
+    const Release *it = (const Release *)item;
+    snprintf(c->text, sizeof(c->text), "%s %s", it->tag_name, it->name);
+    return date_le(it->published_at, c->to_iso) &&
+           item_kept(c->fs, it->author, NULL, c->text);
+}
+
+/* Drops the items the filters exclude.
+ *
+ * The items are swept out in one pass: removing them one at a time moved the
+ * whole tail of the list for every removal, which is quadratic in the number
+ * of removals -- and a run bounded by --to can remove most of a repository. */
 static void apply_filters(Vector *prs, Vector *commits, Vector *issues,
                           Vector *releases, const char *to_iso, const FilterSet *fs) {
     if (!filters_active(fs, to_iso)) return;
-    char text[1024];
 
-    for (size_t i = 0; i < vector_len(prs); ) {
-        PR *it = (PR *)vector_get(prs, i);
-        snprintf(text, sizeof(text), "%s", it->title);
-        if (date_le(it->created_at, to_iso) && item_kept(fs, it->author, it->labels, text))
-            i++;
-        else
-            vector_remove_at(prs, i, pr_free);
-    }
-    for (size_t i = 0; i < vector_len(commits); ) {
-        Commit *it = (Commit *)vector_get(commits, i);
-        snprintf(text, sizeof(text), "%s", it->message);
-        if (date_le(it->date, to_iso) && item_kept(fs, it->author, NULL, text))
-            i++;
-        else
-            vector_remove_at(commits, i, commit_free);
-    }
-    for (size_t i = 0; i < vector_len(issues); ) {
-        Issue *it = (Issue *)vector_get(issues, i);
-        snprintf(text, sizeof(text), "%s", it->title);
-        if (date_le(it->created_at, to_iso) && item_kept(fs, it->author, it->labels, text))
-            i++;
-        else
-            vector_remove_at(issues, i, issue_free);
-    }
-    for (size_t i = 0; i < vector_len(releases); ) {
-        Release *it = (Release *)vector_get(releases, i);
-        snprintf(text, sizeof(text), "%s %s", it->tag_name, it->name);
-        if (date_le(it->published_at, to_iso) && item_kept(fs, it->author, NULL, text))
-            i++;
-        else
-            vector_remove_at(releases, i, release_free);
-    }
+    FilterCtx ctx;
+    ctx.to_iso = to_iso;
+    ctx.fs = fs;
+    ctx.text[0] = '\0';
+
+    vector_retain(prs, keep_pr, &ctx, pr_free);
+    vector_retain(commits, keep_commit, &ctx, commit_free);
+    vector_retain(issues, keep_issue, &ctx, issue_free);
+    vector_retain(releases, keep_release, &ctx, release_free);
 }
 
 typedef struct {

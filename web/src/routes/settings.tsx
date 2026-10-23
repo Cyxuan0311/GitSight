@@ -8,7 +8,8 @@ import { InlineError, QueryState } from '@/components/ErrorBoundary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Field, Input, Select, Textarea } from '@/components/ui/field';
+import { Field, Input, Select } from '@/components/ui/field';
+import { CodeTextarea } from '@/components/ui/code-block';
 import { ConfirmDialog, Modal } from '@/components/ui/modal';
 import { ColorField } from '@/features/settings/ColorField';
 import { toast } from '@/stores/toast';
@@ -675,16 +676,16 @@ function RawConfig({
         </>
       }
     >
-      <Textarea
+      <CodeTextarea
         rows={20}
         value={text}
-        onChange={(event) => {
-          setText(event.target.value);
+        lang="json"
+        spellCheck={false}
+        invalid={invalid}
+        onChange={(value) => {
+          setText(value);
           setInvalid(false);
         }}
-        spellCheck={false}
-        className="font-mono text-xs"
-        invalid={invalid}
       />
       {invalid ? <p className="mt-2 text-xs text-danger">{t('settings.rawInvalid')}</p> : null}
       {raw.isError ? (

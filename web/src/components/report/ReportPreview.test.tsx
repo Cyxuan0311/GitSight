@@ -134,8 +134,12 @@ describe('ReportPreview', () => {
     renderPreview();
     await switchTo(user, 'JSON');
 
-    const pane = await screen.findByText(/"owner": "acme"/);
-    expect(pane).toBeInTheDocument();
+    // The pretty JSON sits in a colored code block whose line is split across
+    // coloring spans, so the pane's whole text is what carries the assertion.
+    const pre = await screen.findByText((_, element) =>
+      element?.tagName === 'PRE' && (element?.textContent ?? '').includes('"owner": "acme"'),
+    );
+    expect(pre).toBeInTheDocument();
   });
 
   it('shows the text export verbatim', async () => {

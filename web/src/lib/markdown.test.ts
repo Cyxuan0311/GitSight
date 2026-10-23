@@ -155,6 +155,13 @@ describe('parseMarkdown', () => {
     expect(blocks).toEqual([{ kind: 'code', text: '10-17 |##' }]);
   });
 
+  it('keeps the fence info string as the code language', () => {
+    const blocks = parseMarkdown('```bash\nls -la\n```');
+    expect(blocks).toEqual([{ kind: 'code', text: 'ls -la', lang: 'bash' }]);
+    // No info at all stays absent instead of becoming an empty string.
+    expect(parseMarkdown('```\nx\n```')).toEqual([{ kind: 'code', text: 'x' }]);
+  });
+
   it('never produces raw html from a document', () => {
     const blocks = parseMarkdown('| t |\n|---|\n| <script>alert(1)</script> |');
     const table = blocks[0];

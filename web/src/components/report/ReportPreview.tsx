@@ -17,9 +17,11 @@ import { InlineError, LoadingBlock } from '@/components/ErrorBoundary';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CodeBlock, langFromFence } from '@/components/ui/code-block';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
 import { Tab, Tabs, TabsList } from '@/components/ui/tabs';
 import { clampCell, parseCsvSections } from '@/lib/csv';
+import type { Lang } from '@/lib/highlight';
 import { formatBytes } from '@/lib/format';
 import { api, type RenderedExport } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -352,7 +354,7 @@ function JsonArtifact({ artifact }: { artifact: RenderedExport }) {
     <Card>
       <ArtifactHeader title={artifact.filename} size={artifact.blob.size} />
       <CardContent>
-        <TextPane text={pretty} />
+        <TextPane text={pretty} lang="json" />
       </CardContent>
     </Card>
   );
@@ -421,7 +423,7 @@ function CsvArtifact({ artifact }: { artifact: RenderedExport }) {
   );
 }
 
-function TextPane({ text }: { text: string }) {
+function TextPane({ text, lang }: { text: string; lang?: Lang }) {
   const { t } = useTranslation();
   if (!text) return <EmptyState className="py-8" title={t('preview.empty')} />;
 
@@ -431,9 +433,11 @@ function TextPane({ text }: { text: string }) {
 
   return (
     <>
-      <pre className="max-h-[70vh] overflow-auto rounded-field bg-raised p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-ink-soft scrollbar-thin">
-        {shown}
-      </pre>
+      <CodeBlock
+        text={shown}
+        lang={lang}
+        className="max-h-[70vh] overflow-auto rounded-field bg-raised p-3 scrollbar-thin"
+      />
       {truncated ? (
         <p className="mt-2 text-xs text-muted">
           {t('preview.linesTruncated', { shown: TEXT_LINE_LIMIT, total: lines.length })}
@@ -459,9 +463,12 @@ function MdBlockView({ block }: { block: MdBlock }) {
 
   if (block.kind === 'code') {
     return (
-      <pre className="overflow-x-auto rounded-field bg-raised p-3 font-mono text-xs leading-relaxed text-ink-soft scrollbar-thin">
-        {block.text}
-      </pre>
+      <CodeBlock
+        text={block.text}
+        lang={langFromFence(block.lang)}
+        className="overflow-x-auto rounded-field bg-raised p-3 scrollbar-thin"
+        wrap={false}
+      />
     );
   }
 

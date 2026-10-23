@@ -28,7 +28,7 @@ export type MdAlign = 'left' | 'center' | 'right' | null;
 export type MdBlock =
   | { kind: 'heading'; level: number; spans: MdSpan[] }
   | { kind: 'paragraph'; spans: MdSpan[] }
-  | { kind: 'code'; text: string }
+  | { kind: 'code'; text: string; lang?: string }
   | { kind: 'hr' }
   | { kind: 'table'; header: MdSpan[][]; align: MdAlign[]; rows: MdSpan[][][] };
 
@@ -203,7 +203,14 @@ export function parseMarkdown(src: string): MdBlock[] {
         i++;
       }
       i++; // closing fence, or past the end for an unterminated block
-      blocks.push({ kind: 'code', text: body.join('\n') });
+      // The info string (`bash` of ```bash) names the code so a viewer can
+      // color it; the first word is the language the CommonMark way.
+      const info = line.trim().slice(3).trim().split(/\s+/)[0];
+      blocks.push({
+        kind: 'code',
+        text: body.join('\n'),
+        lang: info ? info.toLowerCase() : undefined,
+      });
       continue;
     }
 

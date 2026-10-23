@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { LoadingBlock, QueryState } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CodeBlock } from '@/components/ui/code-block';
 import { Tabs, Tab, TabsList, TabsPanel } from '@/components/ui/tabs';
 import { api } from '@/lib/api';
 
@@ -50,9 +51,11 @@ export function CompletionPage() {
             <CopyButton text={INSTALL[shell].snippet} />
           </CardHeader>
           <CardContent>
-            <pre className="overflow-x-auto rounded-field bg-raised p-3 font-mono text-xs whitespace-pre-wrap text-ink-soft scrollbar-thin">
-              {INSTALL[shell].snippet}
-            </pre>
+            <CodeBlock
+              text={INSTALL[shell].snippet}
+              lang="shell"
+              className="rounded-field bg-raised p-3 scrollbar-thin"
+            />
           </CardContent>
         </Card>
 
@@ -70,9 +73,12 @@ export function CompletionPage() {
               {SHELLS.map((entry) => (
                 <TabsPanel key={entry} value={entry}>
                   <QueryState query={script} rows={3}>
-                    <pre className="max-h-[32rem] overflow-auto rounded-field bg-raised p-3 font-mono text-xs leading-relaxed text-ink-soft scrollbar-thin">
-                      {script.data}
-                    </pre>
+                    <CodeBlock
+                      text={script.data ?? ''}
+                      lang="shell"
+                      className="max-h-[32rem] overflow-auto rounded-field bg-raised p-3 scrollbar-thin"
+                      wrap={false}
+                    />
                   </QueryState>
                 </TabsPanel>
               ))}

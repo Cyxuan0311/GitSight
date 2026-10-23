@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # Final smoke test against the built console: drives the daemon exactly as the
 # browser does, then checks that the served bundle actually boots by looking for
-# the module entry the SPA needs.
+# the module entry the SPA needs. Skipped when dist/ has not been built.
 set -u
 GS="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 SRC="${2:-$(cd "$(dirname "$0")/.." && pwd)}"
+
+if [ ! -f "$SRC/web/dist/index.html" ]; then
+  echo "SKIP: web/dist not built (run: npm --prefix web run build)"
+  exit 0
+fi
 
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"; [ -n "${SRV_PID:-}" ] && kill "$SRV_PID" 2>/dev/null' EXIT

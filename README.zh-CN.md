@@ -1,4 +1,4 @@
-# GitSight
+<h1 align="center">GitSight</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/C17-00599C?style=for-the-badge&logo=c&logoColor=white" alt="C17">
@@ -11,6 +11,8 @@
 
 分析任意公开 GitHub 仓库的 Pull Request、Commit、Issue，以 7 种格式导出结构化报告，并可选 AI 智能摘要。
 `gs serve` 可在同一套引擎之上启动本地 Web 控制台。
+
+> 💡 GitSight 可以生成每周工作报告，也能按自定义时间范围梳理项目发展概况，帮助你快速了解仓库近期的变化。
 
 ## 特性
 

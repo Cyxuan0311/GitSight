@@ -1,4 +1,4 @@
-# GitSight
+<h1 align="center">GitSight</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/C17-00599C?style=for-the-badge&logo=c&logoColor=white" alt="C17">
@@ -10,6 +10,8 @@
 </p>
 
 Analyze any public GitHub repository — Pull Requests, Commits, Issues — and export structured reports in 7 formats with optional AI-powered summaries. A local web console (`gs serve`) puts the same engine behind a browser UI.
+
+> 💡 Generate weekly reports or review a project's development over a custom time period to quickly understand how a repository is evolving.
 
 ## Features
 

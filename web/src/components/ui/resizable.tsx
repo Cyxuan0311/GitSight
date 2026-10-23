@@ -13,6 +13,10 @@ import { cn } from '@/lib/cn';
  * The handle is a real separator: it takes focus, responds to the arrow keys and
  * reports aria-valuenow, so the layout is reachable without a pointer.
  * Double-clicking it returns to the default.
+ *
+ * Motion matches the source of the change: a pointer drag tracks the pointer
+ * exactly, while the keyboard, Home/End and the double-click reset glide, so
+ * a jump of twenty-some pixels still reads as one continuous move.
  */
 export function ResizableSplit({
   side,
@@ -50,40 +54,63 @@ export function ResizableSplit({
   const [dragging, setDragging] = useState(false);
   // The divider's viewport offset, captured on pointer down.
   const originRef = useRef(0);
+  // The settled width, so ending a drag can persist it without a state read.
+  const widthRef = useRef(width);
 
-  const commit = useCallback(
+  /** Clamps and moves the pane. Returns the clamped value. */
+  const apply = useCallback(
     (value: number) => {
       const next = Math.min(max, Math.max(min, Math.round(value)));
+      widthRef.current = next;
       setWidth(next);
+      return next;
+    },
+    [min, max],
+  );
+
+  /** Remembers the width; called once per gesture, not per move. */
+  const persist = useCallback(
+    (value: number) => {
       if (!storageKey) return;
       try {
-        localStorage.setItem(storageKey, String(next));
+        localStorage.setItem(storageKey, String(value));
       } catch {
         /* A private-mode or quota failure only means the width is not remembered. */
       }
     },
-    [min, max, storageKey],
+    [storageKey],
+  );
+
+  /** For keyboard and double-click: a program change both lands and is kept. */
+  const commit = useCallback(
+    (value: number) => persist(apply(value)),
+    [apply, persist],
   );
 
   useEffect(() => {
     if (!dragging) return;
 
-    const onMove = (event: PointerEvent) => commit(event.clientX - originRef.current);
-    const onUp = () => {
+    const onMove = (event: PointerEvent) => apply(event.clientX - originRef.current);
+    const onEnd = () => {
+      persist(widthRef.current);
       setDragging(false);
       document.body.style.removeProperty('cursor');
       document.body.style.removeProperty('user-select');
     };
 
     window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+    // Releasing the button outside the browser window never delivers
+    // pointerup, which would leave the whole page stuck in drag mode.
+    window.addEventListener('blur', onEnd);
     return () => {
       window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
+      window.removeEventListener('blur', onEnd);
     };
-  }, [dragging, commit]);
+  }, [dragging, apply, persist]);
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     const amount = event.shiftKey ? step * 4 : step;
@@ -108,7 +135,18 @@ export function ResizableSplit({
 
   return (
     <div className={cn('flex min-w-0', dragging && 'select-none', className)}>
-      <div className="min-w-0 shrink-0" style={{ width }}>
+      <div
+        className={cn(
+          'min-w-0 shrink-0',
+          // A pointer drag must track the pointer exactly, so the glide is
+          // given only to the changes that do not come from the pointer:
+          // the arrow keys, Home/End and double-click reset.
+          dragging
+            ? undefined
+            : 'transition-[width] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none',
+        )}
+        style={{ width }}
+      >
         {side}
       </div>
 
@@ -128,6 +166,14 @@ export function ResizableSplit({
             // Focus explicitly rather than relying on the default: a pointer
             // drag should leave the handle ready for the arrow keys.
             event.currentTarget.focus();
+            // Capture the pointer so the drag ends even if the button is
+            // released far from the handle, or outside the window.
+            try {
+              event.currentTarget.setPointerCapture(event.pointerId);
+            } catch {
+              /* jsdom and old browsers may refuse; the window listeners
+               * still cover the drag. */
+            }
             // Keep the resize cursor and suppress selection over the whole page
             // so the drag does not appear to stop at the handle.
             document.body.style.cursor = 'col-resize';
@@ -143,14 +189,19 @@ export function ResizableSplit({
           )}
         >
           {/* The rail is always faintly visible so the boundary reads as
-              grabbable, and brightens on hover, focus and drag. */}
+              grabbable, brightens on hover, focus and drag -- and while it is
+              held it thickens inside a soft glow ring, the "in hand" state
+              that plain colour cannot quite carry. */}
           <span
             aria-hidden
             className={cn(
               'absolute inset-y-0 left-1/2 w-1 -translate-x-1/2 rounded-full',
-              'bg-line-strong/35 transition-colors',
+              'bg-line-strong/35',
+              'transition-[background-color,width,box-shadow] duration-150',
+              'motion-reduce:transition-none',
               'group-hover:bg-accent/60 group-focus-visible:bg-accent',
-              dragging && 'bg-accent',
+              'group-data-[dragging]:bg-accent group-data-[dragging]:w-1.5',
+              'group-data-[dragging]:shadow-[0_0_0_4px_color-mix(in_oklab,var(--color-accent)_16%,transparent)]',
             )}
           />
           {/* Widens the target well past the rail so grabbing does not need
@@ -164,7 +215,7 @@ export function ResizableSplit({
       {/* Live readout: dragging by feel alone makes it hard to tell whether the
           pane actually moved. */}
       {dragging ? (
-        <div className="pointer-events-none fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
+        <div className="animate-pop-in pointer-events-none fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
           <span className="nums rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink shadow-lg">
             {width}px
           </span>

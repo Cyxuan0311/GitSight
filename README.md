@@ -17,6 +17,23 @@ Analyze any public GitHub repository — Pull Requests, Commits, Issues — and 
 
 > 💡 Generate weekly reports or review a project's development over a custom time period to quickly understand how a repository is evolving.
 
+## Showcase
+
+<table>
+  <tr>
+    <th align="center">CLI</th>
+    <th align="center">Web Console</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="resource/demo1.png" alt="GitSight CLI running gs analyze in a terminal" width="420"></td>
+    <td align="center"><img src="resource/demo.png" alt="GitSight web console — the Analyze page with live progress, export preview and LLM summary" width="420"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Reports straight to the terminal, or to a file in any of the 7 formats</sub></td>
+    <td align="center"><sub>The same run in the browser, with live progress and instant format switching</sub></td>
+  </tr>
+</table>
+
 ## Features
 
 - **Multi-source analysis** — Fetches PRs, commits, and issues from GitHub, GitLab, Codeberg, Gitea and Forgejo
@@ -30,6 +47,7 @@ Analyze any public GitHub repository — Pull Requests, Commits, Issues — and 
 
 ## Table of Contents
 
+- [Showcase](#showcase)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Usage](#usage)
@@ -134,10 +152,6 @@ gs analyze owner/repo --api-base https://api.github.com
 ```bash
 gs serve                  # → http://127.0.0.1:8787
 ```
-
-<p align="center">
-  <img src="resource/demo.png" alt="GitSight web console — the Analyze page with live progress, export preview and LLM summary" width="1080">
-</p>
 
 `gs serve` puts the same analysis, export and configuration engine behind a
 browser UI: nine pages covering analyze, compare, batch, subscriptions, LLM

@@ -18,6 +18,23 @@
 
 > 💡 GitSight 可以生成每周工作报告，也能按自定义时间范围梳理项目发展概况，帮助你快速了解仓库近期的变化。
 
+## 展示
+
+<table>
+  <tr>
+    <th align="center">命令行</th>
+    <th align="center">Web 控制台</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="resource/demo1.png" alt="GitSight CLI 在终端中运行 gs analyze" width="420"></td>
+    <td align="center"><img src="resource/demo.png" alt="GitSight Web 控制台 — Analyze 页面：实时进度、导出预览与 LLM 摘要" width="420"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>报告直接输出到终端，也可导出为 7 种格式的文件</sub></td>
+    <td align="center"><sub>同一次分析在浏览器中进行，进度实时更新，导出格式即时切换</sub></td>
+  </tr>
+</table>
+
 ## 特性
 
 - **多源分析** — 支持 GitHub、GitLab、Codeberg、Gitea、Forgejo
@@ -31,6 +48,7 @@
 
 ## 目录
 
+- [展示](#展示)
 - [安装](#安装)
 - [快速开始](#快速开始)
 - [使用指南](#使用指南)
@@ -135,10 +153,6 @@ gs analyze owner/repo --api-base https://api.github.com
 ```bash
 gs serve                  # → http://127.0.0.1:8787
 ```
-
-<p align="center">
-  <img src="resource/demo.png" alt="GitSight Web 控制台 — Analyze 页面：实时进度、导出预览与 LLM 摘要" width="1080">
-</p>
 
 `gs serve` 把同一套分析、导出与配置引擎放到浏览器界面之后：九个页面覆盖
 分析、对比、批量、订阅、用量以及全部 `gs config --set` 配置项。进度通过

@@ -108,11 +108,31 @@ static ErrorCode csv_write_report(FILE *fp, const Report *report,
     }
 
     if ((flags & FMT_SHOW_COMMITS) && commits && vector_len(commits) > 0) {
-        fputs("\n# commits\nsha,author,date,message,url\n", fp);
+        fputs("\n# commits\nsha,author,date,message,url,additions,deletions\n", fp);
         size_t n = vector_len(commits);
         for (size_t i = 0; i < n; i++) {
             Commit *c = (Commit *)vector_get(commits, i);
-            csv_row(fp, c->sha, c->author, c->date, c->message, c->html_url, NULL, NULL, NULL);
+            char adds[24], dels[24];
+            if (c->has_stats) {
+                snprintf(adds, sizeof(adds), "%d", c->additions);
+                snprintf(dels, sizeof(dels), "%d", c->deletions);
+            } else {
+                adds[0] = dels[0] = '\0';
+            }
+            const char *a = c->has_stats ? adds : NULL;
+            const char *d = c->has_stats ? dels : NULL;
+            csv_row(fp, c->sha, c->author, c->date, c->message, c->html_url, a, d, NULL);
+        }
+    }
+
+    if ((flags & FMT_SHOW_COMMITS) && report->churn_available && report->activity_count > 0) {
+        /* Tidy churn table over the same buckets as the activity section. */
+        fputs("\n# code_churn\nlabel,additions,deletions\n", fp);
+        for (int i = 0; i < report->activity_count; i++) {
+            char adds[24], dels[24];
+            snprintf(adds, sizeof(adds), "%ld", report->churn_add_values[i]);
+            snprintf(dels, sizeof(dels), "%ld", report->churn_del_values[i]);
+            csv_row(fp, report->activity_labels[i], adds, dels, NULL, NULL, NULL, NULL, NULL);
         }
     }
 

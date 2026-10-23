@@ -146,6 +146,32 @@ static ErrorCode md_write_report(FILE *fp, const Report *report,
         fprintf(fp, "```\n\n");
     }
 
+    if (report->churn_available &&
+        report->churn_additions + report->churn_deletions > 0) {
+        long churn_max = 0;
+        for (int i = 0; i < report->activity_count; i++) {
+            if (report->churn_add_values[i] > churn_max) churn_max = report->churn_add_values[i];
+            if (report->churn_del_values[i] > churn_max) churn_max = report->churn_del_values[i];
+        }
+        fprintf(fp, "**%s**: +%ld / -%ld\n\n", gs_t("Code churn"),
+                report->churn_additions, report->churn_deletions);
+        if (report->activity_count > 1 && churn_max > 0) {
+            fprintf(fp, "```\n");
+            for (int i = report->activity_count - 1; i >= 0; i--) {
+                int added = (int)((report->churn_add_values[i] * 20) / churn_max);
+                int removed = (int)((report->churn_del_values[i] * 20) / churn_max);
+                if (added < 1 && report->churn_add_values[i] > 0) added = 1;
+                if (removed < 1 && report->churn_del_values[i] > 0) removed = 1;
+                fprintf(fp, "%s +", report->activity_labels[i]);
+                for (int b = 0; b < added; b++) fputc('#', fp);
+                fprintf(fp, " -");
+                for (int b = 0; b < removed; b++) fputc('#', fp);
+                fprintf(fp, "\n");
+            }
+            fprintf(fp, "```\n\n");
+        }
+    }
+
     if (limit > 0 && commits) {
         size_t n = vector_len(commits);
         if (n > (size_t)limit) n = (size_t)limit;

@@ -23,6 +23,10 @@ static void add_commit(cJSON *arr, const Commit *c) {
     cJSON_AddStringToObject(o, "author", c->author);
     cJSON_AddStringToObject(o, "date", c->date);
     cJSON_AddStringToObject(o, "html_url", c->html_url);
+    if (c->has_stats) {
+        cJSON_AddNumberToObject(o, "additions", c->additions);
+        cJSON_AddNumberToObject(o, "deletions", c->deletions);
+    }
     cJSON_AddItemToArray(arr, o);
 }
 
@@ -115,12 +119,26 @@ cJSON *json_build_tree(const Report *report, const Vector *prs, const Vector *co
         }
         cJSON *wd = cJSON_AddArrayToObject(cm, "weekday");
         const char *wd_names[7] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 7; i++) {
             cJSON *b = cJSON_CreateObject();
             cJSON_AddStringToObject(b, "day", wd_names[i]);
             cJSON_AddNumberToObject(b, "index", i);
             cJSON_AddNumberToObject(b, "commits", report->weekday_values[i]);
             cJSON_AddItemToArray(wd, b);
+        }
+    }
+    /* Code churn carries its own presence: a platform without line counts
+       must read as "no churn" rather than zero churn. */
+    if (report->churn_available) {
+        cJSON_AddNumberToObject(cm, "additions", report->churn_additions);
+        cJSON_AddNumberToObject(cm, "deletions", report->churn_deletions);
+        cJSON *ch = cJSON_AddArrayToObject(cm, "churn");
+        for (int i = 0; i < report->activity_count; i++) {
+            cJSON *b = cJSON_CreateObject();
+            cJSON_AddStringToObject(b, "label", report->activity_labels[i]);
+            cJSON_AddNumberToObject(b, "additions", report->churn_add_values[i]);
+            cJSON_AddNumberToObject(b, "deletions", report->churn_del_values[i]);
+            cJSON_AddItemToArray(ch, b);
         }
     }
     if (commits) {

@@ -225,6 +225,7 @@ static void css(FILE *fp, int uc, const HtmlExportConfig *hoc) {
         ".row .lbl{width:8em;font-size:90%%;color:%s}.row .val{margin-left:6px;font-size:90%%}\n"
         ".bar{flex:1;background:#eee;height:12px;border-radius:3px}\n"
         ".bar i{display:block;height:100%%;background:%s;border-radius:3px}\n"
+        ".bar i.chr-add{background:%s}.bar i.chr-del{background:%s;margin-left:2px}\n"
         "code{background:#f4f4f4;padding:1px 4px;border-radius:3px}\n"
         "input.tfilter{padding:4px 8px;border:1px solid #ccc;border-radius:4px;"
         "margin:.2em 0 0;width:16em;font-size:90%%}\n"
@@ -232,6 +233,7 @@ static void css(FILE *fp, int uc, const HtmlExportConfig *hoc) {
         "</style>\n",
         tb, hb, kb, lb, lb,
         colored ? hb : "#666",
+        ob, cb,
         ob, cb, mb,
         lb, colored ? hb : "#888", lb);
 }
@@ -407,6 +409,34 @@ static ErrorCode html_write_report(FILE *fp, const Report *report,
                 fprintf(fp, "</span><span class=\"bar\"><i style=\"width:%d%%\"></i></span>"
                             "<span class=\"val\">%d</span></div>\n",
                         pct, report->activity_values[i]);
+            }
+            fputs("</div>\n", fp);
+        }
+
+        if (report->churn_available &&
+            report->churn_additions + report->churn_deletions > 0) {
+            long churn_max = 0;
+            for (int i = 0; i < report->activity_count; i++) {
+                if (report->churn_add_values[i] > churn_max) churn_max = report->churn_add_values[i];
+                if (report->churn_del_values[i] > churn_max) churn_max = report->churn_del_values[i];
+            }
+            fprintf(fp, "<p><strong>%s: %ld / %ld</strong></p>\n<div class=\"chart\">\n",
+                    gs_t("Code churn"),
+                    report->churn_additions, report->churn_deletions);
+            for (int i = report->activity_count - 1; i >= 0; i--) {
+                int added = (int)((report->churn_add_values[i] * 100) / churn_max);
+                int removed = (int)((report->churn_del_values[i] * 100) / churn_max);
+                if (added < 2 && report->churn_add_values[i] > 0) added = 2;
+                if (removed < 2 && report->churn_del_values[i] > 0) removed = 2;
+                if (added > 100) added = 100;
+                if (removed > 100) removed = 100;
+                fputs("<div class=\"row\"><span class=\"lbl\">", fp);
+                html_escape(fp, report->activity_labels[i]);
+                fprintf(fp, "</span><span class=\"bar\"><i class=\"chr-add\" style=\"width:%d%%\"></i>"
+                            "<i class=\"chr-del\" style=\"width:%d%%\"></i></span>"
+                            "<span class=\"val\">+%ld / -%ld</span></div>\n",
+                        added, removed,
+                        report->churn_add_values[i], report->churn_del_values[i]);
             }
             fputs("</div>\n", fp);
         }

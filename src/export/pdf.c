@@ -167,6 +167,14 @@ ErrorCode export_pdf(FILE *fp, const Report *report,
             d.y -= d.lh * 0.4f;
         }
 
+        if (report->churn_available &&
+            report->churn_additions + report->churn_deletions > 0) {
+            snprintf(buf, sizeof(buf), gs_t("+%ld / -%ld lines"),
+                     report->churn_additions, report->churn_deletions);
+            doc_kv(&d, gs_t("Code churn"), buf);
+            d.y -= d.lh * 0.2f;
+        }
+
         int mx = 0;
         for (int i = 0; i < 7; i++)
             if (report->weekday_values[i] > mx) mx = report->weekday_values[i];

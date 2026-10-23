@@ -125,6 +125,7 @@ static size_t build_shared_strings(char *b, size_t c, const Report *r) {
         "GitSight Report", "Repository", own, "Period", r->period,
         "[PR] Pull Requests", "Total", "Merged", "Open", "Closed",
         "[CM] Commits", "Authors", "Top Author", r->top_author[0] ? r->top_author : "-",
+        "Additions", "Deletions",
         "[IS] Issues", "[*] Summary",
         "[RL] Releases", "Latest release", r->latest_release[0] ? r->latest_release : "-",
         "[CT] Contributors", "Top contributor", r->top_contributor[0] ? r->top_contributor : "-",
@@ -159,6 +160,14 @@ static void cell_s(char *b, size_t c, size_t *p, const char *col, int row, int s
 static void cell_n(char *b, size_t c, size_t *p, const char *col, int row, int style, int val) {
     *p += snprintf(b + *p, c - *p,
         "<c r=\"%s%d\" s=\"%d\"><v>%d</v></c>",
+        col, row, style, val);
+}
+
+/* Same numeric cell, but for counters that can pass 2^31 (churn totals are
+   aggregated longs; a decade-old huge repository can get there). */
+static void cell_n_l(char *b, size_t c, size_t *p, const char *col, int row, int style, long val) {
+    *p += snprintf(b + *p, c - *p,
+        "<c r=\"%s%d\" s=\"%d\"><v>%ld</v></c>",
         col, row, style, val);
 }
 
@@ -202,6 +211,8 @@ static size_t build_sheet(char *b, size_t c, const Report *r) {
     strs[n++] = "Authors";
     strs[n++] = "Top Author";
     strs[n++] = r->top_author[0] ? r->top_author : "-";
+    strs[n++] = "Additions";
+    strs[n++] = "Deletions";
     strs[n++] = "[IS] Issues";
     strs[n++] = "[*] Summary";
     strs[n++] = "[RL] Releases";
@@ -308,118 +319,134 @@ static size_t build_sheet(char *b, size_t c, const Report *r) {
     cell_s(b, c, &p, "B", row, 2, SI(r->top_author[0] ? r->top_author : "-"));
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 15; empty_row(b, c, &p, row);
+    /* Code churn rows keep their fixed numbers; when the platform supplies
+       no line counts the rows are simply absent, which reads as no data. */
+    if (r->churn_available) {
+        row = 15;
+        p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
+        cell_s(b, c, &p, "A", row, 2, SI("Additions"));
+        cell_n_l(b, c, &p, "B", row, 2, r->churn_additions);
+        p += snprintf(b + p, c - p, "</row>");
 
-    row = 16;
+        row = 16;
+        p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
+        cell_s(b, c, &p, "A", row, 2, SI("Deletions"));
+        cell_n_l(b, c, &p, "B", row, 2, r->churn_deletions);
+        p += snprintf(b + p, c - p, "</row>");
+    }
+
+    row = 17; empty_row(b, c, &p, row);
+
+    row = 18;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 1, SI("[IS] Issues"));
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 17;
+    row = 19;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 2, SI("Total"));
     cell_n(b, c, &p, "B", row, 2, r->issue_total);
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 18;
+    row = 20;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 2, SI("Open"));
     cell_n(b, c, &p, "B", row, 2, r->issue_open);
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 19;
+    row = 21;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 2, SI("Closed"));
     cell_n(b, c, &p, "B", row, 2, r->issue_closed);
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 20; empty_row(b, c, &p, row);
+    row = 22; empty_row(b, c, &p, row);
 
-    row = 21;
+    row = 23;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 1, SI("[RL] Releases"));
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 22;
+    row = 24;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 2, SI("Total"));
     cell_n(b, c, &p, "B", row, 2, r->release_total);
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 23;
+    row = 25;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 2, SI("Latest release"));
     cell_s(b, c, &p, "B", row, 2, SI(r->latest_release[0] ? r->latest_release : "-"));
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 24; empty_row(b, c, &p, row);
+    row = 26; empty_row(b, c, &p, row);
 
-    row = 25;
+    row = 27;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 1, SI("[CT] Contributors"));
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 26;
+    row = 28;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 2, SI("Total"));
     cell_n(b, c, &p, "B", row, 2, r->contributor_total);
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 27;
+    row = 29;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 2, SI("Top contributor"));
     cell_s(b, c, &p, "B", row, 2, SI(r->top_contributor[0] ? r->top_contributor : "-"));
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 28; empty_row(b, c, &p, row);
+    row = 30; empty_row(b, c, &p, row);
 
-    row = 29;
+    row = 31;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 1, SI("[*] Summary"));
     p += snprintf(b + p, c - p, "</row>");
 
-    row = 30;
+    row = 32;
     p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
     cell_s(b, c, &p, "A", row, 2, summary_idx);
     p += snprintf(b + p, c - p, "</row>");
 
     if (r->meta.has_meta) {
-        row = 31;
+        row = 33;
         p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
         cell_s(b, c, &p, "A", row, 1, SI("[META] Repository"));
         p += snprintf(b + p, c - p, "</row>");
 
-        row = 32;
+        row = 34;
         p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
         cell_s(b, c, &p, "A", row, 2, SI("Stars"));
         cell_n(b, c, &p, "B", row, 2, (int)r->meta.stars);
         p += snprintf(b + p, c - p, "</row>");
 
-        row = 33;
+        row = 35;
         p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
         cell_s(b, c, &p, "A", row, 2, SI("Forks"));
         cell_n(b, c, &p, "B", row, 2, (int)r->meta.forks);
         p += snprintf(b + p, c - p, "</row>");
 
-        row = 34;
+        row = 36;
         p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
         cell_s(b, c, &p, "A", row, 2, SI("Language"));
         cell_s(b, c, &p, "B", row, 2, SI(r->meta.language[0] ? r->meta.language : "-"));
         p += snprintf(b + p, c - p, "</row>");
 
-        row = 35;
+        row = 37;
         p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
         cell_s(b, c, &p, "A", row, 2, SI("License"));
         cell_s(b, c, &p, "B", row, 2, SI(r->meta.license[0] ? r->meta.license : "-"));
         p += snprintf(b + p, c - p, "</row>");
 
-        row = 36;
+        row = 38;
         p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
         cell_s(b, c, &p, "A", row, 2, SI("Default branch"));
         cell_s(b, c, &p, "B", row, 2, SI(r->meta.default_branch[0] ? r->meta.default_branch : "-"));
         p += snprintf(b + p, c - p, "</row>");
 
-        row = 37;
+        row = 39;
         p += snprintf(b + p, c - p, "<row r=\"%d\">", row);
         cell_s(b, c, &p, "A", row, 2, SI("Branch"));
         cell_s(b, c, &p, "B", row, 2, SI(r->branch[0] ? r->branch : "-"));

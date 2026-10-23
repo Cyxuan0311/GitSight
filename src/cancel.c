@@ -5,13 +5,13 @@
 atomic_int gs_cancel_global = 0;
 
 /* The CLI never binds, so it shares this one flag. */
-static _Thread_local const atomic_int *tls_flag = NULL;
+static _Thread_local atomic_int *tls_flag = NULL;
 
-void gs_cancel_bind(const atomic_int *flag) {
+void gs_cancel_bind(atomic_int *flag) {
     tls_flag = flag;
 }
 
-const atomic_int *gs_cancel_current(void) {
+atomic_int *gs_cancel_current(void) {
     return tls_flag ? tls_flag : &gs_cancel_global;
 }
 

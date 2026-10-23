@@ -19,8 +19,12 @@
 
 extern atomic_int gs_cancel_global;
 
-void gs_cancel_bind(const atomic_int *flag);
-const atomic_int *gs_cancel_current(void);
+/* These flags are writable, so they are not const-qualified: clang rejects
+ * atomic_store() on a `const atomic_int *` ("address argument to atomic
+ * operation must be a pointer to non-const _Atomic type") while gcc accepts
+ * it. Keep the pointers non-const and the two compilers agree. */
+void gs_cancel_bind(atomic_int *flag);
+atomic_int *gs_cancel_current(void);
 
 void gs_cancel_reset(void);      /* clears the bound (or global) flag */
 void gs_cancel_request(void);    /* sets the bound (or global) flag */

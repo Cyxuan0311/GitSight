@@ -205,7 +205,7 @@ typedef struct {
     char repo[128];
     int  since_days;
     int  use_cache;         /* whether this run may read the disk cache */
-    int  kind;              /* 0=prs 1=commits 2=issues 3=releases 4=meta 5=contributors 6=languages */
+    int  kind;              /* 0=prs 1=commits 2=issues 3=releases 4=meta 5=contributors 6=languages 7=churn */
     Vector *vec;
     RepoMeta *meta;
     PlatformClient pclient;
@@ -215,7 +215,7 @@ typedef struct {
 
 const char *const analysis_fetch_labels[ANALYSIS_FETCH_KINDS] = {
     "pull requests", "commits", "issues", "releases",
-    "repository metadata", "contributors", "languages"
+    "repository metadata", "contributors", "languages", "code churn stats"
 };
 
 void analysis_result_init(AnalysisResult *r) {
@@ -227,6 +227,7 @@ void analysis_result_init(AnalysisResult *r) {
     vector_init(&r->releases);
     vector_init(&r->contributors);
     vector_init(&r->langs);
+    vector_init(&r->churn);
     for (int i = 0; i < ANALYSIS_FETCH_KINDS; i++)
         r->fetch_err[i] = GS_OK;
 }
@@ -239,6 +240,7 @@ void analysis_result_free(AnalysisResult *r) {
     vector_free(&r->releases, release_free);
     vector_free(&r->contributors, contributor_free);
     vector_free(&r->langs, lang_free);
+    vector_free(&r->churn, free);
     memset(r, 0, sizeof(*r));
 }
 
@@ -256,6 +258,14 @@ static void *fetch_worker(void *arg) {
         case 4: j->err = j->pclient.fetch_meta(j->pclient.ctx, j->meta); break;
         case 5: j->err = j->pclient.fetch_contributors(j->pclient.ctx, j->vec); break;
         case 6: j->err = j->pclient.fetch_languages(j->pclient.ctx, j->vec); break;
+        case 7:
+            /* Best effort and platform dependent: a missing endpoint reports
+               no churn rather than a failing run, so only real transport
+               errors are carried back. */
+            j->err = j->pclient.fetch_churn
+                     ? j->pclient.fetch_churn(j->pclient.ctx, j->vec)
+                     : GS_OK;
+            break;
         default: j->err = ERR_INVALID_ARGS; break;
     }
     return NULL;
@@ -482,13 +492,14 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
     FilterSet fs;
     parse_filters(opts->filters, &fs);
 
-    Vector prs, commits, issues, releases, contributors, langs;
+    Vector prs, commits, issues, releases, contributors, langs, churn;
     vector_init(&prs);
     vector_init(&commits);
     vector_init(&issues);
     vector_init(&releases);
     vector_init(&contributors);
     vector_init(&langs);
+    vector_init(&churn);
 
     const LLMConfig *active_llm = config_get_active_llm(&cfg);
     int use_llm = active_llm && active_llm->api_key[0] && active_llm->api_base[0] &&
@@ -497,8 +508,8 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
     RepoMeta meta;
     memset(&meta, 0, sizeof(meta));
 
-    FetchJob jobs[7];
-    pthread_t threads[7];
+    FetchJob jobs[ANALYSIS_FETCH_KINDS];
+    pthread_t threads[ANALYSIS_FETCH_KINDS];
     memset(jobs, 0, sizeof(jobs));
     int jidx = 0;
     jobs[jidx++].kind = 0;
@@ -508,14 +519,17 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
     jobs[jidx].kind = 4; jobs[jidx].meta = &meta; jidx++;
     jobs[jidx++].kind = 5;
     jobs[jidx++].kind = 6;
+    jobs[jidx].kind = 7;
     jobs[0].vec = &prs;
     jobs[1].vec = &commits;
     jobs[2].vec = &issues;
     jobs[3].vec = &releases;
     jobs[5].vec = &contributors;
     jobs[6].vec = &langs;
+    jobs[7].vec = &churn;
+    const int job_total = ANALYSIS_FETCH_KINDS;   /* churn is the 8th fetch */
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < job_total; i++) {
         jobs[i].cfg = &cfg;
         snprintf(jobs[i].owner, sizeof(jobs[i].owner), "%s", owner);
         snprintf(jobs[i].repo, sizeof(jobs[i].repo), "%s", repo);
@@ -524,19 +538,19 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
     }
 
     Anim sp;
-    anim_start(&sp, ANIM_BAR, 0, 7, "Fetching repository data");
+    anim_start(&sp, ANIM_BAR, 0, job_total, "Fetching repository data");
     perf_mark("fetch");
     if (opts->serial_fetch) {
         /* Bounded-thread mode: the caller already runs repos in parallel, so
          * fetch one resource at a time on this thread. */
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < job_total; i++) {
             fetch_worker(&jobs[i]);
-            anim_update(&sp, i + 1, 7);
+            anim_update(&sp, i + 1, job_total);
         }
     } else {
-        int created[7];
+        int created[ANALYSIS_FETCH_KINDS];
         int ncreated = 0;
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < job_total; i++) {
             if (pthread_create(&threads[i], NULL, fetch_worker, &jobs[i]) == 0)
                 created[ncreated++] = i;
             else
@@ -545,7 +559,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
         int done = 0;
         for (int t = 0; t < ncreated; t++) {
             pthread_join(threads[created[t]], NULL);
-            anim_update(&sp, ++done, 7);
+            anim_update(&sp, ++done, job_total);
         }
     }
     perf_mark("fetched");
@@ -558,13 +572,15 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
         vector_free(&releases, release_free);
         vector_free(&contributors, contributor_free);
         vector_free(&langs, lang_free);
+    vector_free(&churn, free);
         return 2;   /* caller maps this to ERR_CANCELLED */
     }
 
     for (int i = 0; i < ANALYSIS_FETCH_KINDS; i++) {
         if (out) {
             out->fetch_err[i] = jobs[i].err;
-            if (jobs[i].err != GS_OK && i != 6) {
+            /* Churn is optional; a failure only means "no churn data". */
+            if (jobs[i].err != GS_OK && i != 6 && i != 7) {
                 snprintf(out->fetch_err_text[i], sizeof(out->fetch_err_text[i]), "%s",
                          (jobs[i].client_ready && jobs[i].pclient.last_error[0])
                              ? jobs[i].pclient.last_error : gs_error_string(jobs[i].err));
@@ -572,8 +588,10 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
         }
     }
 
-    for (int i = 0; i < 7; i++) {
-        if (jobs[i].err != GS_OK && i != 6) {
+    for (int i = 0; i < ANALYSIS_FETCH_KINDS; i++) {
+        /* Churn failures stay quiet in the CLI: they are a degradation, not
+           a broken run, and the server still surfaces them as warnings. */
+        if (jobs[i].err != GS_OK && i != 6 && i != 7) {
             const char *detail = (jobs[i].client_ready && jobs[i].pclient.last_error[0])
                                  ? jobs[i].pclient.last_error : gs_error_string(jobs[i].err);
             color_printf_color(CLR_RED, "  -> Fetching %s failed: %s\n",
@@ -589,7 +607,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
 
     if (use_llm) {
         anim_start(&sp, ANIM_DOTS, 0, 0, "Analyzing with LLM");
-        analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors, &langs);
+        analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors, &langs, &churn);
         perf_mark("analyze");
         report.meta = meta;
         if (cfg.branch[0])
@@ -599,6 +617,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
         err = analyzer_llm_summary(report.summary, sizeof(report.summary),
                                    active_llm, owner, repo, cfg.default_days,
                                    &prs, &commits, &issues, &releases,
+                                   &report,
                                    opts->llm_mode[0] ? opts->llm_mode : "health");
         if (err != GS_OK) {
             if (out) {
@@ -618,7 +637,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
         anim_stop(&sp, 1);
     } else {
         anim_start(&sp, ANIM_BRAILLE, 0, 0, "Analyzing repository");
-        analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors, &langs);
+        analyzer_run(&report, owner, repo, cfg.default_days, &prs, &commits, &issues, &releases, &contributors, &langs, &churn);
         perf_mark("analyze");
         report.meta = meta;
         if (cfg.branch[0])
@@ -652,6 +671,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
         out->releases = releases;
         out->contributors = contributors;
         out->langs = langs;
+        out->churn = churn;
         return 0;
     }
 
@@ -713,6 +733,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
                 vector_free(&releases, release_free);
                 vector_free(&contributors, contributor_free);
                 vector_free(&langs, lang_free);
+                vector_free(&churn, free);
                 return 1;
             }
 
@@ -735,6 +756,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
                     vector_free(&releases, release_free);
                     vector_free(&contributors, contributor_free);
                     vector_free(&langs, lang_free);
+                    vector_free(&churn, free);
                     return 1;
                 }
                 close_fp = 1;
@@ -748,6 +770,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
                     vector_free(&releases, release_free);
                     vector_free(&contributors, contributor_free);
                     vector_free(&langs, lang_free);
+                    vector_free(&churn, free);
                     return 1;
                 }
                 fp = stdout;
@@ -775,6 +798,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
     vector_free(&releases, release_free);
     vector_free(&contributors, contributor_free);
     vector_free(&langs, lang_free);
+    vector_free(&churn, free);
 
     return 0;
 }

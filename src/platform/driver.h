@@ -70,4 +70,10 @@ ErrorCode gs_fetch_paginated(const DriverBase *base, const char *auth_header,
 ErrorCode gs_fetch_json(const DriverBase *base, const char *auth_header,
                         const char *url, cJSON **out);
 
+/* Same, additionally handing back the HTTP status of the last response so a
+   caller can react to one specific non-200 (the churn endpoint answers 202
+   while GitHub computes the statistics, which must not read as an error). */
+ErrorCode gs_fetch_json_code(const DriverBase *base, const char *auth_header,
+                             const char *url, cJSON **out, long *http_code);
+
 #endif /* GS_PLATFORM_DRIVER_H */

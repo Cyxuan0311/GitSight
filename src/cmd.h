@@ -20,13 +20,18 @@ void print_batch_summary(const char *const *repos, const int *statuses, int n);
  * CLI prints as "-> Fetching X failed: Y" lines. Structured fields let a
  * caller report them without scraping colored terminal output.
  * Index order matches FetchJob: 0=PRs 1=commits 2=issues 3=releases 4=meta
- * 5=contributors 6=languages. A missing repository is not an error. */
-#define ANALYSIS_FETCH_KINDS 7
+ * 5=contributors 6=languages 7=churn (optional, best effort).
+ * A missing repository is not an error. */
+#define ANALYSIS_FETCH_KINDS 8
 extern const char *const analysis_fetch_labels[ANALYSIS_FETCH_KINDS];
 
 typedef struct {
     Report report;
     Vector prs, commits, issues, releases, contributors, langs;
+    /* Weekly churn line counts as the platform's aggregate endpoint reports
+       them (ChurnPoint items); empty when the commit listing carried
+       per-commit stats instead, or when the platform has neither. */
+    Vector churn;
     ErrorCode fetch_err[ANALYSIS_FETCH_KINDS];
     char    fetch_err_text[ANALYSIS_FETCH_KINDS][256];
     char    llm_err[256];

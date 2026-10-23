@@ -193,6 +193,57 @@ static void compute_activity(Report *report, const Vector *commits, int since_da
     }
 }
 
+/* Code churn rides exactly the activity buckets: same span, same labels, so
+   one chart axis carries both counts and the extracted line numbers. Two
+   sources feed it -- per-commit stats when the platform's listing includes
+   them, or the platform's weekly aggregate endpoint -- and a window without
+   either simply stays unavailable instead of reading as zero churn. */
+static void compute_churn(Report *report, const Vector *commits,
+                          const Vector *weeks, int since_days)
+{
+    long now = time(NULL);
+    int buckets = since_days;
+    if (buckets < 1) buckets = 1;
+    if (buckets > MAX_ACTIVITY_BUCKETS) buckets = MAX_ACTIVITY_BUCKETS;
+    int span = (since_days + buckets - 1) / buckets;
+    if (span < 1) span = 1;
+
+    int with_stats = 0;
+    for (size_t i = 0; commits && i < vector_len(commits); i++) {
+        Commit *c = (Commit *)vector_get(commits, i);
+        if (!c->has_stats) continue;
+        long ts = parse_iso_ts(c->date);
+        if (ts <= 0) continue;
+        long diff = now - ts;
+        if (diff < 0) diff = 0;
+        int idx = (int)(diff / (span * 86400L));
+        if (idx >= buckets) idx = buckets - 1;
+        report->churn_add_values[idx] += c->additions;
+        report->churn_del_values[idx] += c->deletions;
+        report->churn_additions += c->additions;
+        report->churn_deletions += c->deletions;
+        with_stats++;
+    }
+    if (with_stats > 0) {
+        report->churn_available = 1;
+        return;
+    }
+
+    for (size_t i = 0; weeks && i < vector_len(weeks); i++) {
+        ChurnPoint *p = (ChurnPoint *)vector_get(weeks, i);
+        if (p->ts <= 0) continue;
+        long diff = now - p->ts;
+        if (diff < 0) continue;                     /* future week: ignore */
+        int idx = (int)(diff / (span * 86400L));
+        if (idx >= buckets) continue;               /* before the window */
+        report->churn_add_values[idx] += p->additions;
+        report->churn_del_values[idx] += p->deletions;
+        report->churn_additions += p->additions;
+        report->churn_deletions += p->deletions;
+    }
+    if (weeks && vector_len(weeks) > 0) report->churn_available = 1;
+}
+
 static void build_contributor_stats(Report *report, const Vector *contributors)
 {
     report->top_contributor_list[0] = '\0';
@@ -282,7 +333,7 @@ void analyzer_run(Report *report, const char *owner, const char *repo,
                   int since_days, const Vector *prs,
                   const Vector *commits, const Vector *issues,
                   const Vector *releases, const Vector *contributors,
-                  const Vector *langs)
+                  const Vector *langs, const Vector *churn)
 {
     memset(report, 0, sizeof(Report));
 
@@ -389,6 +440,7 @@ void analyzer_run(Report *report, const char *owner, const char *repo,
 
     compute_merge_close_times(report, prs, issues);
     compute_activity(report, commits, since_days);
+    compute_churn(report, commits, churn, since_days);
     build_language_stats(report, langs);
 
     char summary[MAX_SUMMARY_LEN];
@@ -416,6 +468,12 @@ void analyzer_run(Report *report, const char *owner, const char *repo,
         pos += snprintf(summary + pos, sizeof(summary) - pos,
             gs_t("%d commits from %d contributors were made, with %s being the most active. "),
             report->commit_total, report->author_total, report->top_author);
+    }
+
+    if (report->churn_available && report->churn_additions + report->churn_deletions > 0) {
+        pos += snprintf(summary + pos, sizeof(summary) - pos,
+            gs_t("The commits added %ld lines and removed %ld. "),
+            report->churn_additions, report->churn_deletions);
     }
 
     if (report->issue_total > 0) {
@@ -451,6 +509,7 @@ ErrorCode analyzer_llm_summary(char *summary, size_t summary_len,
                                const Vector *commits,
                                const Vector *issues,
                                const Vector *releases,
+                               const Report *report,
                                const char *mode)
 {
     if (!llm->api_key[0] || !llm->api_base[0]) {
@@ -515,6 +574,14 @@ ErrorCode analyzer_llm_summary(char *summary, size_t summary_len,
     if (vector_len(commits) > MAX_PROMPT_ITEMS) {
         pos += snprintf(prompt + pos, sizeof(prompt) - pos,
             "... and %zu more commits\n", vector_len(commits) - MAX_PROMPT_ITEMS);
+    }
+
+    CHECK_PT();
+    if (report && report->churn_available &&
+        report->churn_additions + report->churn_deletions > 0) {
+        pos += snprintf(prompt + pos, sizeof(prompt) - pos,
+            "\n=== Code churn (+%ld / -%ld lines) ===\n",
+            report->churn_additions, report->churn_deletions);
     }
 
     CHECK_PT();

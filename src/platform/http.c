@@ -315,6 +315,7 @@ static const char *fixture_name_for_url(const char *url) {
     if (strstr(url, "/releases"))      return "releases.json";
     if (strstr(url, "/contributors"))  return "contributors.json";
     if (strstr(url, "/languages"))     return "languages.json";
+    if (strstr(url, "/stats/"))        return "code_frequency.json";
     return "meta.json";
 }
 

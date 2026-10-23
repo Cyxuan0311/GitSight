@@ -91,6 +91,10 @@ static const GsEntry TABLE[] = {
     /* Activity */
     { "Commit activity (last %d buckets):", "提交活跃度（最近 %d 个区间）：" },
     { "Activity (commits/day):", "提交活跃度（每日提交数）：" },
+    { "Code churn", "代码变更量" },
+    { "+%ld / -%ld lines", "+%ld / -%ld 行" },
+    { "The commits added %ld lines and removed %ld. ",
+      "这些提交新增了 %ld 行，删除了 %ld 行。" },
     { "Commits by weekday:", "按星期分布的提交：" },
     { "Top labels", "热门标签" },
     { "Labels: %s", "标签：%s" },

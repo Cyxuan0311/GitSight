@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define GITHUB_ACCEPT "Accept: application/vnd.github.v3+json"
 
@@ -183,6 +184,88 @@ static ErrorCode fetch_commits_impl(void *ctx, Vector *commits, int since_days) 
     }
 
     return gh_get(gh, url, parse_commits_page, &pctx, 0);
+}
+
+/* ---- Code churn (GitHub only: the statistics endpoints exist there, while
+   the commits listing itself never carries line counts) ---- */
+
+/* The endpoint streams history as [unix_ts, additions, deletions] rows. The
+   engine clips to the requested window, so points outside it survive the
+   parse and are dropped by whoever aggregates. */
+static void churn_from_json(const cJSON *json, Vector *weeks) {
+    cJSON *row;
+    cJSON_ArrayForEach(row, json) {
+        const cJSON *ts = cJSON_GetArrayItem(row, 0);
+        const cJSON *add = cJSON_GetArrayItem(row, 1);
+        const cJSON *del = cJSON_GetArrayItem(row, 2);
+        if (!ts || !cJSON_IsNumber(ts) || !add || !cJSON_IsNumber(add) ||
+            !del || !cJSON_IsNumber(del))
+            continue;
+        ChurnPoint *p = malloc(sizeof(*p));
+        if (!p) return;
+        p->ts = (long)ts->valuedouble;
+        p->additions = (long)add->valuedouble;
+        p->deletions = (long)del->valuedouble;
+        vector_push(weeks, p);
+    }
+}
+
+static void churn_wait(unsigned int secs) {
+    sleep(secs);
+}
+
+/* GitHub computes the statistics server-side the first time a repository is
+   asked; the first answer is 202 with no body, and later answers carry the
+   data. One short retry keeps the very first analyze from reporting "no
+   churn" just because the survey was still being prepared. */
+static ErrorCode fetch_churn_impl(void *ctx, Vector *weeks) {
+    GitHubContext *gh = (GitHubContext *)ctx;
+    /* Only github.com exposes /stats; the Gitea family (codeberg, gitea,
+       forgejo) has no equivalent, and probing it would waste a request. */
+    if (!gh->profile || strcmp(gh->profile->name, "github") != 0) return GS_OK;
+
+    DriverBase base;
+    fill_base(gh, &base);
+    char auth[600] = "";
+    build_auth(gh, auth, sizeof(auth));
+
+    char url[1408];
+    snprintf(url, sizeof(url), "%s/repos/%s/%s/stats/code_frequency",
+             gh->api_base, gh->owner, gh->repo);
+    if (gh->branch[0]) {
+        char enc[128];
+        url_encode(gh->branch, enc, sizeof(enc));
+        snprintf(url + strlen(url), sizeof(url) - strlen(url), "?sha=%s", enc);
+    }
+
+    for (int attempt = 0; attempt < 2; attempt++) {
+        if (attempt) churn_wait(2);
+
+        cJSON *json = NULL;
+        long code = 0;
+        ErrorCode err = gs_fetch_json_code(&base, auth, url, &json, &code);
+        if (err == GS_OK && json) {
+            /* Anything that is not the statistics array means this host has
+               no churn service; keep the run cheap and warn nobody. */
+            if (json->type != cJSON_Array) {
+                cJSON_Delete(json);
+                return GS_OK;
+            }
+            churn_from_json(json, weeks);
+            cJSON_Delete(json);
+            return GS_OK;
+        }
+        if (err == GS_OK) return GS_OK;
+
+        /* 202: the statistics are being generated -- retry once. 404: the
+           branch (or the empty repository) simply has no history yet. */
+        if (err == ERR_HTTP_STATUS && (code == 202 || code == 404)) {
+            if (code == 404) return GS_OK;
+            continue;
+        }
+        return err;
+    }
+    return GS_OK;
 }
 
 /* ---- Issues ---- */
@@ -469,6 +552,7 @@ ErrorCode github_client_init(PlatformClient *client, const Config *cfg,
     client->fetch_meta = fetch_meta_impl;
     client->fetch_contributors = fetch_contributors_impl;
     client->fetch_languages = fetch_languages_impl;
+    client->fetch_churn = fetch_churn_impl;
     client->destroy = github_destroy;
 
     return GS_OK;

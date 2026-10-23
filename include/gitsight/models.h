@@ -33,7 +33,20 @@ typedef struct {
     char   author[MAX_AUTHOR_LEN];
     char   date[MAX_DATE_LEN];
     char   html_url[MAX_URL_LEN];
+    /* Code churn, when the platform's commit listing includes it (GitLab).
+       has_stats marks that both counters are meaningful; a zero pair without
+       the flag means the platform said nothing, not "an empty commit". */
+    int    additions;
+    int    deletions;
+    int    has_stats;
 } Commit;
+
+/** One weekly churn entry as a platform's aggregate endpoint reports it. */
+typedef struct {
+    long ts;            /* interval start, seconds since epoch */
+    long additions;
+    long deletions;
+} ChurnPoint;
 
 typedef struct {
     int    number;
@@ -115,6 +128,15 @@ typedef struct {
     char   activity_labels[60][16];
     int    activity_values[60];
     int    activity_max;
+    /* Code churn over the same window. The per-bucket series shares the
+       activity buckets and labels, one entry per chart axis. churn_available
+       is 0 when the platform supplies no line counts anywhere (Gitea family
+       reports none), which must read as "no data" rather than zero churn. */
+    int    churn_available;
+    long   churn_additions;
+    long   churn_deletions;
+    long   churn_add_values[60];
+    long   churn_del_values[60];
     int    weekday_values[7];
     int    busiest_weekday;
     int    lang_count;

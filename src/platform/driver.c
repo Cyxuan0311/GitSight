@@ -141,3 +141,29 @@ ErrorCode gs_fetch_json(const DriverBase *base, const char *auth_header,
     *out = json;
     return GS_OK;
 }
+
+ErrorCode gs_fetch_json_code(const DriverBase *base, const char *auth_header,
+                             const char *url, cJSON **out, long *http_code) {
+    HttpClient hc;
+    http_client_init(&hc, auth_header, base->proxy, base->accept,
+                     base->timeout_secs, base->max_pages);
+    hc.use_cache = base->use_cache;
+
+    HttpBuffer buf;
+    HttpResult res;
+    http_buffer_init(&buf);
+    ErrorCode err = http_get(&hc, url, &buf, &res);
+    if (http_code) *http_code = res.http_code;
+    http_client_free(&hc);
+    if (err != GS_OK) {
+        if (err == ERR_HTTP_STATUS) set_http_error(base, res.http_code);
+        http_buffer_free(&buf);
+        return err;
+    }
+
+    cJSON *json = cJSON_Parse(buf.data);
+    http_buffer_free(&buf);
+    if (!json) return ERR_JSON_PARSE;
+    *out = json;
+    return GS_OK;
+}

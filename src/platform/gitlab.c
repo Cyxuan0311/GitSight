@@ -158,6 +158,19 @@ static int parse_commits_page(void *userdata, const char *body, const HttpResult
         if (date && cJSON_IsString(date))
             snprintf(c->date, sizeof(c->date), "%s", date->valuestring);
 
+        /* with_stats=true attaches the line counters to every commit;
+           nothing to fetch separately, so gitlab churn rides the listing. */
+        n = cJSON_GetObjectItem(item, "stats");
+        if (n && cJSON_IsObject(n)) {
+            cJSON *a = cJSON_GetObjectItem(n, "additions");
+            cJSON *d = cJSON_GetObjectItem(n, "deletions");
+            if (a && cJSON_IsNumber(a) && d && cJSON_IsNumber(d)) {
+                c->additions = a->valueint;
+                c->deletions = d->valueint;
+                c->has_stats = 1;
+            }
+        }
+
         vector_push(ctx->vec, c);
     }
 
@@ -174,7 +187,8 @@ static ErrorCode fetch_commits_impl(void *ctx, Vector *commits, int since_days) 
     init_since_ctx(&pctx, commits, since_days);
 
     char url[1280];
-    snprintf(url, sizeof(url), "%s/projects/%s/repository/commits?since=%s&per_page=100",
+    snprintf(url, sizeof(url),
+             "%s/projects/%s/repository/commits?since=%s&per_page=100&with_stats=true",
              gl->api_base, project, pctx.since_str);
     if (gl->branch[0]) {
         char enc[128];
@@ -449,6 +463,7 @@ ErrorCode gitlab_client_init(PlatformClient *client, const Config *cfg,
     client->fetch_meta = fetch_meta_impl;
     client->fetch_contributors = fetch_contributors_impl;
     client->fetch_languages = fetch_languages_impl;
+    client->fetch_churn = NULL; /* the listing already carries per-commit stats */
     client->destroy = gitlab_destroy;
 
     return GS_OK;

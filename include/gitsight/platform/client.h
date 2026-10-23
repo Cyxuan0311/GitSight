@@ -21,6 +21,11 @@ typedef struct PlatformClient {
     ErrorCode (*fetch_meta)(void *ctx, RepoMeta *meta);
     ErrorCode (*fetch_contributors)(void *ctx, Vector *contributors);
     ErrorCode (*fetch_languages)(void *ctx, Vector *langs);
+    /* Optional: weekly-ish code churn rows for engines that cannot take the
+       line counts out of the commit listing (github's /stats endpoint).
+       NULL on platforms that either ship stats inline (gitlab) or lack the
+       notion entirely (gitea family); the missing kind rates as success. */
+    ErrorCode (*fetch_churn)(void *ctx, Vector *weeks);
     char      last_error[512];
     void      (*destroy)(void *ctx);
 } PlatformClient;

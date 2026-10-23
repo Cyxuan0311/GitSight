@@ -12,12 +12,8 @@ FIX="$WORK/fixtures"
 OUT="$WORK/out"
 mkdir -p "$FIX" "$OUT"
 
-D1=$(date -u -d '1 day ago' +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)
-if [ -z "$D1" ]; then
-    iso_days_ago() { date -u -v-${1}d +%Y-%m-%dT%H:%M:%SZ; }
-else
-    iso_days_ago() { date -u -d "$1 days ago" +%Y-%m-%dT%H:%M:%SZ; }
-fi
+. "$(dirname "$0")/common.sh"
+
 D1=$(iso_days_ago 1)
 D2=$(iso_days_ago 2)
 D3=$(iso_days_ago 3)
@@ -140,7 +136,7 @@ grep -q '.b-open{color:#dc2629}' "$OUT/report_colors.html" || fail "html --expor
 "$GS" analyze acme/gadget $ARGS --no-cache -q --filter author:bob -f md -o "$OUT/filt.md" || fail "filter analyze failed"
 grep -q "Add docs" "$OUT/filt.md" || fail "filter dropped bob's own PR"
 grep -q "Fix the widget" "$OUT/filt.md" && fail "filter kept alice's PR"
-"$GS" analyze acme/gadget $ARGS --no-cache -q --to "$(date -u -d '3 days ago' +%Y-%m-%d)" -f md -o "$OUT/win.md" || fail "window analyze failed"
+"$GS" analyze acme/gadget $ARGS --no-cache -q --to "$(iso_date_days_ago 3)" -f md -o "$OUT/win.md" || fail "window analyze failed"
 grep -q "first commit" "$OUT/win.md" && fail "--to kept commit after cutoff"
 "$GS" analyze acme/gadget $ARGS --no-cache -q --from bad-date -f md -o /dev/null 2>"$OUT/bad.txt" && fail "bad --from accepted"
 grep -q "YYYY-MM-DD" "$OUT/bad.txt" || fail "bad --from wrong error"
@@ -315,10 +311,8 @@ if "$GS" completion nope >/dev/null 2>&1; then fail "completion with bad shell s
 # usage command: LLM usage rendered as a unicode bar chart
 USG="$WORK/usage.json"
 export GS_USAGE_FILE="$USG"
-TS1=$(date -d '1 day ago' +%s 2>/dev/null)
-TS2=$(date -d '2 days ago' +%s 2>/dev/null)
-if [ -z "$TS1" ]; then TS1=$(date -v-1d +%s); fi
-if [ -z "$TS2" ]; then TS2=$(date -v-2d +%s); fi
+TS1=$(epoch_days_ago 1)
+TS2=$(epoch_days_ago 2)
 cat > "$USG" <<EOF
 {
   "records": [

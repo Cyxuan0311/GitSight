@@ -16,9 +16,11 @@ trap 'rm -rf "$WORK"; [ -n "${SRV_PID:-}" ] && kill "$SRV_PID" 2>/dev/null' EXIT
 FIX="$WORK/fixtures"; mkdir -p "$FIX"
 cp -r "$SRC/web/dist" "$WORK/web"
 
-D1=$(date -u -d "1 day ago" +%Y-%m-%dT%H:%M:%SZ)
-D2=$(date -u -d "2 days ago" +%Y-%m-%dT%H:%M:%SZ)
-D4=$(date -u -d "4 days ago" +%Y-%m-%dT%H:%M:%SZ)
+. "$(dirname "$0")/common.sh"
+
+D1=$(iso_days_ago 1)
+D2=$(iso_days_ago 2)
+D4=$(iso_days_ago 4)
 cat > "$FIX/prs.json" <<EOF
 [{"number":42,"title":"Fix the widget","state":"closed","created_at":"$D4","updated_at":"$D1","merged_at":"$D1","html_url":"u","user":{"login":"alice"},"labels":[{"name":"bug"}]}]
 EOF

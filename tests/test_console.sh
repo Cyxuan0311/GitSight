@@ -23,7 +23,8 @@ FIX="$WORK/fixtures"
 mkdir -p "$FIX"
 cp -r "$SRC/web/dist" "$WORK/web"
 
-iso_days_ago() { date -u -d "$1 days ago" +%Y-%m-%dT%H:%M:%SZ; }
+. "$(dirname "$0")/common.sh"
+
 D1=$(iso_days_ago 1); D2=$(iso_days_ago 2); D4=$(iso_days_ago 4)
 
 cat > "$FIX/prs.json" <<EOF

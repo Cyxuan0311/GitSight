@@ -95,8 +95,8 @@ export NO_COLOR=1
 
 # --- fixtures ---------------------------------------------------------------
 
-iso_days_ago() { date -u -d "$1 days ago" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
-                  || date -u -v-"$1"d +%Y-%m-%dT%H:%M:%SZ; }
+. "$(dirname "$0")/common.sh"
+
 D1=$(iso_days_ago 1)
 D2=$(iso_days_ago 2)
 D4=$(iso_days_ago 4)

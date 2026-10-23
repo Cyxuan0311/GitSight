@@ -28,6 +28,16 @@ export interface Commit {
   author: string;
   date: string;
   html_url: string;
+  /** Line counters, only when the platform's listing carries them (GitLab). */
+  additions?: number;
+  deletions?: number;
+}
+
+export interface ChurnBucket {
+  /** Same label as the matching activity bucket. */
+  label: string;
+  additions: number;
+  deletions: number;
 }
 
 export interface Issue {
@@ -112,6 +122,11 @@ export interface Report {
     activity: ActivityBucket[];
     weekday: WeekdayBucket[];
     items: Commit[];
+    /** Code churn totals and series. Both absent when the platform (Gitea
+     *  family) supplies no line counts, which must read as "no data". */
+    additions?: number;
+    deletions?: number;
+    churn?: ChurnBucket[];
   };
   issues: {
     total: number;

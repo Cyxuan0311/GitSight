@@ -148,6 +148,8 @@
     "weekday": "By weekday",
     "busiestDay": "Busiest day",
     "noActivity": "No commits in this window",
+    "churn": "Code churn (lines)",
+    "noChurn": "No churn data from this platform",
     "itemLimit": "Showing {{shown}} of {{total}} — exports list at most {{limit}} per section",
     "showAll": "Show all",
     "showLess": "Show fewer",

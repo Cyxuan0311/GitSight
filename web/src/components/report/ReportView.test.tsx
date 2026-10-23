@@ -107,6 +107,27 @@ describe('who wrote the summary', () => {
   });
 });
 
+describe('code churn', () => {
+  it('shows the churn chart when the platform supplies line counts', () => {
+    renderReport();
+
+    const chart = screen.getByRole('img', { name: i18n.t('report.churn') });
+    expect(chart).toBeInTheDocument();
+    // The totals ride the chart's header line.
+    expect(screen.getByText((_, el) => el?.textContent === '+175')).toBeInTheDocument();
+  });
+
+  it('stays absent when the platform reports no churn at all', () => {
+    const { commits, ...rest } = report;
+    renderReport({
+      ...rest,
+      commits: { total: commits.total, authors: commits.authors, top_author: commits.top_author, activity: commits.activity, weekday: commits.weekday, items: commits.items },
+    });
+
+    expect(screen.queryByRole('img', { name: i18n.t('report.churn') })).not.toBeInTheDocument();
+  });
+});
+
 describe('the status of one repository in a batch', () => {
   const entry = {
     repo: 'acme/gadget',

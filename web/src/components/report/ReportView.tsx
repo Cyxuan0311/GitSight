@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import {
   ActivityChart,
+  ChurnChart,
   CommitTable,
   ContributorList,
   IssueTable,
@@ -254,6 +255,19 @@ function ChartsRow({
           ) : (
             <p className="py-8 text-center text-xs text-muted">{t('app.none')}</p>
           )}
+          {report.commits.churn && report.commits.churn.length > 0 ? (
+            <>
+              <div className="mb-3 mt-3 flex items-center justify-between border-t border-line pt-3">
+                <span className="text-xs text-muted">{t('report.churn')}</span>
+                <span className="nums text-xs text-muted">
+                  <span className="text-open">+{report.commits.additions ?? 0}</span>
+                  {' / '}
+                  <span className="text-danger">-{report.commits.deletions ?? 0}</span>
+                </span>
+              </div>
+              <ChurnChart report={report} />
+            </>
+          ) : null}
         </CardContent>
       </Card>
 

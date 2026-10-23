@@ -203,6 +203,59 @@ export function ActivityChart({ report }: { report: Report }) {
   );
 }
 
+/**
+ * Code churn over the same buckets as the activity chart: stacked bars, one
+ * green (additions) and one red (deletions) segment per bucket. Rendered
+ * only when the platform supplied line counts at all.
+ */
+export function ChurnChart({ report }: { report: Report }) {
+  const { t } = useTranslation();
+  const churn = report.commits.churn ?? [];
+  const additions = report.commits.additions ?? 0;
+  const deletions = report.commits.deletions ?? 0;
+  const peak = churn.reduce((max, b) => Math.max(max, b.additions, b.deletions), 0);
+
+  // Newest-first from the exporter, reversed for display, same as activity.
+  const series = useMemo(() => [...churn].reverse(), [churn]);
+
+  if (series.length === 0 || (additions === 0 && deletions === 0)) {
+    return <EmptyState className="py-6" title={t('report.noChurn')} />;
+  }
+
+  return (
+    <div className="flex h-40 items-stretch gap-[2px]" role="img" aria-label={t('report.churn')}>
+      {series.map((bucket) => {
+        const addH = peak > 0 ? Math.max(2, Math.round((bucket.additions / peak) * 100)) : 0;
+        const delH = peak > 0 ? Math.max(2, Math.round((bucket.deletions / peak) * 100)) : 0;
+        return (
+          <div
+            key={bucket.label}
+            className="group relative min-w-0 flex-1"
+            title={`${bucket.label}: +${bucket.additions} / -${bucket.deletions}`}
+          >
+            <span
+              className="nums pointer-events-none absolute -top-1 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-raised px-1.5 py-0.5 text-[10px] text-muted shadow group-hover:block"
+              aria-hidden="true"
+            >
+              {bucket.label}: +{bucket.additions} / -{bucket.deletions}
+            </span>
+            <div className="absolute inset-0 flex flex-col justify-end">
+              <div
+                className="w-full bg-danger/70 transition-colors group-hover:bg-danger"
+                style={{ height: `${delH}%` }}
+              />
+              <div
+                className="w-full bg-open/70 transition-colors group-hover:bg-open"
+                style={{ height: `${addH}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function WeekdayChart({ report }: { report: Report }) {
   const { t } = useTranslation();
   const peak = report.commits.weekday.reduce((max, entry) => Math.max(max, entry.commits), 0);

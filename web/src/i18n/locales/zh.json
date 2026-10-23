@@ -148,6 +148,8 @@
     "weekday": "按星期分布",
     "busiestDay": "最活跃",
     "noActivity": "该周期内没有提交",
+    "churn": "代码变更量（行）",
+    "noChurn": "该平台没有变更量数据",
     "itemLimit": "显示 {{shown}} / {{total}} 条 — 导出时每节最多 {{limit}} 条",
     "showAll": "显示全部",
     "showLess": "收起",

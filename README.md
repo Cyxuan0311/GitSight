@@ -9,6 +9,10 @@
   <img src="https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge" alt="PRs Welcome">
 </p>
 
+<p align="center">
+  English | <a href="README.zh-CN.md">中文</a>
+</p>
+
 Analyze any public GitHub repository — Pull Requests, Commits, Issues — and export structured reports in 7 formats with optional AI-powered summaries. A local web console (`gs serve`) puts the same engine behind a browser UI.
 
 > 💡 Generate weekly reports or review a project's development over a custom time period to quickly understand how a repository is evolving.
@@ -141,8 +145,8 @@ so switching export format is a re-render rather than a refetch.
 the config file holding your access tokens. Only pass `--host 0.0.0.0` on a
 network you trust.
 
-See [web/README.md](web/README.md) for the page tour, build steps and console
-development setup. The HTTP API is documented in
+See [web/README.md](web/README.md) ([中文](web/README.zh-CN.md)) for the page
+tour, build steps and console development setup. The HTTP API is documented in
 [usage.md](docs/usage.md#http-api).
 
 ## Export Formats
@@ -245,10 +249,10 @@ LLM names from the configured providers.
 
 | Guide | Description |
 |-------|-------------|
-| [Installation](docs/installation.md) | Build from source for all platforms |
-| [Usage](docs/usage.md) | Full command reference and examples |
-| [Configuration](docs/configuration.md) | LLM, proxy, and export config |
-| [Architecture](docs/architecture.md) | Code structure and extending GitSight |
+| [Installation](docs/installation.md) / [中文](docs/installation.zh-CN.md) | Build from source for all platforms |
+| [Usage](docs/usage.md) / [中文](docs/usage.zh-CN.md) | Full command reference and examples |
+| [Configuration](docs/configuration.md) / [中文](docs/configuration.zh-CN.md) | LLM, proxy, and export config |
+| [Architecture](docs/architecture.md) / [中文](docs/architecture.zh-CN.md) | Code structure and extending GitSight |
 
 ## Contributing
 

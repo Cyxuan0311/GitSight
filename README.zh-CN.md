@@ -9,6 +9,10 @@
   <img src="https://img.shields.io/badge/PR-%E6%AC%A2%E8%BF%8E-ff69b4?style=for-the-badge" alt="PRs Welcome">
 </p>
 
+<p align="center">
+  <a href="README.md">English</a> | 中文
+</p>
+
 分析任意公开 GitHub 仓库的 Pull Request、Commit、Issue，以 7 种格式导出结构化报告，并可选 AI 智能摘要。
 `gs serve` 可在同一套引擎之上启动本地 Web 控制台。
 
@@ -141,8 +145,8 @@ SSE 实时推送到浏览器，运行中的任务可随时取消；分析结果�
 文件。只有在你信任的网络里才使用 `--host 0.0.0.0`。
 
 页面清单、构建步骤与控制台开发环境见
-[web/README.zh-CN.md](web/README.zh-CN.md)。HTTP 接口文档见
-[docs/usage.zh-CN.md](docs/usage.zh-CN.md#http-接口)。
+[web/README.zh-CN.md](web/README.zh-CN.md)（[English](web/README.md)）。HTTP 接口文档见
+[docs/usage.zh-CN.md](docs/usage.zh-CN.md#http-接口)（[English](docs/usage.md#http-api)）。
 
 ## 导出格式
 
@@ -243,10 +247,10 @@ gs completion fish > ~/.config/fish/completions/gs.fish
 
 | 指南 | 说明 |
 |------|------|
-| [安装](docs/installation.zh-CN.md) | 各平台编译方法 |
-| [使用](docs/usage.zh-CN.md) | 完整命令参考与示例 |
-| [配置](docs/configuration.zh-CN.md) | LLM、代理、导出配置 |
-| [架构](docs/architecture.zh-CN.md) | 代码结构与扩展指南 |
+| [安装](docs/installation.zh-CN.md) / [English](docs/installation.md) | 各平台编译方法 |
+| [使用](docs/usage.zh-CN.md) / [English](docs/usage.md) | 完整命令参考与示例 |
+| [配置](docs/configuration.zh-CN.md) / [English](docs/configuration.md) | LLM、代理、导出配置 |
+| [架构](docs/architecture.zh-CN.md) / [English](docs/architecture.md) | 代码结构与扩展指南 |
 
 ## 贡献
 

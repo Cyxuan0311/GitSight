@@ -136,6 +136,10 @@ gs analyze owner/repo --api-base https://api.github.com
 gs serve                  # → http://127.0.0.1:8787
 ```
 
+<p align="center">
+  <img src="resource/demo.png" alt="GitSight Web 控制台 — Analyze 页面：实时进度、导出预览与 LLM 摘要" width="1080">
+</p>
+
 `gs serve` 把同一套分析、导出与配置引擎放到浏览器界面之后：九个页面覆盖
 分析、对比、批量、订阅、用量以及全部 `gs config --set` 配置项。进度通过
 SSE 实时推送到浏览器，运行中的任务可随时取消；分析结果保留在内存中，因此

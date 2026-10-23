@@ -135,6 +135,10 @@ gs analyze owner/repo --api-base https://api.github.com
 gs serve                  # → http://127.0.0.1:8787
 ```
 
+<p align="center">
+  <img src="resource/demo.png" alt="GitSight web console — the Analyze page with live progress, export preview and LLM summary" width="1080">
+</p>
+
 `gs serve` puts the same analysis, export and configuration engine behind a
 browser UI: nine pages covering analyze, compare, batch, subscriptions, LLM
 usage and every `gs config --set` key. Progress streams to the browser over SSE

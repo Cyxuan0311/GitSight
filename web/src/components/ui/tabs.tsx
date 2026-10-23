@@ -52,15 +52,19 @@ export function TabsList({
  *
  * Base UI measures the selected tab and publishes its box as CSS variables, so
  * the only thing left is to consume them and transition -- which is what turns
- * an instant jump into a move the eye can follow. Height matches the list's
- * content box rather than the strip, so it sits inside the padding.
+ * an instant jump into a move the eye can follow. Between tabs it slides; on
+ * its very first appearance it fades in through `gs-indicator`'s starting
+ * style, because there is no previous position to slide from but a jump would
+ * still read as one. Height matches the list's content box rather than the
+ * strip, so it sits inside the padding.
  */
 function TabsIndicator({ className }: { className?: string }) {
   return (
     <BaseTabs.Indicator
       className={cn(
-        'pointer-events-none absolute top-1 bottom-1 rounded bg-surface shadow-xs',
-        'transition-[left,width] duration-200 ease-out motion-reduce:transition-none',
+        'gs-indicator pointer-events-none absolute top-1 bottom-1 rounded bg-surface shadow-xs',
+        'transition-[left,width,opacity] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]',
+        'motion-reduce:transition-none',
         className,
       )}
       style={{
@@ -72,13 +76,17 @@ function TabsIndicator({ className }: { className?: string }) {
 }
 
 const tabVariants = cva(
-  'relative z-1 flex items-center gap-2 whitespace-nowrap rounded px-3 py-1.5 text-xs font-medium transition-colors ' +
-    '[&_svg]:size-3.5',
+  'relative z-1 flex items-center gap-2 whitespace-nowrap rounded px-3 py-1.5 text-xs font-medium ' +
+    'transition-[color,translate] duration-150 ease-out active:translate-y-px ' +
+    'motion-reduce:active:translate-y-0 [&_svg]:size-3.5',
   {
     variants: {
       selected: {
         true: 'text-ink',
-        false: 'text-muted hover:text-ink',
+        /* The muted ink lifts to full as the highlight reaches the tab, on a
+         * short delay, so the colour arrives with the pill rather than ahead
+         * of it. Base UI marks the active tab with data-active. */
+        false: 'text-muted hover:text-ink data-[active]:text-ink data-[active]:delay-100',
       },
     },
     defaultVariants: { selected: false },
@@ -123,6 +131,11 @@ export function TabsPanel({
         // but they are inert and invisible.
         'data-[hidden]:invisible data-[hidden]:pointer-events-none data-[hidden]:absolute',
         'data-[hidden]:opacity-0',
+        // The arriving panel rises the last few pixels; the leaving one only
+        // fades. Cancelling the animation while hidden is what replays it on
+        // reveal, and the attribute selector keeps the cancellation winning
+        // over the base animation no matter the class order.
+        'animate-tab-in data-[hidden]:animate-none',
         'transition-opacity duration-200 ease-out motion-reduce:transition-none',
         className,
       )}

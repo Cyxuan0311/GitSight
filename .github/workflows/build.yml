@@ -31,27 +31,37 @@ jobs:
         brew update
         brew install cmake gcc curl pkg-config
 
+    # GITHUB_ENV is one KEY=value per line: never put two assignments on a line.
     - name: Set compiler (Linux Clang)
       if: runner.os == 'Linux' && matrix.compiler == 'clang'
-      run: echo "CC=clang CXX=clang++" >> $GITHUB_ENV
+      run: |
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
 
     - name: Set compiler (Linux GCC)
       if: runner.os == 'Linux' && matrix.compiler == 'gcc'
-      run: echo "CC=gcc CXX=g++" >> $GITHUB_ENV
+      run: |
+        echo "CC=gcc" >> $GITHUB_ENV
+        echo "CXX=g++" >> $GITHUB_ENV
 
     - name: Set compiler (macOS GCC)
       if: runner.os == 'macOS' && matrix.compiler == 'gcc'
-      run: echo "CC=gcc-13 CXX=g++-13" >> $GITHUB_ENV
+      run: |
+        echo "CC=gcc-13" >> $GITHUB_ENV
+        echo "CXX=g++-13" >> $GITHUB_ENV
 
     - name: Set compiler (macOS Clang)
       if: runner.os == 'macOS' && matrix.compiler == 'clang'
-      run: echo "CC=clang CXX=clang++" >> $GITHUB_ENV
+      run: |
+        echo "CC=clang" >> $GITHUB_ENV
+        echo "CXX=clang++" >> $GITHUB_ENV
 
     - name: Configure
       run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
+    # nproc does not exist on macOS; getconf works on both.
     - name: Build
-      run: cmake --build build --verbose -j$(nproc)
+      run: cmake --build build --verbose -j$(getconf _NPROCESSORS_ONLN)
 
     - name: Test (version)
       run: ./build/gs version

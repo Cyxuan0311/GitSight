@@ -1,6 +1,7 @@
 #define _DEFAULT_SOURCE
 
 #include "gitsight/anim.h"
+#include "gitsight/thread.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -122,7 +123,7 @@ void anim_start(Anim *a, AnimStyle style, int current, int total, const char *me
     anim_emit(a->message, current, total, ANIM_PROG_START);
 
     if (!g_quiet && stderr_is_tty()) {
-        if (pthread_create(&a->thread, NULL, anim_run, a) == 0) {
+        if (gs_thread_create(&a->thread, anim_run, a) == 0) {
             a->thread_started = 1;
         } else {
             a->running = 0;

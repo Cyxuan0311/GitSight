@@ -163,8 +163,13 @@ static void cache_prune(const HttpClient *hc) {
     if (!dir) return;
 
     /* The entries, oldest first. A run caches a few dozen pages, so the list
-     * is small enough to sort in place. */
-    struct CacheEntry { char name[256]; time_t mtime; } entries[CACHE_MAX_ENTRIES];
+     * is small enough to sort in place -- but CACHE_MAX_ENTRIES rows of
+     * {name[256]; time_t} is ~500 KiB, far more than a macOS worker thread's
+     * 512 KiB stack, so it lives on the heap. */
+    struct CacheEntry { char name[256]; time_t mtime; };
+    struct CacheEntry *entries = calloc(CACHE_MAX_ENTRIES, sizeof(struct CacheEntry));
+    if (!entries) { closedir(dir); return; }
+
     int count = 0;
 
     struct dirent *ent;
@@ -185,7 +190,7 @@ static void cache_prune(const HttpClient *hc) {
     }
     closedir(dir);
 
-    if (count == 0) return;
+    if (count == 0) { free(entries); return; }
 
     /* Oldest first. */
     for (int i = 1; i < count; i++) {
@@ -210,6 +215,7 @@ static void cache_prune(const HttpClient *hc) {
         unlink(path);
         keep--;
     }
+    free(entries);
 }
 
 /* The header every cached page carries.

@@ -18,6 +18,7 @@
 #include "gitsight/platform/profile.h"
 #include "gitsight/analyzer/engine.h"
 #include "gitsight/export/exporter.h"
+#include "gitsight/thread.h"
 #include <cJSON.h>
 #include <stdio.h>
 #include <string.h>
@@ -551,7 +552,7 @@ int analyze_repo(const Options *opts, Config cfg, const char *repo_arg, int batc
         int created[ANALYSIS_FETCH_KINDS];
         int ncreated = 0;
         for (int i = 0; i < job_total; i++) {
-            if (pthread_create(&threads[i], NULL, fetch_worker, &jobs[i]) == 0)
+            if (gs_thread_create(&threads[i], fetch_worker, &jobs[i]) == 0)
                 created[ncreated++] = i;
             else
                 jobs[i].err = ERR_THREAD;

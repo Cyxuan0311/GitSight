@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <pthread.h>
+#include "gitsight/thread.h"
 
 /* ---- buffered socket I/O ---- */
 
@@ -453,7 +454,7 @@ int server_run(const ServeOptions *so) {
          * network bound, so this stays well under any practical connection
          * count while keeping handlers free to block on SSE streams. */
         pthread_t th;
-        if (pthread_create(&th, NULL, connection_thread, (void *)(intptr_t)cfd) == 0) {
+        if (gs_thread_create(&th, connection_thread, (void *)(intptr_t)cfd) == 0) {
             pthread_detach(th);
         } else {
             close(cfd);

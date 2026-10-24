@@ -7,6 +7,7 @@
 #include "gitsight/export/exporter.h"
 #include "gitsight/export/pdf.h"
 #include "gitsight/export/xlsx.h"
+#include "gitsight/thread.h"
 #include <stdatomic.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -244,7 +245,7 @@ int run_batch_tasks(BatchTask *tasks, int n, int par, int quiet) {
     pthread_t th[GS_BATCH_MAX_THREADS];
     int created = 0;
     for (int i = 0; i < nthreads; i++) {
-        if (pthread_create(&th[i], NULL, batch_pool_worker, &pool) == 0)
+        if (gs_thread_create(&th[i], batch_pool_worker, &pool) == 0)
             created++;
     }
     for (int i = 0; i < created; i++)

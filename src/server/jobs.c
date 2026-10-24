@@ -11,6 +11,7 @@
 #include "gitsight/i18n.h"
 #include "gitsight/perf.h"
 #include "gitsight/platform/http.h"
+#include "gitsight/thread.h"
 
 #include <cJSON.h>
 #include <errno.h>
@@ -641,7 +642,19 @@ static int run_job_repos(Job *j, const Config *cfg) {
     }
 
     pthread_t th[GS_JOBS_MAX_WORKERS];
-    RepoRun runs[GS_JOBS_MAX_WORKERS];
+    /* RepoRun carries a full Config (~64 KiB) by value; an array of them would
+     * be hundreds of KiB on the stack, more than a macOS worker thread's 512 KiB
+     * default, so it is heap-allocated. */
+    RepoRun *runs = calloc(GS_JOBS_MAX_WORKERS, sizeof(RepoRun));
+    if (!runs) {
+        /* Out of memory: fall back to fully serial execution. */
+        for (int i = 0; i < n; i++) {
+            RepoRun run = { j, *cfg, i };
+            snprintf(j->report_repo[i], 256, "%s", j->repo_list[i]);
+            repo_worker(&run);
+        }
+        return 0;
+    }
     int started = 0;
     for (int i = 0; i < n; i++) {
         if (started >= par) break;
@@ -649,7 +662,7 @@ static int run_job_repos(Job *j, const Config *cfg) {
         runs[started].job = j;
         runs[started].cfg = *cfg;
         runs[started].index = i;
-        if (pthread_create(&th[started], NULL, repo_worker, &runs[started]) == 0)
+        if (gs_thread_create(&th[started], repo_worker, &runs[started]) == 0)
             started++;
         else {
             repo_worker(&runs[started]);
@@ -657,6 +670,7 @@ static int run_job_repos(Job *j, const Config *cfg) {
         }
     }
     for (int i = 0; i < started; i++) pthread_join(th[i], NULL);
+    free(runs);
     /* Repos beyond the pool window still have to run. */
     for (int i = started + 1; i < n; i++) {
         RepoRun run = { j, *cfg, i };
@@ -790,7 +804,7 @@ void jobs_shutdown(void) {
 int jobs_submit(Job *j) {
     if (!j) return -1;
     pthread_t th;
-    if (pthread_create(&th, NULL, job_execute, j) != 0) {
+    if (gs_thread_create(&th, job_execute, j) != 0) {
         pthread_mutex_lock(&g_jobs_lock);
         j->state = JOB_FAILED;
         j->error = ERR_THREAD;

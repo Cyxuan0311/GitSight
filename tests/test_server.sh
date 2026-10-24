@@ -503,15 +503,21 @@ assert_contains "unknown lang falls back to English" "GitSight Report" \
 LANG_FRAMING=$(python3 - "$PORT" "$JOB" <<'PYEOF'
 import socket, sys
 port, job = sys.argv[1], sys.argv[2]
+langs = ('en', 'zh', 'en', 'zh')
 reqs = []
-for lang in ('en', 'zh', 'en', 'zh'):
+for i, lang in enumerate(langs):
+    # Only the last request closes the connection; the rest stay keep-alive so
+    # the four responses arrive on one socket. Appending a bare "Connection:
+    # close" after the requests (a stray fifth request) would never make the
+    # server close, forcing the client to rely on a hard read timeout.
+    conn = 'close' if i == len(langs) - 1 else 'keep-alive'
     reqs.append(
         'GET /api/jobs/%s/export?format=md&which=acme%%2Fgadget&lang=%s '
-        'HTTP/1.1\r\nHost: t\r\n\r\n' % (job, lang)
+        'HTTP/1.1\r\nHost: t\r\nConnection: %s\r\n\r\n' % (job, lang, conn)
     )
 s = socket.create_connection(('127.0.0.1', int(port)))
-s.sendall(''.join(reqs).encode() + b'Connection: close\r\n\r\n')
-s.settimeout(5)
+s.sendall(''.join(reqs).encode())
+s.settimeout(15)
 buf = b''
 try:
     while True:
@@ -600,13 +606,17 @@ CT=$(curl -s -o /dev/null -w '%{content_type}' "$BASE/api/health")
 case "$CT" in application/json*) ok;; *) fail "expected JSON content type, got $CT";; esac
 
 # A HEAD reply advertises the GET length but carries no body, otherwise the next
-# response on a kept-alive connection is unframed.
+# response on a kept-alive connection is unframed. Read until the connection
+# closes -- the GET asks for Connection: close, so it will -- rather than racing a
+# fixed read window; a slow CI runner must not cause a spurious failure. On
+# failure the raw bytes are dumped so a genuine regression is visible instead of
+# a silent empty match.
 HEAD_FRAMING=$(printf 'HEAD / HTTP/1.1\r\nHost: t\r\nConnection: keep-alive\r\n\r\nGET /api/health HTTP/1.1\r\nHost: t\r\nConnection: close\r\n\r\n' \
-  | timeout 5 python3 -c "
+  | timeout 10 python3 -c "
 import socket, sys
 s = socket.create_connection(('127.0.0.1', $PORT))
 s.sendall(sys.stdin.buffer.read())
-s.settimeout(3)
+s.settimeout(10)
 buf = b''
 try:
     while True:
@@ -621,7 +631,8 @@ sys.stdout.write(buf.decode('utf-8', 'replace'))
 case "$HEAD_FRAMING" in
   *"<!doctype"*HTTP/1.1*200*) fail "HEAD response carried a body and desynchronized keep-alive";;
   *HTTP/1.1*200*'{"'*) ok;;
-  *) fail "HEAD/GET pipelining did not produce two well-framed responses";;
+  *) printf '%s' "$HEAD_FRAMING" | head -c 600 >&2; echo >&2
+     fail "HEAD/GET pipelining did not produce two well-framed responses";;
 esac
 
 # --- cancel -----------------------------------------------------------------

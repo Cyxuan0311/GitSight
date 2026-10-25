@@ -65,22 +65,39 @@
 
 - C17 编译器（GCC >= 8 / Clang >= 10）
 - CMake >= 3.14
-- libcurl + pkg-config
+- libcurl（HTTPS 客户端）
+- zlib（XLSX/PDF 输出所需的压缩库）
+- Node.js >= 20 + npm（仅在使用 `-DGITSIGHT_BUILD_WEB=ON` 构建 Web 控制台时需要；默认的纯 C 构建不需要）
+
+> cJSON 与 miniz 已 [内嵌](third_party) 进二进制，因此生成 JSON、Markdown、XLSX 或 PDF 报告无需额外运行时库。
+> 构建好的 Web 控制台会与 `gs` 一同打包，`gs serve` 自带 UI，无需独立 Web 服务器。
 
 ### 安装构建依赖
 
+C 工具链与库（始终需要）：
+
 | 发行版 | 命令 |
 |--------|------|
-| Debian / Ubuntu | `sudo apt install cmake gcc libcurl4-openssl-dev pkg-config` |
-| Fedora / RHEL | `sudo dnf install cmake gcc libcurl-devel pkgconfig` |
-| Arch Linux | `sudo pacman -S cmake gcc curl pkg-config` |
-| macOS（Homebrew） | `brew install cmake gcc curl pkg-config` |
-| Alpine | `apk add cmake gcc musl-dev libcurl-dev pkgconf` |
+| Debian / Ubuntu | `sudo apt install cmake gcc libcurl4-openssl-dev zlib1g-dev` |
+| Fedora / RHEL | `sudo dnf install cmake gcc libcurl-devel zlib-devel` |
+| Arch Linux | `sudo pacman -S cmake gcc curl zlib` |
+| macOS（Homebrew） | `brew install cmake curl zlib`（macOS 自带 curl 与 zlib） |
+| Alpine | `apk add cmake gcc musl-dev libcurl-dev zlib-dev` |
+
+Node.js 20+（仅在使用 `-DGITSIGHT_BUILD_WEB=ON` 构建 Web 控制台时需要）：
+
+| 发行版 | 命令 |
+|--------|------|
+| Debian / Ubuntu | `sudo apt install nodejs npm`（或用 [NodeSource](https://github.com/nodesource/distributions) 安装较新的 Node） |
+| Fedora / RHEL | `sudo dnf install nodejs npm` |
+| Arch Linux | `sudo pacman -S nodejs npm` |
+| macOS（Homebrew） | `brew install node` |
+| Alpine | `apk add nodejs npm` |
 
 ### 编译安装
 
 ```bash
-git clone https://github.com/user/gitsight.git
+git clone https://github.com/Cyxuan0311/GitSight.git
 cd gitsight
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
@@ -274,7 +291,7 @@ gs completion fish > ~/.config/fish/completions/gs.fish
 
 欢迎提交 PR！代码结构概览见[架构文档](docs/architecture.zh-CN.md)。
 
-- 问题追踪：[GitHub Issues](https://github.com/user/gitsight/issues)
+- 问题追踪：[GitHub Issues](https://github.com/Cyxuan0311/GitSight/issues)
 - 提交大型功能 PR 前请先提 Issue 讨论
 
 ## 许可协议

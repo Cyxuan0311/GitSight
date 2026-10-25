@@ -5,38 +5,40 @@
 - C17 编译器（GCC >= 8 或 Clang >= 10）
 - CMake >= 3.14
 - libcurl 开发头文件
-- pkg-config
+- zlib 开发头文件（XLSX/PDF 导出使用）
 - make（或 ninja）
+
+> cJSON 与 miniz 已 [内嵌](../third_party) 进二进制，因此生成 JSON、Markdown、XLSX 或 PDF 报告无需额外运行时库。
 
 ## 安装依赖
 
 ### Debian / Ubuntu
 ```bash
-sudo apt install cmake gcc libcurl4-openssl-dev pkg-config
+sudo apt install cmake gcc libcurl4-openssl-dev zlib1g-dev
 ```
 
 ### RHEL / Fedora / CentOS
 ```bash
-sudo dnf install cmake gcc libcurl-devel pkgconfig
+sudo dnf install cmake gcc libcurl-devel zlib-devel
 ```
 
 ### Arch Linux
 ```bash
-sudo pacman -S cmake gcc curl pkg-config
+sudo pacman -S cmake gcc curl zlib
 ```
 
 ### macOS
 ```bash
 # Homebrew
-brew install cmake gcc curl pkg-config
+brew install cmake curl zlib
 
-# 或 Xcode Command Line Tools
+# 或 Xcode Command Line Tools（macOS 自带 curl 与 zlib）
 xcode-select --install
 ```
 
 ### Alpine Linux
 ```bash
-apk add cmake gcc musl-dev libcurl-dev pkgconf
+apk add cmake gcc musl-dev libcurl-dev zlib-dev
 ```
 
 ### 国内网络
@@ -50,7 +52,7 @@ export HTTPS_PROXY=$HTTP_PROXY
 ## 编译
 
 ```bash
-git clone https://github.com/user/gitsight.git
+git clone https://github.com/Cyxuan0311/GitSight.git
 cd gitsight
 
 # 使用构建脚本

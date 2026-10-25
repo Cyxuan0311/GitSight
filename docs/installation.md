@@ -5,44 +5,48 @@
 - C17 compiler (GCC >= 8 or Clang >= 10)
 - CMake >= 3.14
 - libcurl development headers
-- pkg-config
+- zlib development headers (used by XLSX/PDF export)
 - make (or ninja)
+
+> cJSON and miniz are [vendored](../third_party) and compiled into the binary,
+> so no extra runtime libraries are needed to produce JSON, Markdown, XLSX or
+> PDF exports.
 
 ## Install Dependencies
 
 ### Debian / Ubuntu
 ```bash
-sudo apt install cmake gcc libcurl4-openssl-dev pkg-config
+sudo apt install cmake gcc libcurl4-openssl-dev zlib1g-dev
 ```
 
 ### RHEL / Fedora / CentOS
 ```bash
-sudo dnf install cmake gcc libcurl-devel pkgconfig
+sudo dnf install cmake gcc libcurl-devel zlib-devel
 ```
 
 ### Arch Linux
 ```bash
-sudo pacman -S cmake gcc curl pkg-config
+sudo pacman -S cmake gcc curl zlib
 ```
 
 ### macOS
 ```bash
 # Homebrew
-brew install cmake gcc curl pkg-config
+brew install cmake curl zlib
 
-# Or Xcode Command Line Tools
+# Or Xcode Command Line Tools (curl & zlib ship with macOS)
 xcode-select --install
 ```
 
 ### Alpine Linux
 ```bash
-apk add cmake gcc musl-dev libcurl-dev pkgconf musl-dev
+apk add cmake gcc musl-dev libcurl-dev zlib-dev
 ```
 
 ## Build
 
 ```bash
-git clone https://github.com/user/gitsight.git
+git clone https://github.com/Cyxuan0311/GitSight.git
 cd gitsight
 
 # Using the build script

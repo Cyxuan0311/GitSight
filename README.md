@@ -64,22 +64,41 @@ Analyze any public GitHub repository — Pull Requests, Commits, Issues — and 
 
 - C17 compiler (GCC >= 8 / Clang >= 10)
 - CMake >= 3.14
-- libcurl + pkg-config
+- libcurl (HTTPS client)
+- zlib (compression for XLSX/PDF output)
+- Node.js >= 20 + npm (only to build the web console via `-DGITSIGHT_BUILD_WEB=ON`; the default C-only build does not need it)
+
+> cJSON and miniz are [vendored](third_party) and compiled in, so no extra
+> runtime libraries are needed to produce JSON, Markdown, XLSX or PDF exports.
+> The built web console is bundled next to `gs`, so `gs serve` ships a UI with
+> no separate web server.
 
 ### Install Build Dependencies
 
+C toolchain + libraries (always required):
+
 | Distro | Command |
 |--------|---------|
-| Debian / Ubuntu | `sudo apt install cmake gcc libcurl4-openssl-dev pkg-config` |
-| Fedora / RHEL | `sudo dnf install cmake gcc libcurl-devel pkgconfig` |
-| Arch Linux | `sudo pacman -S cmake gcc curl pkg-config` |
-| macOS (Homebrew) | `brew install cmake gcc curl pkg-config` |
-| Alpine | `apk add cmake gcc musl-dev libcurl-dev pkgconf` |
+| Debian / Ubuntu | `sudo apt install cmake gcc libcurl4-openssl-dev zlib1g-dev` |
+| Fedora / RHEL | `sudo dnf install cmake gcc libcurl-devel zlib-devel` |
+| Arch Linux | `sudo pacman -S cmake gcc curl zlib` |
+| macOS (Homebrew) | `brew install cmake curl zlib` (curl & zlib ship with macOS) |
+| Alpine | `apk add cmake gcc musl-dev libcurl-dev zlib-dev` |
+
+Node.js 20+ (only needed to build the web console with `-DGITSIGHT_BUILD_WEB=ON`):
+
+| Distro | Command |
+|--------|---------|
+| Debian / Ubuntu | `sudo apt install nodejs npm` (or use [NodeSource](https://github.com/nodesource/distributions) for a current Node) |
+| Fedora / RHEL | `sudo dnf install nodejs npm` |
+| Arch Linux | `sudo pacman -S nodejs npm` |
+| macOS (Homebrew) | `brew install node` |
+| Alpine | `apk add nodejs npm` |
 
 ### Build & Install
 
 ```bash
-git clone https://github.com/user/gitsight.git
+git clone https://github.com/Cyxuan0311/GitSight.git
 cd gitsight
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
@@ -276,7 +295,7 @@ LLM names from the configured providers.
 
 PRs are welcome! See [Architecture](docs/architecture.md) for the codebase overview.
 
-- Issue tracker: [GitHub Issues](https://github.com/user/gitsight/issues)
+- Issue tracker: [GitHub Issues](https://github.com/Cyxuan0311/GitSight/issues)
 - Format: Please open an issue before submitting large feature PRs
 
 ## License

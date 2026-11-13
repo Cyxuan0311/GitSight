@@ -111,7 +111,7 @@ ErrorCode llm_gemini_generate(const LLMConfig *cfg, const char *prompt,
 
     cJSON *usage_obj = cJSON_GetObjectItem(json, "usageMetadata");
     if (usage_obj && cJSON_IsObject(usage_obj)) {
-        long long pt = 0, ct = 0, tt = 0;
+        long long pt = 0, ct = 0, tt = 0, cached = 0;
         cJSON *v;
         if ((v = cJSON_GetObjectItem(usage_obj, "promptTokenCount")) && cJSON_IsNumber(v))
             pt = (long long)v->valuedouble;
@@ -121,7 +121,12 @@ ErrorCode llm_gemini_generate(const LLMConfig *cfg, const char *prompt,
             tt = (long long)v->valuedouble;
         else
             tt = pt + ct;
-        llm_record_usage(cfg, model, pt, ct, tt);
+        /* cachedContentTokenCount is a subset of promptTokenCount. */
+        if ((v = cJSON_GetObjectItem(usage_obj, "cachedContentTokenCount")) && cJSON_IsNumber(v))
+            cached = (long long)v->valuedouble;
+        if (cached < 0) cached = 0;
+        if (cached > pt) cached = pt;
+        llm_record_usage(cfg, model, pt, ct, tt, cached, 0);
     }
 
     cJSON_Delete(json);

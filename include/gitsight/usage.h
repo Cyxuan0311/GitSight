@@ -16,9 +16,15 @@ typedef struct {
     long long timestamp;        /* unix seconds */
     char llm[64];               /* provider name */
     char model[128];
-    long long prompt_tokens;
+    long long prompt_tokens;    /* total input, including cached input */
     long long completion_tokens;
     long long total_tokens;
+    /* Subset of prompt_tokens that was served from the provider's prompt
+     * cache. Older logs do not carry this field, so it reads back as 0. */
+    long long cached_tokens;
+    /* Tokens written into the provider cache (Anthropic reports these
+     * separately from cache reads). */
+    long long cache_write_tokens;
 } UsageRecord;
 
 typedef struct {
@@ -27,6 +33,8 @@ typedef struct {
     long long prompt_tokens;
     long long completion_tokens;
     long long total_tokens;
+    long long cached_tokens;
+    long long cache_write_tokens;
 } UsageGroup;
 
 typedef struct {
@@ -35,6 +43,8 @@ typedef struct {
     long long prompt_tokens;
     long long completion_tokens;
     long long total_tokens;
+    long long cached_tokens;
+    long long cache_write_tokens;
 } UsageDay;
 
 /* Point the module at the active usage log. main.c calls this once with the
@@ -67,11 +77,16 @@ ErrorCode usage_clear(const char *hint);
 /* Sum across all records; any output pointer may be NULL. */
 void usage_totals(const UsageRecord *recs, long n,
                   long long *calls, long long *prompt_tokens,
-                  long long *completion_tokens, long long *total_tokens);
+                  long long *completion_tokens, long long *total_tokens,
+                  long long *cached_tokens, long long *cache_write_tokens);
 
 /* Group records by LLM provider into `out` (max_out entries). Returns the
  * number of groups written. */
 int usage_by_llm(const UsageRecord *recs, long n, UsageGroup *out, int max_out);
+
+/* Same grouping, but limited to the same day window as usage_by_day. */
+int usage_by_llm_window(const UsageRecord *recs, long n, int days,
+                        UsageGroup *out, int max_out);
 
 /* Bucket records into per-day totals for the last `days` days (UTC, oldest
  * first). `out` must hold `days` entries; empty days are zeroed. */

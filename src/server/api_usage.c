@@ -28,8 +28,23 @@ static void handle_usage(Request *req, Response *res, void *user) {
     long n = usage_load(NULL, &recs);
     if (n < 0) n = 0;
 
+    UsageDay *days_out = calloc((size_t)days, sizeof(UsageDay));
     long long calls = 0, prompt = 0, completion = 0, total = 0;
-    if (recs) usage_totals(recs, n, &calls, &prompt, &completion, &total);
+    long long cached = 0, cache_write = 0;
+    if (days_out) {
+        /* Totals follow the requested window, matching the daily chart. The
+         * lifetime count stays in `records` so callers can still tell how much
+         * history the log holds. */
+        usage_by_day(recs, n, days, days_out);
+        for (int i = 0; i < days; i++) {
+            calls += days_out[i].calls;
+            prompt += days_out[i].prompt_tokens;
+            completion += days_out[i].completion_tokens;
+            total += days_out[i].total_tokens;
+            cached += days_out[i].cached_tokens;
+            cache_write += days_out[i].cache_write_tokens;
+        }
+    }
 
     cJSON *root = cJSON_CreateObject();
     cJSON_AddNumberToObject(root, "records", (double)n);
@@ -41,16 +56,14 @@ static void handle_usage(Request *req, Response *res, void *user) {
     cJSON_AddNumberToObject(totals, "prompt_tokens", (double)prompt);
     cJSON_AddNumberToObject(totals, "completion_tokens", (double)completion);
     cJSON_AddNumberToObject(totals, "total_tokens", (double)total);
+    cJSON_AddNumberToObject(totals, "cached_tokens", (double)cached);
+    cJSON_AddNumberToObject(totals, "cache_write_tokens", (double)cache_write);
     cJSON_AddItemToObject(root, "total", totals);
 
-    UsageDay *days_out = calloc((size_t)days, sizeof(UsageDay));
-    UsageGroup groups[USAGE_MAX_GROUPS];
     if (days_out) {
-        /* Always bucket, even with no records at all: usage_by_day labels the
-         * window itself, so skipping it would report every day as the epoch. */
-        usage_by_day(recs, n, days, days_out);
         int ng = 0;
-        if (recs) ng = usage_by_llm(recs, n, groups, USAGE_MAX_GROUPS);
+        UsageGroup groups[USAGE_MAX_GROUPS];
+        if (recs) ng = usage_by_llm_window(recs, n, days, groups, USAGE_MAX_GROUPS);
 
         cJSON *by_day = cJSON_CreateArray();
         for (int i = 0; i < days; i++) {
@@ -65,6 +78,8 @@ static void handle_usage(Request *req, Response *res, void *user) {
             cJSON_AddNumberToObject(o, "prompt_tokens", (double)days_out[i].prompt_tokens);
             cJSON_AddNumberToObject(o, "completion_tokens", (double)days_out[i].completion_tokens);
             cJSON_AddNumberToObject(o, "total_tokens", (double)days_out[i].total_tokens);
+            cJSON_AddNumberToObject(o, "cached_tokens", (double)days_out[i].cached_tokens);
+            cJSON_AddNumberToObject(o, "cache_write_tokens", (double)days_out[i].cache_write_tokens);
             cJSON_AddItemToArray(by_day, o);
         }
         cJSON_AddItemToObject(root, "by_day", by_day);
@@ -77,6 +92,8 @@ static void handle_usage(Request *req, Response *res, void *user) {
             cJSON_AddNumberToObject(o, "prompt_tokens", (double)groups[i].prompt_tokens);
             cJSON_AddNumberToObject(o, "completion_tokens", (double)groups[i].completion_tokens);
             cJSON_AddNumberToObject(o, "total_tokens", (double)groups[i].total_tokens);
+            cJSON_AddNumberToObject(o, "cached_tokens", (double)groups[i].cached_tokens);
+            cJSON_AddNumberToObject(o, "cache_write_tokens", (double)groups[i].cache_write_tokens);
             cJSON_AddItemToArray(by_llm, o);
         }
         cJSON_AddItemToObject(root, "by_llm", by_llm);
@@ -143,6 +160,8 @@ static void handle_usage_records(Request *req, Response *res, void *user) {
         cJSON_AddNumberToObject(o, "prompt_tokens", (double)recs[i].prompt_tokens);
         cJSON_AddNumberToObject(o, "completion_tokens", (double)recs[i].completion_tokens);
         cJSON_AddNumberToObject(o, "total_tokens", (double)recs[i].total_tokens);
+        cJSON_AddNumberToObject(o, "cached_tokens", (double)recs[i].cached_tokens);
+        cJSON_AddNumberToObject(o, "cache_write_tokens", (double)recs[i].cache_write_tokens);
         cJSON_AddItemToArray(arr, o);
         shown++;
     }

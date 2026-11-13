@@ -271,8 +271,10 @@ The repository has been active over the last 7 days...
 ## LLM Usage
 
 Every successful LLM call records its token usage (prompt/completion/total) to a
-local log next to the config file (`usage.json`, or `$GS_USAGE_FILE`). View it
-as a unicode bar chart:
+local log next to the config file (`usage.json`, or `$GS_USAGE_FILE`). When the
+provider reports prompt-cache activity, the cached input tokens and cache
+writes are stored too, so the console can show a cache-hit rate instead of
+guessing. View it as a unicode bar chart:
 
 ```bash
 # Daily token usage for the last 14 days (vertical bar chart)
@@ -302,10 +304,12 @@ LLM usage - last 14 days
   08-20 08-21 08-22 08-23
   150 300 450 900
 
-Total: 12 calls, 1800 tokens (1200 prompt + 600 completion)
+Total: 12 calls, 1800 tokens (1200 prompt + 600 completion, 420 cached)
 ```
 
-Set `GS_NO_USAGE=1` to stop recording usage entirely.
+Set `GS_NO_USAGE=1` to stop recording usage entirely. The web console's Usage
+page splits input into cached and uncached tokens, draws the per-day hit rate,
+and exposes exact counts in each tooltip and the record table.
 
 ## Web Console
 
@@ -413,6 +417,7 @@ GET    /api/llms                      POST create · PATCH/DELETE /:name
 POST   /api/llms/:name/activate · /test
 
 GET    /api/usage?days= · /records    DELETE /api/usage
+                                  totals include cached/cache-write token fields
                                   /records takes days=, so the log matches the charts
 GET    /api/completion/:shell         bash | zsh | fish
 

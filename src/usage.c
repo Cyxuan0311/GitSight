@@ -107,6 +107,10 @@ static long load_records(const char *path, UsageRecord **out) {
             r->completion_tokens = (long long)v->valuedouble;
         if ((v = cJSON_GetObjectItem(it, "total")) && cJSON_IsNumber(v))
             r->total_tokens = (long long)v->valuedouble;
+        if ((v = cJSON_GetObjectItem(it, "cached")) && cJSON_IsNumber(v))
+            r->cached_tokens = (long long)v->valuedouble;
+        if ((v = cJSON_GetObjectItem(it, "cache_write")) && cJSON_IsNumber(v))
+            r->cache_write_tokens = (long long)v->valuedouble;
         idx++;
     }
     cJSON_Delete(json);
@@ -142,6 +146,10 @@ static ErrorCode save_records(const char *path, const UsageRecord *recs, long n)
         cJSON_AddNumberToObject(o, "prompt", (double)recs[i].prompt_tokens);
         cJSON_AddNumberToObject(o, "completion", (double)recs[i].completion_tokens);
         cJSON_AddNumberToObject(o, "total", (double)recs[i].total_tokens);
+        if (recs[i].cached_tokens > 0)
+            cJSON_AddNumberToObject(o, "cached", (double)recs[i].cached_tokens);
+        if (recs[i].cache_write_tokens > 0)
+            cJSON_AddNumberToObject(o, "cache_write", (double)recs[i].cache_write_tokens);
         cJSON_AddItemToArray(arr, o);
     }
 
@@ -200,24 +208,35 @@ ErrorCode usage_clear(const char *hint) {
 
 void usage_totals(const UsageRecord *recs, long n,
                   long long *calls, long long *prompt_tokens,
-                  long long *completion_tokens, long long *total_tokens)
+                  long long *completion_tokens, long long *total_tokens,
+                  long long *cached_tokens, long long *cache_write_tokens)
 {
-    long long c = 0, p = 0, co = 0, t = 0;
+    long long c = 0, p = 0, co = 0, t = 0, ca = 0, cw = 0;
     for (long i = 0; i < n; i++) {
         c++;
         p += recs[i].prompt_tokens;
         co += recs[i].completion_tokens;
         t += recs[i].total_tokens;
+        ca += recs[i].cached_tokens;
+        cw += recs[i].cache_write_tokens;
     }
     if (calls) *calls = c;
     if (prompt_tokens) *prompt_tokens = p;
     if (completion_tokens) *completion_tokens = co;
     if (total_tokens) *total_tokens = t;
+    if (cached_tokens) *cached_tokens = ca;
+    if (cache_write_tokens) *cache_write_tokens = cw;
 }
 
-int usage_by_llm(const UsageRecord *recs, long n, UsageGroup *out, int max_out) {
+int usage_by_llm_window(const UsageRecord *recs, long n, int days,
+                        UsageGroup *out, int max_out) {
+    long long today = (long long)time(NULL) / 86400;
     int g = 0;
     for (long i = 0; i < n; i++) {
+        if (days > 0) {
+            long long offset = today - recs[i].timestamp / 86400;
+            if (offset < 0 || offset >= days) continue;
+        }
         int idx = -1;
         for (int j = 0; j < g; j++) {
             if (strcmp(out[j].name, recs[i].llm) == 0) { idx = j; break; }
@@ -233,8 +252,14 @@ int usage_by_llm(const UsageRecord *recs, long n, UsageGroup *out, int max_out) 
         out[idx].prompt_tokens += recs[i].prompt_tokens;
         out[idx].completion_tokens += recs[i].completion_tokens;
         out[idx].total_tokens += recs[i].total_tokens;
+        out[idx].cached_tokens += recs[i].cached_tokens;
+        out[idx].cache_write_tokens += recs[i].cache_write_tokens;
     }
     return g;
+}
+
+int usage_by_llm(const UsageRecord *recs, long n, UsageGroup *out, int max_out) {
+    return usage_by_llm_window(recs, n, 0, out, max_out);
 }
 
 void usage_by_day(const UsageRecord *recs, long n, int days, UsageDay *out) {
@@ -252,5 +277,7 @@ void usage_by_day(const UsageRecord *recs, long n, int days, UsageDay *out) {
         u->prompt_tokens += recs[i].prompt_tokens;
         u->completion_tokens += recs[i].completion_tokens;
         u->total_tokens += recs[i].total_tokens;
+        u->cached_tokens += recs[i].cached_tokens;
+        u->cache_write_tokens += recs[i].cache_write_tokens;
     }
 }

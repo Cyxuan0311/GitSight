@@ -83,7 +83,7 @@ ErrorCode llm_openai_generate(const LLMConfig *cfg, const char *prompt,
 
     cJSON *usage_obj = cJSON_GetObjectItem(json, "usage");
     if (usage_obj && cJSON_IsObject(usage_obj)) {
-        long long pt = 0, ct = 0, tt = 0;
+        long long pt = 0, ct = 0, tt = 0, cached = 0;
         cJSON *v;
         if ((v = cJSON_GetObjectItem(usage_obj, "prompt_tokens")) && cJSON_IsNumber(v))
             pt = (long long)v->valuedouble;
@@ -91,7 +91,22 @@ ErrorCode llm_openai_generate(const LLMConfig *cfg, const char *prompt,
             ct = (long long)v->valuedouble;
         if ((v = cJSON_GetObjectItem(usage_obj, "total_tokens")) && cJSON_IsNumber(v))
             tt = (long long)v->valuedouble;
-        llm_record_usage(cfg, model, pt, ct, tt);
+        if (tt <= 0) tt = pt + ct;
+
+        /* OpenAI reports cached input under prompt_tokens_details.cached_tokens;
+         * DeepSeek-compatible endpoints use prompt_cache_hit_tokens. Both are
+         * subsets of prompt_tokens. */
+        cJSON *details = cJSON_GetObjectItem(usage_obj, "prompt_tokens_details");
+        if (details && cJSON_IsObject(details) &&
+            (v = cJSON_GetObjectItem(details, "cached_tokens")) && cJSON_IsNumber(v))
+            cached = (long long)v->valuedouble;
+        else if ((v = cJSON_GetObjectItem(usage_obj, "cached_tokens")) && cJSON_IsNumber(v))
+            cached = (long long)v->valuedouble;
+        else if ((v = cJSON_GetObjectItem(usage_obj, "prompt_cache_hit_tokens")) && cJSON_IsNumber(v))
+            cached = (long long)v->valuedouble;
+        if (cached < 0) cached = 0;
+        if (cached > pt) cached = pt;
+        llm_record_usage(cfg, model, pt, ct, tt, cached, 0);
     }
 
     cJSON_Delete(json);

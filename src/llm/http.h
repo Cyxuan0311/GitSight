@@ -27,10 +27,13 @@ ErrorCode llm_http_post(const LLMConfig *cfg, const char *url,
                         const char *body, LLMBuffer *out,
                         long *out_http_code);
 
-/* Persist one token-usage record for the active provider/model. Skips when
- * GS_NO_USAGE is set. */
+/* Persist one token-usage record for the active provider/model. `cached_tokens`
+ * is the part of `prompt_tokens` served from the provider cache; `cache_write`
+ * counts tokens written to the cache (Anthropic). Skips when GS_NO_USAGE is
+ * set. */
 void llm_record_usage(const LLMConfig *cfg, const char *model,
                       long long prompt_tokens, long long completion_tokens,
-                      long long total_tokens);
+                      long long total_tokens, long long cached_tokens,
+                      long long cache_write_tokens);
 
 #endif

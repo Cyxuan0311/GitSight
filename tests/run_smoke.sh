@@ -316,7 +316,7 @@ TS2=$(epoch_days_ago 2)
 cat > "$USG" <<EOF
 {
   "records": [
-    {"ts": $TS1, "llm": "default", "model": "gpt-4o-mini", "prompt": 100, "completion": 50, "total": 150},
+    {"ts": $TS1, "llm": "default", "model": "gpt-4o-mini", "prompt": 100, "completion": 50, "total": 150, "cached": 40},
     {"ts": $TS1, "llm": "default", "model": "gpt-4o-mini", "prompt": 200, "completion": 50, "total": 250},
     {"ts": $TS2, "llm": "local", "model": "llama3.2", "prompt": 50, "completion": 50, "total": 100}
   ]
@@ -326,6 +326,7 @@ EOF
 USG_JSON="$("$GS" usage --json 2>/dev/null)" || fail "usage json failed"
 grep -q '"total_tokens":	500' <<<"$USG_JSON" || grep -q '"total_tokens": 500' <<<"$USG_JSON" || fail "usage json totals wrong"
 grep -q '"calls":	3' <<<"$USG_JSON" || grep -q '"calls": 3' <<<"$USG_JSON" || fail "usage json calls wrong"
+grep -q '"cached_tokens":	40' <<<"$USG_JSON" || grep -q '"cached_tokens": 40' <<<"$USG_JSON" || fail "usage json cached tokens wrong"
 USG_JSON_LLM="$("$GS" usage --json --by-llm 2>/dev/null)" || fail "usage json by-llm failed"
 grep -q '"by_llm"' <<<"$USG_JSON_LLM" || fail "usage json missing by_llm"
 USG_LLM="$("$GS" usage --by-llm 2>/dev/null)" || fail "usage by-llm failed"

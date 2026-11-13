@@ -116,7 +116,8 @@ ErrorCode llm_http_post(const LLMConfig *cfg, const char *url,
 
 void llm_record_usage(const LLMConfig *cfg, const char *model,
                       long long prompt_tokens, long long completion_tokens,
-                      long long total_tokens)
+                      long long total_tokens, long long cached_tokens,
+                      long long cache_write_tokens)
 {
     const char *no_usage = getenv("GS_NO_USAGE");
     if (no_usage && no_usage[0]) return;
@@ -130,5 +131,7 @@ void llm_record_usage(const LLMConfig *cfg, const char *model,
     rec.prompt_tokens = prompt_tokens;
     rec.completion_tokens = completion_tokens;
     rec.total_tokens = total_tokens;
+    rec.cached_tokens = cached_tokens;
+    rec.cache_write_tokens = cache_write_tokens;
     usage_record(NULL, &rec);
 }

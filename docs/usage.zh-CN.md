@@ -329,6 +329,7 @@ GET    /api/llms                      POST 新建 · PATCH/DELETE /:name
 POST   /api/llms/:name/activate · /test
 
 GET    /api/usage?days= · /records    DELETE /api/usage
+                                  汇总包含缓存命中/写入 Token 字段
                                   /records 支持 days=，让日志与图表同窗口
 GET    /api/completion/:shell         bash | zsh | fish
 

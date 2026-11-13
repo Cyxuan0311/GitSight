@@ -84,14 +84,21 @@ ErrorCode llm_anthropic_generate(const LLMConfig *cfg, const char *prompt,
 
     cJSON *usage_obj = cJSON_GetObjectItem(json, "usage");
     if (usage_obj && cJSON_IsObject(usage_obj)) {
-        long long pt = 0, ct = 0, tt = 0;
+        long long pt = 0, ct = 0, tt = 0, cache_read = 0, cache_write = 0;
         cJSON *v;
         if ((v = cJSON_GetObjectItem(usage_obj, "input_tokens")) && cJSON_IsNumber(v))
             pt = (long long)v->valuedouble;
         if ((v = cJSON_GetObjectItem(usage_obj, "output_tokens")) && cJSON_IsNumber(v))
             ct = (long long)v->valuedouble;
+        /* Anthropic reports cache reads/writes outside input_tokens. Fold them
+         * into the prompt total so the log's prompt+cache figures add up. */
+        if ((v = cJSON_GetObjectItem(usage_obj, "cache_read_input_tokens")) && cJSON_IsNumber(v))
+            cache_read = (long long)v->valuedouble;
+        if ((v = cJSON_GetObjectItem(usage_obj, "cache_creation_input_tokens")) && cJSON_IsNumber(v))
+            cache_write = (long long)v->valuedouble;
+        pt += cache_read + cache_write;
         tt = pt + ct;
-        llm_record_usage(cfg, model, pt, ct, tt);
+        llm_record_usage(cfg, model, pt, ct, tt, cache_read, cache_write);
     }
 
     cJSON_Delete(json);

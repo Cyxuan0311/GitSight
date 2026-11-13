@@ -51,8 +51,8 @@ int cmd_usage(const Options *opts) {
         return 0;
     }
 
-    long long calls = 0, pt = 0, ct = 0, tt = 0;
-    usage_totals(recs, n, &calls, &pt, &ct, &tt);
+    long long calls = 0, pt = 0, ct = 0, tt = 0, cached = 0, cache_write = 0;
+    usage_totals(recs, n, &calls, &pt, &ct, &tt, &cached, &cache_write);
 
     if (opts->usage_json) {
         cJSON *root = cJSON_CreateObject();
@@ -61,6 +61,8 @@ int cmd_usage(const Options *opts) {
         cJSON_AddNumberToObject(total, "prompt_tokens", (double)pt);
         cJSON_AddNumberToObject(total, "completion_tokens", (double)ct);
         cJSON_AddNumberToObject(total, "total_tokens", (double)tt);
+        cJSON_AddNumberToObject(total, "cached_tokens", (double)cached);
+        cJSON_AddNumberToObject(total, "cache_write_tokens", (double)cache_write);
         cJSON_AddNumberToObject(root, "records", (double)n);
         if (opts->usage_by_llm) {
             UsageGroup groups[USAGE_MAX_GROUPS];
@@ -73,6 +75,8 @@ int cmd_usage(const Options *opts) {
                 cJSON_AddNumberToObject(o, "prompt_tokens", (double)groups[i].prompt_tokens);
                 cJSON_AddNumberToObject(o, "completion_tokens", (double)groups[i].completion_tokens);
                 cJSON_AddNumberToObject(o, "total_tokens", (double)groups[i].total_tokens);
+                cJSON_AddNumberToObject(o, "cached_tokens", (double)groups[i].cached_tokens);
+                cJSON_AddNumberToObject(o, "cache_write_tokens", (double)groups[i].cache_write_tokens);
                 cJSON_AddItemToArray(arr, o);
             }
         }
@@ -94,8 +98,10 @@ int cmd_usage(const Options *opts) {
         }
         ChartOptions co = { CHART_HBAR, 24, color_active(), "tokens" };
         chart_render(stdout, "LLM usage by provider", labels, vals, g, &co);
-        printf("\nTotal: %lld calls, %lld tokens (%lld prompt + %lld completion)\n",
+        printf("\nTotal: %lld calls, %lld tokens (%lld prompt + %lld completion",
                calls, tt, pt, ct);
+        if (cached > 0) printf(", %lld cached", cached);
+        printf(")\n");
         usage_free(recs);
         return 0;
     }
@@ -135,8 +141,10 @@ int cmd_usage(const Options *opts) {
     snprintf(title, sizeof(title), "LLM usage - last %d days", days);
     ChartOptions co = { CHART_VBAR, 8, color_active(), "tokens" };
     chart_render(stdout, title, lbl, vals, span, &co);
-    printf("\nTotal: %lld calls, %lld tokens (%lld prompt + %lld completion)\n",
+    printf("\nTotal: %lld calls, %lld tokens (%lld prompt + %lld completion",
            calls, tt, pt, ct);
+    if (cached > 0) printf(", %lld cached", cached);
+    printf(")\n");
 
     free(lbl);
     free(vals);

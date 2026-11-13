@@ -65,6 +65,9 @@ export function BatchPage() {
   const busy = job.phase === 'submitting' || job.phase === 'running';
 
   const [selected, setSelected] = useState<string | null>(null);
+  // The size of the run actually submitted, frozen so editing the textarea
+  // while a job is in flight does not move the progress denominator.
+  const [runSize, setRunSize] = useState<number | null>(null);
   // Two repositories can be picked out of the batch to be compared; a batch
   // already holds a full report for each of them.
   const [picked, setPicked] = useState<string[]>([]);
@@ -87,9 +90,11 @@ export function BatchPage() {
     }
     setFormError(undefined);
     setSelected(null);
+    const submitted = repos.slice(0, maxRepos);
+    setRunSize(submitted.length);
     void job.start(() =>
       api.submitAnalyze({
-        repos: repos.slice(0, maxRepos),
+        repos: submitted,
         parallel,
         since_days: sinceDays,
         from: from || undefined,
@@ -220,6 +225,7 @@ export function BatchPage() {
             progress={job.progress}
             phase={job.phase}
             onCancel={() => void job.cancel()}
+            totalRepos={runSize ?? undefined}
           />
         ) : null}
 

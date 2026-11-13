@@ -105,7 +105,8 @@ describe('a repository analysis on /analyze', () => {
   it('shows progress while the job runs', async () => {
     await submitAndStream('acme/gadget');
     // The page's own AnalysisProgress must reflect the stream the form opened.
-    expect(await screen.findByText(/Fetching/)).toBeInTheDocument();
+    // The stage appears in the summary and in the log row beneath it.
+    expect((await screen.findAllByText(/Fetching/)).length).toBeGreaterThan(0);
   });
 
   it('renders the report once the job completes', { timeout: 60_000 }, async () => {
@@ -155,7 +156,7 @@ describe('resuming a run from the URL', () => {
         state: 0,
       });
     });
-    expect(await screen.findByText(/Fetching/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Fetching/)).length).toBeGreaterThan(0);
   });
 });
 

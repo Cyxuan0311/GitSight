@@ -30,6 +30,9 @@ export function SubscriptionBatchPanel() {
 
   const maxThreads = options?.batch_max_threads ?? 8;
   const [parallel, setParallel] = useState(4);
+  // Freeze the submitted subscription count so the progress denominator does
+  // not move if the list changes while the job is running.
+  const [runSize, setRunSize] = useState<number | null>(null);
   const [llm, setLlm] = useState('');
   const [llmMode, setLlmMode] = useState('');
   const [lang, setLang] = useState('');
@@ -87,16 +90,17 @@ export function SubscriptionBatchPanel() {
             variant="primary"
             disabled={busy || count === 0}
             onClick={() =>
-              void job.start(() =>
-                api.analyzeSubscriptions({
+              void job.start(() => {
+                setRunSize(count);
+                return api.analyzeSubscriptions({
                   parallel,
                   llm: llm === '__none__' ? undefined : llm || undefined,
                   suppress_llm: llm === '__none__' || undefined,
                   llm_mode: llmMode || undefined,
                   lang: lang || undefined,
                   no_cache: noCache || undefined,
-                }),
-              )
+                });
+              })
             }
           >
             <Play />
@@ -134,6 +138,7 @@ export function SubscriptionBatchPanel() {
             progress={job.progress}
             phase={job.phase}
             onCancel={() => void job.cancel()}
+            totalRepos={runSize ?? undefined}
           />
         ) : null}
 

@@ -157,6 +157,7 @@ export function ComparePage() {
             progress={job.progress}
             phase={job.phase}
             onCancel={() => void job.cancel()}
+            jobKind="compare"
           />
         ) : null}
 

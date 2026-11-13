@@ -2,6 +2,7 @@ import { cleanup, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { AnalysisProgress } from '@/features/analyze/AnalysisProgress';
+import { buildProgressModel } from '@/features/analyze/progress';
 import { translateStage } from '@/lib/stages';
 import type { ProgressEvent } from '@/hooks/useJob';
 
@@ -9,6 +10,8 @@ import i18n from '@/i18n';
 import { renderWithProviders } from '@/test/setup';
 
 const REPO = 'https://github.com/Cyxuan0311/PNANA.git';
+
+const translate = (raw: string) => translateStage(raw, i18n.t);
 
 /** The exact event stream a run against that repository produces. */
 const FETCHING: ProgressEvent[] = [
@@ -48,6 +51,73 @@ describe('translateStage', () => {
   });
 });
 
+describe('progress model', () => {
+  it('keeps completed work visible while an indeterminate stage runs', () => {
+    const withAnalysis: ProgressEvent[] = [
+      ...FETCHING,
+      { stage: `${REPO} - Fetching repository data`, current: 7, total: 7, state: 2 },
+      { stage: `${REPO} - Analyzing with LLM`, current: 0, total: 0, state: 0 },
+    ];
+
+    const model = buildProgressModel(withAnalysis, translate);
+    // The fetch earns its 40 points; the spinner adds nothing until it finishes.
+    expect(model.overall).toBeCloseTo(0.4);
+    expect(model.active?.stage).toBe('Analyzing with LLM');
+  });
+
+  it('reaches 100% only when the analysis finishes', () => {
+    const finished: ProgressEvent[] = [
+      ...FETCHING,
+      { stage: `${REPO} - Fetching repository data`, current: 7, total: 7, state: 2 },
+      { stage: `${REPO} - Analyzing with LLM`, current: 0, total: 0, state: 2 },
+    ];
+
+    expect(buildProgressModel(finished, translate).overall).toBeCloseTo(1);
+  });
+
+  it('divides the bar between the repositories a batch will analyze', () => {
+    const other = 'https://github.com/Cyxuan0311/other.git';
+    const batch: ProgressEvent[] = [
+      { stage: `${REPO} - Fetching repository data`, current: 7, total: 7, state: 2 },
+      { stage: `${REPO} - Analyzing with LLM`, current: 0, total: 0, state: 2 },
+      { stage: `${other} - Fetching repository data`, current: 0, total: 8, state: 0 },
+    ];
+
+    const model = buildProgressModel(batch, translate, { totalRepos: 2 });
+    expect(model.overall).toBeCloseTo(0.5);
+    expect(model.reposDone).toBe(1);
+    expect(model.totalRepos).toBe(2);
+  });
+
+  it('counts compare passes separately instead of claiming an early 100%', () => {
+    const firstPass: ProgressEvent[] = [
+      ...FETCHING,
+      { stage: `${REPO} - Fetching repository data`, current: 7, total: 7, state: 2 },
+      { stage: `${REPO} - Analyzing with LLM`, current: 0, total: 0, state: 2 },
+    ];
+    const secondFetch: ProgressEvent[] = [
+      {
+        stage: `${REPO} - Fetching repository data`,
+        current: 0,
+        total: 7,
+        state: 0,
+      },
+      {
+        stage: `${REPO} - Fetching repository data`,
+        current: 7,
+        total: 7,
+        state: 2,
+      },
+    ];
+
+    const model = buildProgressModel([...firstPass, ...secondFetch], translate, {
+      jobKind: 'compare',
+    });
+    expect(model.rows).toHaveLength(3);
+    expect(model.overall).toBeCloseTo(140 / 210);
+  });
+});
+
 describe('AnalysisProgress', () => {
   it('shows one row per stage instead of one per tick', () => {
     renderWithProviders(<AnalysisProgress progress={FETCHING} phase="running" />);
@@ -57,6 +127,35 @@ describe('AnalysisProgress', () => {
     expect(rows[0]).toHaveTextContent('7/7');
     // The ticks are counted rather than repeated.
     expect(rows[0]).toHaveTextContent('x7');
+  });
+
+  it('shows the current stage and the overall completed percentage', () => {
+    const withAnalysis: ProgressEvent[] = [
+      ...FETCHING,
+      { stage: `${REPO} - Fetching repository data`, current: 7, total: 7, state: 2 },
+      { stage: `${REPO} - Analyzing with LLM`, current: 0, total: 0, state: 0 },
+    ];
+
+    renderWithProviders(<AnalysisProgress progress={withAnalysis} phase="running" />);
+
+    const bar = screen.getByRole('progressbar');
+    expect(bar).toHaveAttribute('aria-valuenow', '40');
+    expect(screen.getAllByText('Analyzing with LLM').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Working…').length).toBeGreaterThan(0);
+  });
+
+  it('shows how many repositories of a batch are finished', () => {
+    const other = 'https://github.com/Cyxuan0311/other.git';
+    const batch: ProgressEvent[] = [
+      { stage: `${REPO} - Fetching repository data`, current: 7, total: 7, state: 2 },
+      { stage: `${REPO} - Analyzing with LLM`, current: 0, total: 0, state: 2 },
+      { stage: `${other} - Fetching repository data`, current: 0, total: 8, state: 0 },
+    ];
+
+    renderWithProviders(
+      <AnalysisProgress progress={batch} phase="running" totalRepos={2} />,
+    );
+    expect(screen.getByText('1 of 2 repositories done')).toBeInTheDocument();
   });
 
   it('does not scatter a stage that interleaves with another', () => {

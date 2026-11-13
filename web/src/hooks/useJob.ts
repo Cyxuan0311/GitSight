@@ -9,6 +9,8 @@ export interface ProgressEvent {
   current: number;
   total: number;
   state: number;
+  /** Monotonic id from the daemon; lets a reconnect skip replayed frames. */
+  seq?: number;
 }
 
 export type JobPhase = 'idle' | 'submitting' | 'running' | 'done' | 'failed' | 'cancelled';
@@ -57,6 +59,9 @@ export function useJob(initialId?: string) {
   const jobRef = useRef<string>('');
   // Guards against a late stream from a previous job updating the current one.
   const generationRef = useRef(0);
+  // The last progress sequence applied, so an EventSource reconnect (which
+  // replays the job log from the start) does not append the same ticks twice.
+  const seqRef = useRef(0);
   // The job handed in by the route, adopted exactly once.
   const adoptedRef = useRef('');
 
@@ -76,6 +81,7 @@ export function useJob(initialId?: string) {
     (id: string) => {
       closeStream();
       jobRef.current = id;
+      seqRef.current = 0;
       const generation = ++generationRef.current;
 
       const finish = async (phase: JobPhase, error?: string) => {
@@ -111,6 +117,12 @@ export function useJob(initialId?: string) {
         if (generation !== generationRef.current) return;
         try {
           const data = JSON.parse(raw.data) as ProgressEvent;
+          // A reconnect replays the whole log. Sequence ids are monotonic, so
+          // anything not newer than what we already applied is a duplicate.
+          if (typeof data.seq === 'number') {
+            if (data.seq <= seqRef.current) return;
+            seqRef.current = data.seq;
+          }
           setRun((prev) =>
             prev.id === id
               ? { ...prev, phase: 'running', progress: [...prev.progress, data] }

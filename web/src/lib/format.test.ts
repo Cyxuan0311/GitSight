@@ -7,6 +7,7 @@ import {
   firstLine,
   formatCompact,
   formatDuration,
+  formatPercent,
   isExplicitRange,
   languageSlices,
   parseRange,
@@ -184,6 +185,12 @@ describe('formatters', () => {
   it('compacts only large numbers', () => {
     expect(formatCompact(999)).toBe('999');
     expect(formatCompact(25_000)).toMatch(/25/);
+  });
+
+  it('renders ratios as percentages', () => {
+    expect(formatPercent(0.382, 1)).toMatch(/38[.,]2\s*%/);
+    expect(formatPercent(0, 0)).toMatch(/^0\s*%$/);
+    expect(formatPercent(Number.NaN)).toBe('-');
   });
 
   it('takes the first line of a commit message', () => {

@@ -164,6 +164,25 @@ export function formatCompact(value: number): string {
   return numberFormat(value >= 10_000).format(value);
 }
 
+/**
+ * Ratios are rendered as percentages in the console's locale, so a cache-hit
+ * rate reads as 37.5% in English and 37.5% in Chinese rather than being
+ * hand-concatenated with a fixed suffix.
+ */
+export function formatPercent(value: number, digits = 1): string {
+  if (!Number.isFinite(value)) return '-';
+  const key = `p:${i18n.language}:${digits}`;
+  let format = formatterCache.get(key) as Intl.NumberFormat | undefined;
+  if (!format) {
+    format = new Intl.NumberFormat(i18n.language, {
+      style: 'percent',
+      maximumFractionDigits: digits,
+    });
+    formatterCache.set(key, format);
+  }
+  return format.format(value);
+}
+
 /** Commit messages arrive with newlines collapsed to spaces by the drivers. */
 export function firstLine(message: string): string {
   const [line = ''] = message.split('\n');

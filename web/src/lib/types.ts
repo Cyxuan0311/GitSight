@@ -461,6 +461,10 @@ export interface UsageDay {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  /** Input tokens served from the provider cache; absent on older logs. */
+  cached_tokens?: number;
+  /** Tokens written to the provider cache (Anthropic), when reported. */
+  cache_write_tokens?: number;
 }
 
 export interface UsageGroup {
@@ -469,6 +473,8 @@ export interface UsageGroup {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  cached_tokens?: number;
+  cache_write_tokens?: number;
 }
 
 export interface UsageResponse {
@@ -488,6 +494,8 @@ export interface UsageRecordRow {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  cached_tokens?: number;
+  cache_write_tokens?: number;
 }
 
 /* ----------------------------------------------------------- requests ---- */

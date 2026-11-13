@@ -77,4 +77,13 @@ describe('usage units', () => {
     const text = await usagePage();
     expect(text).toMatch(/[万亿]/);
   });
+
+  it('shows exact cache figures next to the compact summary', async () => {
+    await setLanguage('en');
+    const text = await usagePage();
+    expect(text).toContain('Cache hit rate');
+    expect(text).toContain('38.2%');
+    expect(text).toContain('3,600');
+    expect(text).toContain('Cached');
+  });
 });

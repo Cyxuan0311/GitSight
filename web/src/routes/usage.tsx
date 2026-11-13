@@ -4,15 +4,17 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
+  ComposedChart,
+  LabelList,
   Legend,
+  Line,
   ResponsiveContainer,
   Tooltip as ChartTooltip,
   XAxis,
   YAxis,
 } from 'recharts';
+import type { TooltipPayloadEntry } from 'recharts';
 
 import { AppLayout } from '@/components/layout/AppLayout';
 import { QueryState } from '@/components/ErrorBoundary';
@@ -24,8 +26,52 @@ import { ConfirmDialog } from '@/components/ui/modal';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
 import { StatCard } from '@/components/common';
 import { api } from '@/lib/api';
+import { cn } from '@/lib/cn';
 import { toast } from '@/stores/toast';
-import { formatCompact, formatNumber } from '@/lib/format';
+import { formatCompact, formatNumber, formatPercent } from '@/lib/format';
+import type { UsageDay, UsageGroup } from '@/lib/types';
+
+/** Quick windows that cover the usual "did cache help this week?" question. */
+const RANGE_OPTIONS = [7, 14, 30, 90] as const;
+
+/**
+ * Token categories keep the same colour in every chart on the page: a cached
+ * input token is always green, an uncached one blue, output purple. That makes
+ * the daily stack and the per-provider stack readable without re-learning the
+ * legend each time.
+ */
+const TOKEN_COLORS = {
+  cached: 'var(--color-open)',
+  uncached: 'var(--color-accent)',
+  completion: 'var(--color-merged)',
+  rate: 'var(--color-warn)',
+} as const;
+
+interface TokenDerived {
+  uncached_tokens: number;
+  cache_rate: number | null;
+}
+
+type DailyRow = UsageDay & TokenDerived;
+type ProviderRow = UsageGroup & TokenDerived;
+
+/**
+ * Normalises the optional cache fields a log written by an older build may not
+ * carry. Cached input is a subset of prompt input, so clamp it rather than
+ * letting bad numbers produce a negative stack and a >100% hit rate.
+ */
+function withTokenBreakdown<T extends UsageDay | UsageGroup>(row: T) {
+  const prompt = row.prompt_tokens ?? 0;
+  const cached = Math.min(Math.max(row.cached_tokens ?? 0, 0), prompt);
+  return {
+    ...row,
+    prompt_tokens: prompt,
+    cached_tokens: cached,
+    cache_write_tokens: row.cache_write_tokens ?? 0,
+    uncached_tokens: prompt - cached,
+    cache_rate: prompt > 0 ? cached / prompt : null,
+  };
+}
 
 export function UsagePage() {
   const { t } = useTranslation();
@@ -55,7 +101,23 @@ export function UsagePage() {
   const total = usage.data?.total;
   const byDay = usage.data?.by_day ?? [];
   const byLlm = usage.data?.by_llm ?? [];
-  const hasData = (total?.total_tokens ?? 0) > 0;
+
+  const dayRows: DailyRow[] = byDay.map(withTokenBreakdown);
+  const providerRows: ProviderRow[] = byLlm.map(withTokenBreakdown);
+
+  const calls = total?.calls ?? 0;
+  const prompt = total?.prompt_tokens ?? 0;
+  const completion = total?.completion_tokens ?? 0;
+  const totalTokens = total?.total_tokens ?? 0;
+  const cached = Math.min(Math.max(total?.cached_tokens ?? 0, 0), prompt);
+  const uncached = prompt - cached;
+  const cacheRate = prompt > 0 ? cached / prompt : 0;
+  const avgPerCall = calls > 0 ? totalTokens / calls : 0;
+  const perDay = totalTokens / Math.max(days, 1);
+  const completionShare = totalTokens > 0 ? completion / totalTokens : 0;
+  const activeDays = dayRows.filter((row) => row.calls > 0).length;
+  const hasData = totalTokens > 0;
+  const hasCache = cached > 0;
 
   return (
     <AppLayout
@@ -86,77 +148,165 @@ export function UsagePage() {
       }
     >
       <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <StatCard
             label={t('usage.totalTokens')}
-            value={formatCompact(total?.total_tokens ?? 0)}
+            value={formatCompact(totalTokens)}
+            hint={t('usage.perDay', { value: formatCompact(perDay) })}
             tone="accent"
           />
-          <StatCard label={t('usage.calls')} value={formatNumber(total?.calls ?? 0)} />
+          <StatCard
+            label={t('usage.calls')}
+            value={formatNumber(calls)}
+            hint={t('usage.avgPerCallHint', { value: formatCompact(avgPerCall) })}
+          />
+          <StatCard
+            label={t('usage.cacheHitRate')}
+            value={formatPercent(cacheRate)}
+            hint={t('usage.cachedOfPrompt', {
+              cached: formatCompact(cached),
+              prompt: formatCompact(prompt),
+            })}
+            tone="open"
+          />
           <StatCard
             label={t('usage.prompt')}
-            value={formatCompact(total?.prompt_tokens ?? 0)}
+            value={formatCompact(prompt)}
+            hint={t('usage.uncachedHint', { value: formatCompact(uncached) })}
           />
           <StatCard
             label={t('usage.completion')}
-            value={formatCompact(total?.completion_tokens ?? 0)}
+            value={formatCompact(completion)}
+            hint={t('usage.shareOfTotal', { value: formatPercent(completionShare) })}
           />
         </div>
 
         <QueryState query={usage} rows={2}>
           <div className="grid gap-4 lg:grid-cols-5">
             <Card className="lg:col-span-3">
-              <CardHeader>
-                <CardTitle>{t('usage.byDay')}</CardTitle>
-                <span className="text-xs text-muted">
-                  {t('usage.windowDays', { count: days })}
-                </span>
+              <CardHeader className="flex-wrap">
+                <div>
+                  <CardTitle>{t('usage.byDay')}</CardTitle>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {t('usage.windowDays', { count: days })} ·{' '}
+                    {t('usage.activeDays', { count: activeDays })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  {RANGE_OPTIONS.map((value) => (
+                    <Button
+                      key={value}
+                      size="sm"
+                      variant={value === days ? 'secondary' : 'ghost'}
+                      className="h-7 px-2"
+                      aria-pressed={value === days}
+                      onClick={() => setDays(value)}
+                    >
+                      {t('usage.daysShort', { count: value })}
+                    </Button>
+                  ))}
+                </div>
               </CardHeader>
               <CardContent>
                 {!hasData ? (
                   <EmptyState className="py-10" title={t('usage.noData')} />
                 ) : (
-                  <div className="h-64">
+                  <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={byDay} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" vertical={false} />
+                      <ComposedChart
+                        data={dayRows}
+                        margin={{ top: 16, right: hasCache ? 8 : 4, bottom: 0, left: 0 }}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="var(--color-line)"
+                          vertical={false}
+                        />
                         <XAxis
                           dataKey="day"
                           tick={{ fontSize: 10, fill: 'var(--color-muted)' }}
                           tickFormatter={(value: string) => value.slice(5)}
+                          minTickGap={18}
+                          interval="preserveStartEnd"
                           axisLine={{ stroke: 'var(--color-line)' }}
                           tickLine={false}
                         />
                         <YAxis
+                          yAxisId="tokens"
+                          width={48}
                           tick={{ fontSize: 10, fill: 'var(--color-muted)' }}
+                          tickFormatter={(value: number) => formatCompact(value)}
                           axisLine={false}
                           tickLine={false}
                         />
+                        {hasCache ? (
+                          <YAxis
+                            yAxisId="rate"
+                            orientation="right"
+                            width={42}
+                            domain={[0, 1]}
+                            tick={{ fontSize: 10, fill: 'var(--color-muted)' }}
+                            tickFormatter={(value: number) => formatPercent(value, 0)}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                        ) : null}
                         <ChartTooltip
-                          cursor={{ fill: 'var(--color-raised)' }}
-                          contentStyle={{
-                            background: 'var(--color-surface)',
-                            border: '1px solid var(--color-line)',
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
+                          cursor={{ fill: 'var(--color-raised)', opacity: 0.65 }}
+                          content={<UsageTooltip />}
                         />
-                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={7} />
+                        {hasCache ? (
+                          <Bar
+                            yAxisId="tokens"
+                            dataKey="cached_tokens"
+                            name={t('usage.cached')}
+                            stackId="tokens"
+                            fill={TOKEN_COLORS.cached}
+                            maxBarSize={32}
+                          />
+                        ) : null}
                         <Bar
-                          dataKey="prompt_tokens"
-                          name={t('usage.prompt')}
+                          yAxisId="tokens"
+                          dataKey="uncached_tokens"
+                          name={t('usage.uncached')}
                           stackId="tokens"
-                          fill="var(--color-accent)"
-                          radius={[0, 0, 0, 0]}
+                          fill={TOKEN_COLORS.uncached}
+                          maxBarSize={32}
                         />
                         <Bar
+                          yAxisId="tokens"
                           dataKey="completion_tokens"
                           name={t('usage.completion')}
                           stackId="tokens"
-                          fill="oklch(70% 0.16 150)"
+                          fill={TOKEN_COLORS.completion}
                           radius={[3, 3, 0, 0]}
-                        />
-                      </BarChart>
+                          maxBarSize={32}
+                        >
+                          {days <= 14 ? (
+                            <LabelList
+                              dataKey="total_tokens"
+                              position="top"
+                              formatter={compactLabel}
+                              fill="var(--color-muted)"
+                              fontSize={9}
+                            />
+                          ) : null}
+                        </Bar>
+                        {hasCache ? (
+                          <Line
+                            yAxisId="rate"
+                            type="monotone"
+                            dataKey="cache_rate"
+                            name={t('usage.cacheHitRate')}
+                            stroke={TOKEN_COLORS.rate}
+                            strokeWidth={1.5}
+                            dot={{ r: 2, strokeWidth: 0, fill: TOKEN_COLORS.rate }}
+                            activeDot={{ r: 4 }}
+                            connectNulls={false}
+                          />
+                        ) : null}
+                      </ComposedChart>
                     </ResponsiveContainer>
                   </div>
                 )}
@@ -168,49 +318,74 @@ export function UsagePage() {
                 <CardTitle>{t('usage.byProvider')}</CardTitle>
               </CardHeader>
               <CardContent>
-                {byLlm.length === 0 ? (
+                {providerRows.length === 0 ? (
                   <EmptyState className="py-10" title={t('usage.recordsEmpty')} />
                 ) : (
-                  <div className="h-64">
+                  <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={byLlm}
+                      <ComposedChart
+                        data={providerRows}
                         layout="vertical"
-                        margin={{ top: 4, right: 16, bottom: 0, left: 8 }}
+                        margin={{ top: 4, right: 44, bottom: 0, left: 8 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" horizontal={false} />
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="var(--color-line)"
+                          horizontal={false}
+                        />
                         <XAxis
                           type="number"
                           tick={{ fontSize: 10, fill: 'var(--color-muted)' }}
+                          tickFormatter={(value: number) => formatCompact(value)}
                           axisLine={false}
                           tickLine={false}
                         />
                         <YAxis
                           type="category"
                           dataKey="name"
-                          width={70}
+                          width={86}
                           tick={{ fontSize: 11, fill: 'var(--color-muted)' }}
                           axisLine={false}
                           tickLine={false}
                         />
                         <ChartTooltip
-                          cursor={{ fill: 'var(--color-raised)' }}
-                          contentStyle={{
-                            background: 'var(--color-surface)',
-                            border: '1px solid var(--color-line)',
-                            borderRadius: 8,
-                            fontSize: 12,
-                          }}
+                          cursor={{ fill: 'var(--color-raised)', opacity: 0.65 }}
+                          content={<UsageTooltip />}
                         />
-                        <Bar dataKey="total_tokens" name={t('usage.totalTokens')} radius={[0, 3, 3, 0]}>
-                          {byLlm.map((entry, index) => (
-                            <Cell
-                              key={entry.name}
-                              fill={PROVIDER_COLORS[index % PROVIDER_COLORS.length]}
-                            />
-                          ))}
+                        <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" iconSize={7} />
+                        {hasCache ? (
+                          <Bar
+                            dataKey="cached_tokens"
+                            name={t('usage.cached')}
+                            stackId="tokens"
+                            fill={TOKEN_COLORS.cached}
+                            maxBarSize={26}
+                          />
+                        ) : null}
+                        <Bar
+                          dataKey="uncached_tokens"
+                          name={t('usage.uncached')}
+                          stackId="tokens"
+                          fill={TOKEN_COLORS.uncached}
+                          maxBarSize={26}
+                        />
+                        <Bar
+                          dataKey="completion_tokens"
+                          name={t('usage.completion')}
+                          stackId="tokens"
+                          fill={TOKEN_COLORS.completion}
+                          radius={[0, 3, 3, 0]}
+                          maxBarSize={26}
+                        >
+                          <LabelList
+                            dataKey="total_tokens"
+                            position="right"
+                            formatter={compactLabel}
+                            fill="var(--color-muted)"
+                            fontSize={9}
+                          />
                         </Bar>
-                      </BarChart>
+                      </ComposedChart>
                     </ResponsiveContainer>
                   </div>
                 )}
@@ -234,9 +409,14 @@ export function UsagePage() {
               ) : null}
             </CardTitle>
             {records.data && records.data.total > 0 ? (
-              <Badge tone="neutral" className="nums font-normal">
-                {t('usage.windowDays', { count: days })}
-              </Badge>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Badge tone="open" className="nums font-normal">
+                  {t('usage.cacheHitRate')} {formatPercent(cacheRate)}
+                </Badge>
+                <Badge tone="neutral" className="nums font-normal">
+                  {t('usage.windowDays', { count: days })}
+                </Badge>
+              </div>
             ) : null}
           </CardHeader>
           <CardContent className="px-0 pb-0">
@@ -257,27 +437,48 @@ export function UsagePage() {
                         <Th className="w-28">{t('usage.colProvider')}</Th>
                         <Th>{t('usage.colModel')}</Th>
                         <Th className="w-24 text-right">{t('usage.colPrompt')}</Th>
+                        <Th className="w-24 text-right">{t('usage.colCached')}</Th>
                         <Th className="w-24 text-right">{t('usage.colCompletion')}</Th>
                         <Th className="w-24 text-right">{t('usage.colTotal')}</Th>
+                        <Th className="w-20 text-right">{t('usage.colHit')}</Th>
                       </tr>
                     </thead>
                     <tbody>
-                      {records.data?.records.map((record, index) => (
-                        <tr key={`${record.timestamp}-${index}`} className="hover:bg-raised/60">
-                          <Td className="nums whitespace-nowrap text-xs">{record.at}</Td>
-                          <Td className="text-xs">{record.llm}</Td>
-                          <Td className="truncate font-mono text-xs">{record.model}</Td>
-                          <Td className="nums text-right text-xs">
-                            {formatNumber(record.prompt_tokens)}
-                          </Td>
-                          <Td className="nums text-right text-xs">
-                            {formatNumber(record.completion_tokens)}
-                          </Td>
-                          <Td className="nums text-right text-xs font-medium text-ink">
-                            {formatNumber(record.total_tokens)}
-                          </Td>
-                        </tr>
-                      ))}
+                      {records.data?.records.map((record, index) => {
+                        const rowCached = Math.min(
+                          Math.max(record.cached_tokens ?? 0, 0),
+                          record.prompt_tokens,
+                        );
+                        const rowRate =
+                          record.prompt_tokens > 0 ? rowCached / record.prompt_tokens : 0;
+                        return (
+                          <tr key={`${record.timestamp}-${index}`} className="hover:bg-raised/60">
+                            <Td className="nums whitespace-nowrap text-xs">{record.at}</Td>
+                            <Td className="text-xs">{record.llm}</Td>
+                            <Td className="truncate font-mono text-xs">{record.model}</Td>
+                            <Td className="nums text-right text-xs">
+                              {formatNumber(record.prompt_tokens)}
+                            </Td>
+                            <Td
+                              className={cn(
+                                'nums text-right text-xs',
+                                rowCached > 0 && 'text-open',
+                              )}
+                            >
+                              {formatNumber(rowCached)}
+                            </Td>
+                            <Td className="nums text-right text-xs">
+                              {formatNumber(record.completion_tokens)}
+                            </Td>
+                            <Td className="nums text-right text-xs font-medium text-ink">
+                              {formatNumber(record.total_tokens)}
+                            </Td>
+                            <Td className="nums text-right text-xs">
+                              {record.prompt_tokens > 0 ? formatPercent(rowRate) : '-'}
+                            </Td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </Table>
                 </div>
@@ -303,11 +504,103 @@ export function UsagePage() {
   );
 }
 
-const PROVIDER_COLORS = [
-  'oklch(62% 0.19 250)',
-  'oklch(66% 0.17 150)',
-  'oklch(70% 0.18 70)',
-  'oklch(62% 0.20 300)',
-  'oklch(66% 0.18 20)',
-  'oklch(70% 0.14 200)',
-];
+/** A compact value for the labels drawn directly on the bars. */
+function compactLabel(value: string | number | boolean | null | undefined): string {
+  return formatCompact(Number(value) || 0);
+}
+
+/**
+ * The default Recharts tooltip only lists the split series, which means the
+ * reader has to add them up to answer "how many tokens did this day cost?".
+ * This one keeps the exact counts, adds the cache hit rate, and never rounds
+ * below ten thousand.
+ */
+function UsageTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: ReadonlyArray<TooltipPayloadEntry>;
+  label?: string | number;
+}) {
+  const { t } = useTranslation();
+  if (!active || !payload?.length) return null;
+
+  const row = payload[0]?.payload as TokenDerived & {
+    calls: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    cached_tokens: number;
+    cache_write_tokens: number;
+  };
+  if (!row) return null;
+
+  const cached = row.cached_tokens ?? 0;
+  const promptTokens = row.prompt_tokens ?? 0;
+  const totalTokens = row.total_tokens ?? 0;
+  const rate = promptTokens > 0 ? cached / promptTokens : 0;
+
+  return (
+    <div className="min-w-52 rounded-md border border-line bg-surface px-3 py-2 text-xs shadow-lg">
+      <p className="font-medium text-ink">{label}</p>
+      <div className="mt-1.5 space-y-1">
+        <TooltipLine
+          color={TOKEN_COLORS.cached}
+          label={t('usage.cached')}
+          value={formatNumber(cached)}
+        />
+        <TooltipLine
+          color={TOKEN_COLORS.uncached}
+          label={t('usage.uncached')}
+          value={formatNumber(row.uncached_tokens ?? promptTokens - cached)}
+        />
+        <TooltipLine
+          color={TOKEN_COLORS.completion}
+          label={t('usage.completion')}
+          value={formatNumber(row.completion_tokens ?? 0)}
+        />
+      </div>
+      <div className="mt-1.5 space-y-1 border-t border-line pt-1.5">
+        <TooltipLine label={t('usage.calls')} value={formatNumber(row.calls ?? 0)} />
+        <TooltipLine
+          label={t('usage.totalTokens')}
+          value={formatNumber(totalTokens)}
+          strong
+        />
+        <TooltipLine label={t('usage.cacheHitRate')} value={formatPercent(rate)} />
+        {(row.cache_write_tokens ?? 0) > 0 ? (
+          <TooltipLine
+            label={t('usage.cacheWrite')}
+            value={formatNumber(row.cache_write_tokens ?? 0)}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function TooltipLine({
+  color,
+  label,
+  value,
+  strong,
+}: {
+  color?: string;
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="flex items-center gap-1.5 text-muted">
+        {color ? (
+          <span className="size-1.5 rounded-full" style={{ background: color }} aria-hidden />
+        ) : null}
+        {label}
+      </span>
+      <span className={cn('nums text-ink', strong && 'font-semibold')}>{value}</span>
+    </div>
+  );
+}

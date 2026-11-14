@@ -76,6 +76,7 @@
     "repoPlaceholder": "curl/curl or https://github.com/curl/curl",
     "repoHint": "Accepts owner/repo, an https URL, or an SSH remote",
     "days": "Last {{count}} days",
+    "daysHint": "Ignored when a custom range is set.",
     "customRange": "Custom range",
     "from": "From",
     "to": "To",
@@ -470,6 +471,13 @@
   "ui": {
     "resizePanel": "Resize panel",
     "colorPlaceholder": "red",
-    "branchPlaceholder": "main"
+    "branchPlaceholder": "main",
+    "pickDate": "Pick a date",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "previousYear": "Previous year",
+    "nextYear": "Next year",
+    "today": "Today",
+    "clearDate": "Clear"
   }
 }

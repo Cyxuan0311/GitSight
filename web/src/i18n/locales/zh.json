@@ -76,6 +76,7 @@
     "repoPlaceholder": "curl/curl 或 https://github.com/curl/curl",
     "repoHint": "支持 owner/repo、https 地址或 SSH 远程地址",
     "days": "最近 {{count}} 天",
+    "daysHint": "填写自定义区间后，此项不生效。",
     "customRange": "自定义区间",
     "from": "起始",
     "to": "结束",
@@ -470,6 +471,13 @@
   "ui": {
     "resizePanel": "拖动调整面板宽度",
     "colorPlaceholder": "红色",
-    "branchPlaceholder": "main"
+    "branchPlaceholder": "main",
+    "pickDate": "选择日期",
+    "previousMonth": "上个月",
+    "nextMonth": "下个月",
+    "previousYear": "上一年",
+    "nextYear": "下一年",
+    "today": "今天",
+    "clearDate": "清除"
   }
 }

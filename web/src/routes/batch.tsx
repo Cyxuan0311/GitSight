@@ -15,6 +15,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateField } from '@/components/ui/date-field';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { Modal } from '@/components/ui/modal';
 import { EmptyState, Table, Td, Th } from '@/components/ui/feedback';
@@ -175,15 +176,11 @@ export function BatchPage() {
                 </Field>
 
                 <Field label={t('analyze.from')}>
-                  <Input
-                    type="date"
-                    value={from}
-                    onChange={(event) => setFrom(event.target.value)}
-                  />
+                  <DateField value={from} onChange={setFrom} />
                 </Field>
 
                 <Field label={t('analyze.to')}>
-                  <Input type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+                  <DateField value={to} onChange={setTo} />
                 </Field>
 
                 <Field label={t('analyze.llm')}>

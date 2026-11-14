@@ -13,6 +13,7 @@ import { ExportOverrides } from '@/components/run/RunFields';
 import { checkExportOverrides } from '@/components/run/runOptions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateField } from '@/components/ui/date-field';
 import { Field, Input, Select, Textarea } from '@/components/ui/field';
 import { api } from '@/lib/api';
 import type { AnalyzeRequest } from '@/lib/types';
@@ -168,37 +169,60 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
             />
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t('analyze.days', { count: form.watch('since_days') })}>
-              <Controller
-                control={form.control}
-                name="since_days"
-                render={({ field }) => (
-                  <Input
-                    type="number"
-                    min={1}
-                    max={3660}
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    ref={field.ref}
-                  />
-                )}
-              />
-            </Field>
+          {/* The rolling window and the explicit range share one column, so the
+           * date pair is not squeezed into half of an already narrow side panel.
+           * Each control keeps the same label/control rhythm as the fields below
+           * it, which is what keeps their top edges aligned. */}
+          <Field
+            label={t('analyze.days', { count: form.watch('since_days') })}
+            hint={t('analyze.daysHint')}
+          >
+            <Controller
+              control={form.control}
+              name="since_days"
+              render={({ field }) => (
+                <Input
+                  type="number"
+                  min={1}
+                  max={3660}
+                  className="max-w-44"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  ref={field.ref}
+                />
+              )}
+            />
+          </Field>
 
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-ink-soft">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-ink-soft">
                 {t('analyze.customRange')}
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label={t('analyze.from')} error={errors.from?.message}>
-                  <Input type="date" {...form.register('from')} invalid={Boolean(errors.from)} />
-                </Field>
-                <Field label={t('analyze.to')} error={errors.to?.message}>
-                  <Input type="date" {...form.register('to')} invalid={Boolean(errors.to)} />
-                </Field>
-              </div>
+              </span>
+              <span className="h-px flex-1 bg-line" aria-hidden />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Field label={t('analyze.from')} error={errors.from?.message}>
+                <DateField
+                  value={form.watch('from')}
+                  onChange={(next) =>
+                    form.setValue('from', next, { shouldDirty: true, shouldValidate: true })
+                  }
+                  onBlur={() => void form.trigger('from')}
+                  invalid={Boolean(errors.from)}
+                />
+              </Field>
+              <Field label={t('analyze.to')} error={errors.to?.message}>
+                <DateField
+                  value={form.watch('to')}
+                  onChange={(next) =>
+                    form.setValue('to', next, { shouldDirty: true, shouldValidate: true })
+                  }
+                  onBlur={() => void form.trigger('to')}
+                  invalid={Boolean(errors.to)}
+                />
+              </Field>
             </div>
           </div>
 

@@ -48,6 +48,12 @@ void i18n.use(initReactI18next).init({
   parseMissingKeyHandler: (key) => `⚠ ${key}`,
 });
 
+// index.html is a static shell and cannot know the stored preference. Mirroring
+// the starting language onto the document keeps assistive tech, hyphenation and
+// any browser-drawn form UI in the same language as the console from the first
+// paint, not only after the reader uses the header toggle.
+document.documentElement.lang = i18n.language;
+
 export function setLanguage(lang: LanguageId): void {
   void i18n.changeLanguage(lang);
   try {

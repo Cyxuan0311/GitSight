@@ -80,6 +80,21 @@ describe('Select', () => {
     expect(onValueChange).toHaveBeenCalledWith('gitlab');
   });
 
+  it('shows the chosen label when the caller only passes register() props', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    // No value and no defaultValue: the select owns its selection, which is how
+    // a react-hook-form register() call site uses it.
+    renderWithProviders(<BasicSelect onChange={onChange} />);
+
+    expect(screen.getByRole('combobox')).toHaveTextContent('Any');
+    await user.click(screen.getByRole('combobox'));
+    await user.click(await screen.findByRole('option', { name: 'GitLab' }));
+
+    expect(screen.getByRole('combobox')).toHaveTextContent('GitLab');
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
   it('takes part in a native form submission', () => {
     const { container } = renderWithProviders(
       <form data-testid="f">

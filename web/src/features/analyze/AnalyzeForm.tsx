@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearch } from '@tanstack/react-router';
 import { Play } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import type { ChangeEvent } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -146,6 +147,17 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
   const errors = form.formState.errors;
   const busy = job.phase === 'submitting' || job.phase === 'running';
 
+  // The select is a custom control, so it cannot reflect register()'s value
+  // through the DOM the way an <input> does. Binding value/onChange to the form
+  // explicitly keeps the trigger in step with what was chosen -- including the
+  // config defaults that arrive after the first render.
+  const bindSelect = (name: 'platform' | 'lang' | 'llm' | 'llm_mode') => ({
+    value: form.watch(name),
+    onChange: (event: ChangeEvent<HTMLSelectElement>) => {
+      form.setValue(name, event.target.value, { shouldDirty: true, shouldValidate: true });
+    },
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -237,7 +249,7 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('analyze.platform')}>
-              <Select {...form.register('platform')}>
+              <Select {...bindSelect('platform')}>
                 {(options?.platforms ?? []).map((platform) => (
                   <option key={platform.id} value={platform.id}>
                     {platform.id}
@@ -268,7 +280,7 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
             <div className="space-y-4 rounded-card border border-line bg-raised/50 p-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t('analyze.lang')}>
-                  <Select {...form.register('lang')}>
+                  <Select {...bindSelect('lang')}>
                     {(options?.languages ?? []).map((language) => (
                       <option key={language.id} value={language.id}>
                         {language.label}
@@ -290,7 +302,7 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
                 </Field>
 
                 <Field label={t('analyze.llm')}>
-                  <Select {...form.register('llm')}>
+                  <Select {...bindSelect('llm')}>
                     <option value="">{t('analyze.llmAuto')}</option>
                     <option value="__none__">{t('analyze.llmNone')}</option>
                     {(llms?.llms ?? []).map((provider) => (
@@ -303,7 +315,7 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
                 </Field>
 
                 <Field label={t('analyze.llmMode')} hint={modeHint(options?.llm_modes, form.getValues('llm_mode'))}>
-                  <Select {...form.register('llm_mode')}>
+                  <Select {...bindSelect('llm_mode')}>
                     {(options?.llm_modes ?? []).map((mode) => (
                       <option key={mode.id} value={mode.id}>
                         {mode.id}

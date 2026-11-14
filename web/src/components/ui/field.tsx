@@ -6,6 +6,7 @@ import {
   forwardRef,
   isValidElement,
   useId,
+  useState,
   type ChangeEvent,
   type InputHTMLAttributes,
   type LabelHTMLAttributes,
@@ -16,10 +17,7 @@ import {
 
 import { cn } from '@/lib/cn';
 
-const fieldBase =
-  'w-full rounded-field border border-line-strong bg-canvas px-3 text-sm text-ink ' +
-  'placeholder:text-muted transition-colors focus:border-accent focus:outline-none ' +
-  'disabled:opacity-60 read-only:bg-raised';
+import { fieldBase } from './control';
 
 export const Input = forwardRef<
   HTMLInputElement,
@@ -120,9 +118,14 @@ export function Select({
   ...rest
 }: SelectProps) {
   const options = readOptions(children);
-  const selected = value ?? defaultValue ?? '';
+  // Without an explicit value the select owns its selection, so call sites that
+  // only pass register()'s props (a name and a native-shaped onChange) still see
+  // the chosen label in the trigger. Controlled callers are untouched.
+  const [uncontrolled, setUncontrolled] = useState(defaultValue ?? '');
+  const selected = value ?? uncontrolled;
 
   const choose = (next: string) => {
+    if (value === undefined) setUncontrolled(next);
     onValueChange?.(next);
     // react-hook-form's register() reads target.value off the event it is given,
     // so an object with that shape is all it needs to record the choice.

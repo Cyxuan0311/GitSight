@@ -102,6 +102,21 @@ async function submitAndStream(repo: string) {
 }
 
 describe('a repository analysis on /analyze', () => {
+  it('keeps the chosen platform visible in its trigger', async () => {
+    const user = userEvent.setup();
+    renderAt('/analyze');
+
+    // The config's default platform should already be on the trigger once the
+    // options arrive, and picking another one must replace it in place.
+    const platform = await screen.findByRole('combobox', { name: /Platform/i });
+    await waitFor(() => expect(platform).toHaveTextContent('github'), { timeout: 20_000 });
+
+    await user.click(platform);
+    await user.click(await screen.findByRole('option', { name: 'gitlab' }));
+
+    expect(screen.getByRole('combobox', { name: /Platform/i })).toHaveTextContent('gitlab');
+  });
+
   it('shows progress while the job runs', async () => {
     await submitAndStream('acme/gadget');
     // The page's own AnalysisProgress must reflect the stream the form opened.

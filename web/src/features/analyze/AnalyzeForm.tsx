@@ -12,6 +12,7 @@ import { InlineError } from '@/components/ErrorBoundary';
 import { type JobRunner } from '@/hooks/useJob';
 import { ExportOverrides } from '@/components/run/RunFields';
 import { checkExportOverrides } from '@/components/run/runOptions';
+import { AdvancedToggle } from '@/components/ui/advanced-toggle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
@@ -268,13 +269,11 @@ export function AnalyzeForm({ job }: { job: JobRunner }) {
             </Field>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((prev) => !prev)}
-            className="text-xs font-medium text-accent hover:underline"
-          >
-            {t('analyze.advanced')}
-          </button>
+          <AdvancedToggle
+            open={showAdvanced}
+            onToggle={() => setShowAdvanced((prev) => !prev)}
+            label={t('analyze.advanced')}
+          />
 
           {showAdvanced ? (
             <div className="space-y-4 rounded-card border border-line bg-raised/50 p-4">

@@ -13,6 +13,7 @@ import {
   type RunOptionValues,
 } from '@/components/run/runOptions';
 import { Badge } from '@/components/ui/badge';
+import { AdvancedToggle } from '@/components/ui/advanced-toggle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
@@ -195,13 +196,11 @@ export function BatchPage() {
                 </Field>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowAdvanced((prev) => !prev)}
-                className="text-xs font-medium text-accent hover:underline"
-              >
-                {t('analyze.advanced')}
-              </button>
+              <AdvancedToggle
+                open={showAdvanced}
+                onToggle={() => setShowAdvanced((prev) => !prev)}
+                label={t('analyze.advanced')}
+              />
 
               {showAdvanced ? (
                 <AdvancedRunFields

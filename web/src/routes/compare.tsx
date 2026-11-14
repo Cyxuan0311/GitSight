@@ -12,6 +12,7 @@ import {
   runOptionsToRequest,
   type RunOptionValues,
 } from '@/components/run/runOptions';
+import { AdvancedToggle } from '@/components/ui/advanced-toggle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,8 +80,12 @@ export function ComparePage() {
         <Card>
           <CardContent className="pt-4">
             <div className="space-y-4">
-              <div className="grid items-end gap-4 lg:grid-cols-[2fr_1fr_1fr_1fr_auto]">
-                <Field label={t('compare.repo')}>
+              {/* One control row. The day count lives in the label rather than
+               * a hint below the input, so every field is exactly a label plus
+               * a 36px control; that keeps all inputs and the run button on the
+               * same baseline instead of letting the hinted fields ride up. */}
+              <div className="grid items-end gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))_auto]">
+                <Field label={t('compare.repo')} className="sm:col-span-2 lg:col-span-1">
                   <Input
                     value={repo}
                     onChange={(event) => setRepo(event.target.value)}
@@ -93,7 +98,16 @@ export function ComparePage() {
                   />
                 </Field>
 
-                <Field label={t('compare.periodA')} hint={t('compare.days', { count: daysA })}>
+                <Field
+                  label={
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate">{t('compare.periodA')}</span>
+                      <span className="nums shrink-0 text-[11px] font-normal text-muted">
+                        {t('compare.days', { count: daysA })}
+                      </span>
+                    </span>
+                  }
+                >
                   <Input
                     type="number"
                     min={1}
@@ -104,7 +118,16 @@ export function ComparePage() {
                   />
                 </Field>
 
-                <Field label={t('compare.periodB')} hint={t('compare.days', { count: daysB })}>
+                <Field
+                  label={
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate">{t('compare.periodB')}</span>
+                      <span className="nums shrink-0 text-[11px] font-normal text-muted">
+                        {t('compare.days', { count: daysB })}
+                      </span>
+                    </span>
+                  }
+                >
                   <Input
                     type="number"
                     min={1}
@@ -130,13 +153,11 @@ export function ComparePage() {
                 </Button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowAdvanced((prev) => !prev)}
-                className="text-xs font-medium text-accent hover:underline"
-              >
-                {t('analyze.advanced')}
-              </button>
+              <AdvancedToggle
+                open={showAdvanced}
+                onToggle={() => setShowAdvanced((prev) => !prev)}
+                label={t('analyze.advanced')}
+              />
 
               {showAdvanced ? (
                 <AdvancedRunFields

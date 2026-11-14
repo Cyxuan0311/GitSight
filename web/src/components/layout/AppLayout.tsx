@@ -1,65 +1,14 @@
-import {
-  Activity,
-  BarChart3,
-  GitCompareArrows,
-  LayoutDashboard,
-  ListChecks,
-  Server,
-  Settings,
-  Terminal,
-  Users,
-} from 'lucide-react';
+import { X } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Header } from './Header';
-import { Sidebar, type NavGroup } from './Sidebar';
-import { X } from 'lucide-react';
+import { Sidebar } from './Sidebar';
+import { NAV_GROUPS } from './nav';
 
 import { ToastViewport } from '@/components/ui/toast';
 
 import { cn } from '@/lib/cn';
-
-/**
- * Navigation is grouped by intent rather than by resource type: what you came
- * to do (analysis), what you maintain (management), what you configure
- * (system).
- */
-const NAV_GROUPS: NavGroup[] = [
-  {
-    // Overview is a single top-level entry, so it needs no group heading.
-    id: 'overview',
-    items: [
-      { to: '/', labelKey: 'nav.overview', icon: LayoutDashboard, exact: true },
-    ],
-  },
-  {
-    id: 'analyze',
-    labelKey: 'nav.groupAnalyze',
-    items: [
-      { to: '/analyze', labelKey: 'nav.analyze', icon: Activity },
-      { to: '/compare', labelKey: 'nav.compare', icon: GitCompareArrows },
-      { to: '/batch', labelKey: 'nav.batch', icon: ListChecks },
-    ],
-  },
-  {
-    id: 'manage',
-    labelKey: 'nav.groupManage',
-    items: [
-      { to: '/subscriptions', labelKey: 'nav.subscriptions', icon: Users },
-      { to: '/usage', labelKey: 'nav.usage', icon: BarChart3 },
-      { to: '/llm', labelKey: 'nav.llm', icon: Server },
-    ],
-  },
-  {
-    id: 'system',
-    labelKey: 'nav.groupSystem',
-    items: [
-      { to: '/settings', labelKey: 'nav.settings', icon: Settings },
-      { to: '/completion', labelKey: 'nav.completion', icon: Terminal },
-    ],
-  },
-];
 
 export function AppLayout({
   path,
@@ -125,7 +74,12 @@ export function AppLayout({
         ) : null}
 
         <main className="min-w-0 flex-1">
-          <div className="mx-auto w-full max-w-[1600px] p-4 md:p-6">{children}</div>
+          {/* The page rises into place on arrival. The shell around it does not
+           * animate, so switching tabs moves the content while the navigation
+           * stays put. */}
+          <div className="animate-tab-in mx-auto w-full max-w-[1600px] p-4 md:p-6">
+            {children}
+          </div>
         </main>
       </div>
 

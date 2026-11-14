@@ -1,6 +1,8 @@
 import { createRootRoute, createRoute, Outlet } from '@tanstack/react-router';
 import { Suspense, lazy } from 'react';
 
+import { RouteFallback } from './components/layout/RouteFallback';
+
 /**
  * A flat route tree built in code rather than generated. The console has nine
  * pages and no dynamic segments, so a hand-written tree stays readable and
@@ -24,7 +26,7 @@ const rootRoute = createRootRoute({
 
 /** Wraps a lazy page in Suspense; the router wants a component, not an element. */
 const withSuspense = (Component: React.ComponentType): React.FC => () => (
-  <Suspense fallback={<div className="p-6 text-sm text-muted">Loading…</div>}>
+  <Suspense fallback={<RouteFallback />}>
     <Component />
   </Suspense>
 );

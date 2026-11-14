@@ -188,6 +188,22 @@
     animation: gs-bar-sheen 1.7s ease-in-out infinite;
   }
 
+  /* A page chunk takes a moment to land after the tab click has already moved
+   * the URL. The loading shell keeps the layout in place; this sweep across the
+   * top edge is what says the wait is real work rather than a frozen frame. */
+  @keyframes gs-route-load {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(400%);
+    }
+  }
+
+  .animate-route-load {
+    animation: gs-route-load 1.15s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
   /* Motion is decoration; the state changes it conveys are all also carried by
    * colour, text and aria. */
   @media (prefers-reduced-motion: reduce) {
@@ -197,7 +213,8 @@
     }
 
     .animate-shimmer,
-    .animate-bar-sheen {
+    .animate-bar-sheen,
+    .animate-route-load {
       animation: none;
       background-image: none;
     }
